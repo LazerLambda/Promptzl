@@ -167,7 +167,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                 max_new_tokens=1
             )
             probs: tensor = self._class_probs(
-                outputs.scores[0].cpu(), self.verbalizer_tok, self.i_dict
+                outputs.scores[0].cpu(), self.verbalizer_tok
             )
             return probs
             # return {v[0]:probs[:, i] for i, v in enumerate(self.verbalizer_raw)}
