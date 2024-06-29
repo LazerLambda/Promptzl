@@ -51,7 +51,7 @@ class TestPromptzel:
                 model = AutoModelForCausalLM.from_pretrained(model_id)
 
         test = promptzl.LLM4ForPatternExploitationClassification(
-            model, tokenizer, generate, verbalizer=[["bad"], ["good"]]
+            model, tokenizer, [["bad"], ["good"]], generate
         )
         return test, device
 
@@ -189,5 +189,5 @@ class TestPromptzel:
 
         with pytest.raises(Exception):
             test = promptzl.LLM4ForPatternExploitationClassification(
-                model, tokenizer, False, verbalizer=[["bad"], ["good"]]
+                model, tokenizer, [["bad"], ["good"]], False
             )
