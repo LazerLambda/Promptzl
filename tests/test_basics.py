@@ -96,6 +96,7 @@ class TestPromptzel:
         for batch in dataloader:
             batch = {k: v.to(device) for k, v in batch.items()}
             output = promptzl.forward(batch)
+            assert output.shape[0] == len(batch['input_ids']) and output.shape[1] == 2
             pytest.approx(len(batch), torch.sum(output), abs=0.1)
 
     def test_sample_wo_pattern_mlm(self):
@@ -133,6 +134,7 @@ class TestPromptzel:
         for batch in dataloader:
             batch = {k: v.to(device) for k, v in batch.items()}
             output = promptzl.forward(batch)
+            assert output.shape[0] == len(batch['input_ids']) and output.shape[1] == 2
             pytest.approx(len(batch), torch.sum(output), abs=0.1)
 
     def test_sample_wo_pattern_mlm_no_masks(self):
