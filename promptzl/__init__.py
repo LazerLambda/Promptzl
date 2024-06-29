@@ -1,4 +1,4 @@
-"""Promptzl, 2023.
+"""Promptzl, 2024.
 
 MIT LICENSE
 """
