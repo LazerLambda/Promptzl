@@ -21,15 +21,7 @@ class TestPromptzel:
     #     x = pattern.get_prompt_single({'data': test.tokenizer.encode("Das war nicht gut!")})
     #     print(x)
     #     print(test.tokenizer.decode(x))
-
-    def test_sample_wo_pattern(self):
-        test = promptzl.LLM4ForPatternExploitationClassification(
-            "sshleifer/tiny-gpt2",
-            verbalizer=[["bad"], ["good"]],
-            device_map="auto",
-            load_in_8bit=True,
-        )
-        reviews = [
+    sample_data = [
             "The pizza was horribe and the staff rude. Won't recommend.",
             "The pasta was undercooked and the service was slow. Not going back.",
             "The salad was wilted and the waiter was dismissive. Avoid at all costs.",
@@ -42,8 +34,22 @@ class TestPromptzel:
             "The chicken was dry and the vegetables were overcooked. A poor dining experience.",
         ]
 
+    def test_sample_wo_pattern_autoregressive(self):
+        if torch.cuda.is_available():
+            test = promptzl.LLM4ForPatternExploitationClassification(
+                "sshleifer/tiny-gpt2",
+                verbalizer=[["bad"], ["good"]],
+                device_map="auto",
+                load_in_8bit=True,
+            )
+        else:
+            test = promptzl.LLM4ForPatternExploitationClassification(  ## TODO: Check individualiy
+                "sshleifer/tiny-gpt2",
+                verbalizer=[["bad"], ["good"]]
+            )
+
         # Convert the list to a Hugging Face Dataset
-        dataset = Dataset.from_dict({"text": reviews})
+        dataset = Dataset.from_dict({"text": self.sample_data})
 
         test.tokenizer.padding_side = "left"
         # Assuming 'test.tokenizer' is your tokenizer object
@@ -86,3 +92,48 @@ class TestPromptzel:
             batch = {k: v.to("cuda") for k, v in batch.items()}
             output = test.forward(batch)
             pytest.approx(len(batch), torch.sum(output), abs=0.1)
+
+    def test_sample_wo_pattern_mlm(self):
+        if torch.cuda.is_available():
+            test = promptzl.LLM4ForPatternExploitationClassification(
+                "nreimers/BERT-Tiny_L-2_H-128_A-2",
+                verbalizer=[["bad"], ["good"]]
+            )
+        else:
+            test = promptzl.LLM4ForPatternExploitationClassification(  ## TODO: Check individualiy
+                "nreimers/BERT-Tiny_L-2_H-128_A-2",
+                verbalizer=[["bad"], ["good"]]
+            )
+
+        # Convert the list to a Hugging Face Dataset
+        dataset = Dataset.from_dict({"text": self.sample_data})
+
+        # Now, you can safely set the pad_token_id (though it should be automatically set by the above step)
+        test.tokenizer.pad_token_id = test.tokenizer.convert_tokens_to_ids(
+            test.tokenizer.pad_token
+        )
+
+        # Tokenize the dataset
+        def tokenize_function(examples):
+            return test.tokenizer(
+                list(
+                    map(
+                        lambda e: e[0] + e[1],
+                        zip(
+                            examples["text"],
+                            [" This review is [MASK] "] * len(examples["text"]),
+                        ),
+                    )
+                ),
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt",
+            )
+
+        tokenized_dataset = dataset.map(
+            tokenize_function, batched=True, remove_columns=["text"]
+        )
+        tokenized_dataset.set_format(
+            type="torch", columns=["input_ids", "attention_mask"]
+        )
+        dataloader = DataLoader(tokenized_dataset, batch_size=100)

@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import tensor
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoModelForMaskedLM, AutoTokenizer
 from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
@@ -52,14 +52,22 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
             self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
                 pretrained_model_name_or_path
             )
-            self.model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(
-                pretrained_model_name_or_path, **kwargs
-            )
+            self.model: PreTrainedModel = self._load_model(pretrained_model_name_or_path, **kwargs)
         elif isinstance(pretrained_model_name_or_path, PreTrainedModel):
             self.tokenizer = (
                 pretrained_model_name_or_path.tokenizer
             )  # TODO: Check tihs case and if this works (Copilot suggestion)
             self.model = pretrained_model_name_or_path
+
+        self._can_generate: bool = False
+        if self.model.can_generate():
+            self._can_generate = True
+        
+        if not self._can_generate:
+            if not hasattr(self.tokenizer, "mask_token_id"):
+                raise ValueError(
+                    "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
+                )  # TODO test this case
 
         if self.use_pattern:
             self.prompt: Optional[Pattern] = prompt
@@ -68,6 +76,29 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         self.verbalizer_tok, self.i_dict = self._get_verbalizer(
             verbalizer, self.tokenizer
         )
+
+    def _load_model(self, model_id: str, **kwargs) -> PreTrainedModel:
+        model: Optional[PreTrainedModel] = None
+        try:
+            model = AutoModelForCausalLM.from_pretrained(
+                model_id, **kwargs
+            )
+        except:
+            pass
+            # TODO: logging?
+
+        if model is not None:
+            return model
+        
+        try:
+            model = AutoModelForMaskedLM.from_pretrained(
+                model_id, **kwargs)
+        except Exception as e:
+            raise ValueError(f'Model {model_id} is not supported! Error:\n{e}')
+        return model
+        
+            
+
 
     def calibrate(self, support_set: Any) -> None:  # TODO: Add detailed description.
         """Calibrate the model.
@@ -149,28 +180,36 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         :param batch: The input batch.
         :return: The class probabilities.
         """
-        if self.use_pattern:
-            batch = self.prompt.get_prompt_batch(batch)
-            # TODO Temperature
-            outputs = self.model.generate(
-                input_ids=batch,
-                output_scores=True,
-                return_dict_in_generate=True,
-                max_new_tokens=2,
-            )
-            return outputs
+        if self._can_generate:
+            if self.use_pattern:
+                batch = self.prompt.get_prompt_batch(batch)
+                # TODO Temperature
+                outputs = self.model.generate(
+                    input_ids=batch,
+                    output_scores=True,
+                    return_dict_in_generate=True,
+                    max_new_tokens=2,
+                )
+                return outputs
+            else:
+                outputs: GenerateDecoderOnlyOutput = self.model.generate(
+                    **batch,
+                    output_scores=True,
+                    return_dict_in_generate=True,
+                    max_new_tokens=1
+                )
+                probs: tensor = self._class_probs(
+                    outputs.scores[0].cpu(), self.verbalizer_tok
+                )
+                return probs
+                # return {v[0]:probs[:, i] for i, v in enumerate(self.verbalizer_raw)}
         else:
-            outputs: GenerateDecoderOnlyOutput = self.model.generate(
-                **batch,
-                output_scores=True,
-                return_dict_in_generate=True,
-                max_new_tokens=1
-            )
-            probs: tensor = self._class_probs(
-                outputs.scores[0].cpu(), self.verbalizer_tok
-            )
+            # TODO: Check mask in data.
+            mask_index = torch.where(batch["input_ids"] == self.tokenizer.mask_token_id)[1]  # TODO Check if tokneizer has mask token on init
+            outputs = self.model(**batch)
+            logits = outputs.logits[range(mask_index.shape[0]), mask_index].cpu()
+            probs = self._class_probs(logits, self.verbalizer_tok)
             return probs
-            # return {v[0]:probs[:, i] for i, v in enumerate(self.verbalizer_raw)}
 
     def __del__(self):
         """Delete the model."""
