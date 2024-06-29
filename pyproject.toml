@@ -31,6 +31,9 @@ dependencies = [
     "bitsandbytes>=0.43.1"
 ]
 
+[tool.setuptools]
+packages = ["promptzl"]
+
 
 [project.urls]
 homepage = "https://github.com/LazerLambda/Promptzl"
