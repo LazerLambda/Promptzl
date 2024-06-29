@@ -136,31 +136,18 @@ class TestPromptzel:
             pytest.approx(len(batch), torch.sum(output), abs=0.1)
 
     def test_sample_wo_pattern_mlm_no_masks(self):
-        device = "cpu"
         model_id = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 
-        if torch.cuda.is_available():
-            device = "cuda"
-
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
-        if torch.cuda.is_available():
-            model = AutoModelForMaskedLM.from_pretrained(model_id)
-            model.to(device)
-        else:
-            model = AutoModelForMaskedLM.from_pretrained(model_id)
-
-        test = promptzl.LLM4ForPatternExploitationClassification(
-            model, tokenizer, False, verbalizer=[["bad"], ["good"]]
-        )
+        promptzl, device = self._init_promptzl(model_id, False)
 
         dataset = Dataset.from_dict({"text": self.sample_data})
-        test.tokenizer.pad_token_id = test.tokenizer.convert_tokens_to_ids(
-            test.tokenizer.pad_token
+        promptzl.tokenizer.pad_token_id = promptzl.tokenizer.convert_tokens_to_ids(
+            promptzl.tokenizer.pad_token
         )
 
         # Tokenize the dataset
         def tokenize_function(examples):
-            return test.tokenizer(
+            return promptzl.tokenizer(
                 list(
                     map(
                         lambda e: e[0] + e[1],
@@ -182,12 +169,12 @@ class TestPromptzel:
             type="torch", columns=["input_ids", "attention_mask"]
         )
         dataloader = DataLoader(tokenized_dataset, batch_size=100)
-        test.model.to(device)
+        promptzl.model.to(device)
 
         with pytest.raises(Exception):
             for batch in dataloader:
                 batch = {k: v.to(device) for k, v in batch.items()}
-                output = test.forward(batch)
+                output = promptzl.forward(batch)
 
     def test_sample_wo_pattern_mlm_no_mask_token(self):
         device = "cpu"
