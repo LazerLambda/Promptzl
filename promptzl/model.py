@@ -25,8 +25,8 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizerBase,  # TODO Check types
-        generate: bool,
         verbalizer: List[List[str]],
+        generate: bool,
         prompt: Optional[Pattern] = None,
         *args,
         **kwargs,
@@ -37,8 +37,8 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
 
         :param model: The model to be used. It is a pretrained model from the Huggingface Transformers library.
         :param tokenizer: The tokenizer to be used. It is a pretrained tokenizer from the Huggingface Transformers library.
-        :param generate: A flag to determine if the model is autoregressive and can _generate_ or not. If not, the model is treated as a masked language model.
         :param verbalizer: The verbalizer to be used. It is a list of lists of strings. Each list of strings represents a class.
+        :param generate: A flag to determine if the model is autoregressive and can _generate_ or not. If not, the model is treated as a masked language model.
             E.g.: `[["good"], ["bad"]]`, `[["good", "positive"], ["bad", "negative"]]`
         :param prompt: The prompt to be used. If None, the model will be used without a prompt. This case requires the data to be preprocessed.
         :param kwargs: Additional keyword arguments to be passed to the model.
