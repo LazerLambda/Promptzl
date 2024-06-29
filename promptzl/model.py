@@ -3,12 +3,10 @@
 MIT LICENSE
 """
 
-import os
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import torch
 from torch import tensor
-from transformers import AutoModelForCausalLM, AutoModelForMaskedLM, AutoTokenizer
 from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
@@ -37,7 +35,9 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
 
         Build the class based on the desired use case determined by the arguments.
 
-        :param pretrained_model_name_or_path: The model to be used.
+        :param model: The model to be used. It is a pretrained model from the Huggingface Transformers library.
+        :param tokenizer: The tokenizer to be used. It is a pretrained tokenizer from the Huggingface Transformers library.
+        :param generate: A flag to determine if the model is autoregressive and can _generate_ or not. If not, the model is treated as a masked language model.
         :param verbalizer: The verbalizer to be used. It is a list of lists of strings. Each list of strings represents a class.
             E.g.: `[["good"], ["bad"]]`, `[["good", "positive"], ["bad", "negative"]]`
         :param prompt: The prompt to be used. If None, the model will be used without a prompt. This case requires the data to be preprocessed.
@@ -71,22 +71,22 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
             verbalizer, self.tokenizer
         )
 
-    def _load_model(self, model_id: str, **kwargs) -> PreTrainedModel:
-        model: Optional[PreTrainedModel] = None
-        try:
-            model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
-        except:
-            pass
-            # TODO: logging?
+    # def _load_model(self, model_id: str, **kwargs) -> PreTrainedModel:
+    #     model: Optional[PreTrainedModel] = None
+    #     try:
+    #         model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
+    #     except:
+    #         pass
+    #         # TODO: logging?
 
-        if model is not None:
-            return model
+    #     if model is not None:
+    #         return model
 
-        try:
-            model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
-        except Exception as e:
-            raise ValueError(f"Model {model_id} is not supported! Error:\n{e}")
-        return model
+    #     try:
+    #         model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
+    #     except Exception as e:
+    #         raise ValueError(f"Model {model_id} is not supported! Error:\n{e}")
+    #     return model
 
     def calibrate(self, support_set: Any) -> None:  # TODO: Add detailed description.
         """Calibrate the model.
