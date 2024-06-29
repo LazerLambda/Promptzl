@@ -23,14 +23,15 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
     classifier.
     """
 
-    # TODO Option no pattern
     def __init__(
         self,
-        pretrained_model_name_or_path: Union[str, os.PathLike, PreTrainedModel],
+        model: PreTrainedModel,
+        tokenizer: PreTrainedTokenizerBase,  # TODO Check types
+        generate: bool,
         verbalizer: List[List[str]],
         prompt: Optional[Pattern] = None,
         *args,
-        **kwargs
+        **kwargs,
     ):
         """Initialize Class.
 
@@ -46,23 +47,16 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         self.verbalizer_raw: List[List[str]] = verbalizer
         self.use_pattern: bool = prompt is not None
 
-        if isinstance(pretrained_model_name_or_path, str) or isinstance(
-            pretrained_model_name_or_path, os.PathLike
-        ):
-            self.tokenizer: PreTrainedTokenizerBase = AutoTokenizer.from_pretrained(
-                pretrained_model_name_or_path
-            )
-            self.model: PreTrainedModel = self._load_model(pretrained_model_name_or_path, **kwargs)
-        elif isinstance(pretrained_model_name_or_path, PreTrainedModel):
-            self.tokenizer = (
-                pretrained_model_name_or_path.tokenizer
-            )  # TODO: Check tihs case and if this works (Copilot suggestion)
-            self.model = pretrained_model_name_or_path
+        self.tokenizer: PreTrainedTokenizerBase = tokenizer
+        self.model: PreTrainedModel = model
 
-        self._can_generate: bool = False
-        if self.model.can_generate():
-            self._can_generate = True
-        
+        self._can_generate: bool = generate
+        if not self._can_generate:
+            if self.tokenizer.mask_token_id is None:
+                raise ValueError(
+                    "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
+                )
+
         if not self._can_generate:
             if not hasattr(self.tokenizer, "mask_token_id"):
                 raise ValueError(
@@ -80,25 +74,19 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
     def _load_model(self, model_id: str, **kwargs) -> PreTrainedModel:
         model: Optional[PreTrainedModel] = None
         try:
-            model = AutoModelForCausalLM.from_pretrained(
-                model_id, **kwargs
-            )
+            model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
         except:
             pass
             # TODO: logging?
 
         if model is not None:
             return model
-        
-        try:
-            model = AutoModelForMaskedLM.from_pretrained(
-                model_id, **kwargs)
-        except Exception as e:
-            raise ValueError(f'Model {model_id} is not supported! Error:\n{e}')
-        return model
-        
-            
 
+        try:
+            model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
+        except Exception as e:
+            raise ValueError(f"Model {model_id} is not supported! Error:\n{e}")
+        return model
 
     def calibrate(self, support_set: Any) -> None:  # TODO: Add detailed description.
         """Calibrate the model.
@@ -196,7 +184,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                     **batch,
                     output_scores=True,
                     return_dict_in_generate=True,
-                    max_new_tokens=1
+                    max_new_tokens=1,
                 )
                 probs: tensor = self._class_probs(
                     outputs.scores[0].cpu(), self.verbalizer_tok
@@ -204,8 +192,12 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                 return probs
                 # return {v[0]:probs[:, i] for i, v in enumerate(self.verbalizer_raw)}
         else:
-            # TODO: Check mask in data.
-            mask_index = torch.where(batch["input_ids"] == self.tokenizer.mask_token_id)[1]  # TODO Check if tokneizer has mask token on init
+            mask_index = torch.where(
+                batch["input_ids"] == self.tokenizer.mask_token_id
+            )[1]
+            assert (
+                mask_index.shape[0] == batch["input_ids"].shape[0]
+            ), "Mask token not found in input!"
             outputs = self.model(**batch)
             logits = outputs.logits[range(mask_index.shape[0]), mask_index].cpu()
             probs = self._class_probs(logits, self.verbalizer_tok)
