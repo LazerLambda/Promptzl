@@ -3,7 +3,7 @@
 MIT LICENSE
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import tensor
@@ -160,7 +160,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         # class_probs_combined: Dict[str, torch.Tensor] = {k:torch.sum(out_res[:, v], axis=-1) for k, v in i_dict.items()}
         # return class_probs_combined
 
-    def forward(self, batch: Dict[str, tensor]) -> tensor:
+    def forward(self, batch: Dict[str, tensor], return_model_output: bool = False) -> Union[tensor, Tuple[tensor, Any]]:
         """Forward pass.
 
         Perform the forward pass of the model. The model generates the output based on the input batch.
@@ -170,27 +170,32 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         """
         if self._can_generate:
             if self.use_pattern:
-                batch = self.prompt.get_prompt_batch(batch)
-                # TODO Temperature
-                outputs = self.model.generate(
-                    input_ids=batch,
-                    output_scores=True,
-                    return_dict_in_generate=True,
-                    max_new_tokens=2,
-                )
-                return outputs
+                pass  # TODO
+                # batch = self.prompt.get_prompt_batch(batch)
+                # # TODO Temperature
+                # outputs = self.model.generate(
+                #     input_ids=batch,
+                #     output_scores=True,
+                #     return_dict_in_generate=True,
+                #     max_new_tokens=2,
+                # )
+                # if return_model_output:
+                #     return outputs, outputs
+                # return outputs
             else:
                 outputs: GenerateDecoderOnlyOutput = self.model.generate(
                     **batch,
                     output_scores=True,
                     return_dict_in_generate=True,
-                    max_new_tokens=1,
+                    max_new_tokens=1,  # TODO temperature
                 )
                 probs: tensor = self._class_probs(
                     outputs.scores[0].cpu(), self.verbalizer_tok
                 )
-                return probs
-                # return {v[0]:probs[:, i] for i, v in enumerate(self.verbalizer_raw)}
+                if return_model_output:
+                    return probs, outputs
+                else:
+                    return probs
         else:
             mask_index = torch.where(
                 batch["input_ids"] == self.tokenizer.mask_token_id
