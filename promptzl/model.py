@@ -71,6 +71,8 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
             verbalizer, self.tokenizer
         )
 
+        self.calibration_logits: Optional[torch.tensor] = None
+
     # def _load_model(self, model_id: str, **kwargs) -> PreTrainedModel:
     #     model: Optional[PreTrainedModel] = None
     #     try:
@@ -93,12 +95,19 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
 
         Calibration based on https://aclanthology.org/2022.acl-long.158/. Get the distribution from
         the distribution. After obtaining the distribution, a flag will be set to calibrate during
-        inference.
+        inference. Function taken form [OpenPrompt])().  TODO: Finde URL
 
         :param support_set: The support set to be used for calibration.
         """
         # TODO
-        pass
+        all_logits: List[torch.tensor] = []
+        self.model.eval()
+        for batch in support_set:
+            batch = {k:v.to(self.model.device) for k, v in batch.items()}
+            logits: torch.tensor = self.forward(batch)
+            all_logits.append(logits.detach())
+        all_logits = torch.cat(all_logits, dim=0)
+        self.calibration_logits = all_logits.mean(dim=0)
 
     def _get_verbalizer(
         self, verbalizer: List[List[str]], tokenizer: Any
@@ -154,6 +163,8 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
             ),
             axis=-1,
         )
+        if self.calibration_logits is not None:
+            pass  # TODO
         out_res = torch.nn.functional.softmax(out_res, dim=1)
         return out_res
         # TODO: verbalizer for labels
