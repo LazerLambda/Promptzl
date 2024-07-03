@@ -51,7 +51,7 @@ class TestPromptzel:
                 model = AutoModelForCausalLM.from_pretrained(model_id)
 
         test = promptzl.LLM4ForPatternExploitationClassification(
-            model, tokenizer, [["bad"], ["good"]], generate
+            model, tokenizer, [["bad", "horrible"], ["good"]], generate
         )
         return test, device
 
@@ -191,3 +191,42 @@ class TestPromptzel:
             test = promptzl.LLM4ForPatternExploitationClassification(
                 model, tokenizer, [["bad"], ["good"]], False
             )
+
+    def test_calibration(self):
+        model_id = "nreimers/BERT-Tiny_L-2_H-128_A-2"
+        promptzl, device = self._init_promptzl(model_id, False)
+
+        dataset = Dataset.from_dict({"text": self.sample_data})
+
+        # Tokenize the dataset
+        def tokenize_function(examples):
+            return promptzl.tokenizer(
+                list(
+                    map(
+                        lambda e: e[0] + e[1],
+                        zip(
+                            examples["text"],
+                            [" This review is [MASK] "] * len(examples["text"]),
+                        ),
+                    )
+                ),
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt",
+            )
+
+        tokenized_dataset = dataset.map(
+            tokenize_function, batched=True, remove_columns=["text"]
+        )
+        tokenized_dataset.set_format(
+            type="torch", columns=["input_ids", "attention_mask"]
+        )
+        dataloader = DataLoader(tokenized_dataset, batch_size=100)
+        promptzl.model.to(device)
+        promptzl.set_contextualized_prior(dataloader)
+
+        for batch in dataloader:
+            batch = {k: v.to(device) for k, v in batch.items()}
+            output = promptzl.forward(batch)
+            assert output.shape[0] == len(batch["input_ids"]) and output.shape[1] == 2
+            pytest.approx(len(batch), torch.sum(output), abs=0.1)

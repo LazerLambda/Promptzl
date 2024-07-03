@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import torch
 from torch import tensor
+from torch.utils.data import DataLoader
 from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
@@ -67,35 +68,16 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
             self.prompt: Optional[Pattern] = prompt
             self.prompt_tok: Any = self.prompt.tokenize(self.tokenizer)
 
-        self.verbalizer_tok, self.i_dict = self._get_verbalizer(
-            verbalizer, self.tokenizer
-        )
+        self.verbalizer_tok, self.i_dict = self._get_verbalizer(verbalizer)
+        self.calibration_probs: Optional[torch.tensor] = None
 
-        self.calibration_logits: Optional[torch.tensor] = None
+    def set_contextualized_prior(self, support_set: DataLoader) -> None:
+        """Compute Contextualized Prior.
 
-    # def _load_model(self, model_id: str, **kwargs) -> PreTrainedModel:
-    #     model: Optional[PreTrainedModel] = None
-    #     try:
-    #         model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
-    #     except:
-    #         pass
-    #         # TODO: logging?
-
-    #     if model is not None:
-    #         return model
-
-    #     try:
-    #         model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
-    #     except Exception as e:
-    #         raise ValueError(f"Model {model_id} is not supported! Error:\n{e}")
-    #     return model
-
-    def calibrate(self, support_set: Any) -> None:  # TODO: Add detailed description.
-        """Calibrate the model.
-
-        Calibration based on https://aclanthology.org/2022.acl-long.158/. Get the distribution from
-        the distribution. After obtaining the distribution, a flag will be set to calibrate during
-        inference. Function taken form [OpenPrompt])().  TODO: Finde URL
+        Compute the contextualized prior form equation (2) based on [Hu et al., 2022](https://aclanthology.org/2022.acl-long.158/).
+        A support set is used to obtain the logits of the model for the labels. The logits are then averaged and normalized (softmax) to obtain
+        the prior.Function taken from [OpenPrompt])(https://thunlp.github.io/OpenPrompt/_modules/openprompt/utils/calibrate.html#calibrate) and
+        adapted for our framework.
 
         :param support_set: The support set to be used for calibration.
         """
@@ -104,27 +86,37 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         self.model.eval()
         for batch in support_set:
             batch = {k:v.to(self.model.device) for k, v in batch.items()}
-            logits: torch.tensor = self.forward(batch)
+            logits: torch.tensor = self.forward(batch, combine = False)
             all_logits.append(logits.detach())
-        all_logits = torch.cat(all_logits, dim=0)
-        self.calibration_logits = all_logits.mean(dim=0)
+        all_logits_combined: torch.tensor = torch.cat(all_logits, dim=0)
+        all_logits_combined = all_logits_combined.mean(dim=0)
+        self.calibration_probs = torch.nn.functional.softmax(all_logits_combined, dim=-1)
+
+    # def calibrate(self, labels_logits: torch.tensor) -> torch.tensor:
+    #     """Calibrate the logits.
+
+    #     Calibrate the logits based on the contextualized prior. The logits are normalized (softmax) and multiplied by the prior.
+
+    #     :param labels_logits: The logits to be calibrated.
+    #     :return: The calibrated logits.
+    #     """
+    #     assert self.calibration_probs is not None, "Calibration logits not set!"
+    #     return labels_logits 
 
     def _get_verbalizer(
-        self, verbalizer: List[List[str]], tokenizer: Any
-    ) -> Tuple[List[List[List[List[int]]]]]:
+        self, verbalizer: List[List[str]]) -> Tuple[List[List[List[List[int]]]], Any]:
         """Prepare verbalizer.
 
         Preprocess the verbalizer to be used in the model. The verbalizer is tokenized and the indexes are stored in a dictionary.
         The indices are further necessary to obtain the logits from the models output.
 
         :param verbalizer: The verbalizer to be used.
-        :param tokenizer: The tokenizer to be used.
         :return: The tokenized verbalizer and the dictionary with the indexes.
         """
         verbalizer_tok: List[List[List[List[int]]]] = list(
             map(
                 lambda elem: [
-                    tokenizer(e, add_special_tokens=False)["input_ids"][0][0]
+                    self.tokenizer(e, add_special_tokens=False)["input_ids"][0][0]
                     for e in elem
                 ],
                 [[[elem] for elem in e] for e in verbalizer],
@@ -132,53 +124,58 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         )
         counter = 0
         i_dict: Dict[Any, Any] = {}
-        for i, e in enumerate(verbalizer):
-            i_dict[i] = []
+        for e in verbalizer:
+            i_dict[e[0]] = []
             for _ in e:
-                i_dict[i].append(counter)
+                i_dict[e[0]].append(counter)
                 counter += 1
         verbalizer_tok_seq: List[int] = [
             item for innerlist in verbalizer_tok for item in innerlist
         ]
         assert len(set(verbalizer_tok_seq)) == len(
             verbalizer_tok_seq
-        ), "Equivalent tokens for different classes detected! This also happens if subwords are equal. Tokens must be unique for each class!"
+        ), "Equivalent tokens for different classes detected! This also happens if subwords are equal. Tokens must be unique for each class!"  # TODO: Consider this in label search!
         return verbalizer_tok, i_dict
 
-    def _class_probs(
-        self, scores: Any, verbalizer_tok: List[List[List[List[int]]]]
-    ) -> tensor:  # TODO: maybe add i_dict or in inference method
+    def _class_probs(self, logits: Any, combine: bool = True) -> tensor:  # TODO: maybe add i_dict or in inference method
         """Get the class probabilities.
 
         Get the class probabilities from the logits. The logits are transformed into probabilities using the softmax function
         based on the indices.
 
-        :param scores: The logits from the model.
+        :param logits: The models logits from the batch.
         :param verbalizer_tok: The tokenized verbalizer.
         :return: The class probabilities.
         """
         out_res: torch.Tensor = torch.cat(
             list(
-                map(lambda i: scores[:, verbalizer_tok[i]], range(len(verbalizer_tok)))
+                map(lambda i: logits[:, self.verbalizer_tok[i]], range(len(self.verbalizer_tok)))
             ),
             axis=-1,
         )
-        if self.calibration_logits is not None:
-            pass  # TODO
         out_res = torch.nn.functional.softmax(out_res, dim=1)
+        if self.calibration_probs is not None:
+            assert self.calibration_probs is not None, "Calibration logits not set!"
+            out_res = out_res / self.calibration_probs
+            out_res = torch.nn.functional.softmax(out_res, dim=1)
+        # TODO: Sum multiple tokens together
+        if combine:
+            out_res = torch.transpose(torch.stack([torch.sum(out_res[:, v], axis=-1) for v in self.i_dict.values()]), 0, 1)
         return out_res
         # TODO: verbalizer for labels
-        # class_probs_combined: Dict[str, torch.Tensor] = {k:torch.sum(out_res[:, v], axis=-1) for k, v in i_dict.items()}
         # return class_probs_combined
 
-    def forward(self, batch: Dict[str, tensor], return_model_output: bool = False) -> Union[tensor, Tuple[tensor, Any]]:
+    def forward(self, batch: Dict[str, tensor], return_model_output: bool = False, combine: bool = True, **kwargs) -> Union[tensor, Tuple[tensor, Any]]:
         """Forward pass.
 
         Perform the forward pass of the model. The model generates the output based on the input batch.
 
         :param batch: The input batch.
+        :param return_model_output: A flag to determine if the model output should be returned.
+        :param combine: A flag to determine if the probabilities for each label word should be combined.
         :return: The class probabilities.
         """
+        logits: Optional[tensor] = None
         if self._can_generate:
             if self.use_pattern:
                 pass  # TODO
@@ -199,14 +196,9 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                     output_scores=True,
                     return_dict_in_generate=True,
                     max_new_tokens=1,  # TODO temperature
+                    **kwargs
                 )
-                probs: tensor = self._class_probs(
-                    outputs.scores[0].cpu(), self.verbalizer_tok
-                )
-                if return_model_output:
-                    return probs, outputs
-                else:
-                    return probs
+                logits = outputs.scores[0].detach().cpu()
         else:
             mask_index = torch.where(
                 batch["input_ids"] == self.tokenizer.mask_token_id
@@ -215,8 +207,12 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                 mask_index.shape[0] == batch["input_ids"].shape[0]
             ), "Mask token not found in input!"
             outputs = self.model(**batch)
-            logits = outputs.logits[range(mask_index.shape[0]), mask_index].cpu()
-            probs = self._class_probs(logits, self.verbalizer_tok)
+            logits = outputs.logits[range(mask_index.shape[0]), mask_index].detach().cpu()
+
+        probs: tensor = self._class_probs(logits, combine=combine)
+        if return_model_output:
+            return probs, outputs
+        else:
             return probs
 
     def __del__(self):
