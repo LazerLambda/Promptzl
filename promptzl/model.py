@@ -66,7 +66,12 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
 
         if self.use_pattern:
             self.prompt: Optional[Pattern] = prompt
-            self.prompt_tok: Any = self.prompt.tokenize(self.tokenizer)
+            assert self.prompt is not None, "Prompt is None!"
+            self.prompt_tok: Any = (
+                self.prompt.tokenize(self.tokenizer)
+                if self.prompt is not None
+                else None
+            )
 
         self.verbalizer_tok, self.i_dict = self._get_verbalizer(verbalizer)
         self.calibration_probs: Optional[torch.tensor] = None
@@ -85,12 +90,14 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         all_logits: List[torch.tensor] = []
         self.model.eval()
         for batch in support_set:
-            batch = {k:v.to(self.model.device) for k, v in batch.items()}
-            logits: torch.tensor = self.forward(batch, combine = False)
+            batch = {k: v.to(self.model.device) for k, v in batch.items()}
+            logits: torch.tensor = self.forward(batch, combine=False)
             all_logits.append(logits.detach())
         all_logits_combined: torch.tensor = torch.cat(all_logits, dim=0)
         all_logits_combined = all_logits_combined.mean(dim=0)
-        self.calibration_probs = torch.nn.functional.softmax(all_logits_combined, dim=-1)
+        self.calibration_probs = torch.nn.functional.softmax(
+            all_logits_combined, dim=-1
+        )
 
     # def calibrate(self, labels_logits: torch.tensor) -> torch.tensor:
     #     """Calibrate the logits.
@@ -101,10 +108,11 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
     #     :return: The calibrated logits.
     #     """
     #     assert self.calibration_probs is not None, "Calibration logits not set!"
-    #     return labels_logits 
+    #     return labels_logits
 
     def _get_verbalizer(
-        self, verbalizer: List[List[str]]) -> Tuple[List[List[List[List[int]]]], Any]:
+        self, verbalizer: List[List[str]]
+    ) -> Tuple[List[List[int]], Dict[str, List[int]]]:
         """Prepare verbalizer.
 
         Preprocess the verbalizer to be used in the model. The verbalizer is tokenized and the indexes are stored in a dictionary.
@@ -113,7 +121,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         :param verbalizer: The verbalizer to be used.
         :return: The tokenized verbalizer and the dictionary with the indexes.
         """
-        verbalizer_tok: List[List[List[List[int]]]] = list(
+        verbalizer_tok: List[List[int]] = list(
             map(
                 lambda elem: [
                     self.tokenizer(e, add_special_tokens=False)["input_ids"][0][0]
@@ -122,8 +130,9 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                 [[[elem] for elem in e] for e in verbalizer],
             )
         )
+
         counter = 0
-        i_dict: Dict[Any, Any] = {}
+        i_dict: Dict[str, List[int]] = {}
         for e in verbalizer:
             i_dict[e[0]] = []
             for _ in e:
@@ -134,10 +143,14 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         ]
         assert len(set(verbalizer_tok_seq)) == len(
             verbalizer_tok_seq
-        ), "Equivalent tokens for different classes detected! This also happens if subwords are equal. Tokens must be unique for each class!"  # TODO: Consider this in label search!
+        ), "Equivalent tokens for different classes detected! This also happens if subwords are equal. Tokens must be unique for each class!"
+        # TODO: Consider this in label search!
+        print(i_dict)
         return verbalizer_tok, i_dict
 
-    def _class_probs(self, logits: Any, combine: bool = True) -> tensor:  # TODO: maybe add i_dict or in inference method
+    def _class_probs(
+        self, logits: Any, combine: bool = True
+    ) -> tensor:  # TODO: maybe add i_dict or in inference method
         """Get the class probabilities.
 
         Get the class probabilities from the logits. The logits are transformed into probabilities using the softmax function
@@ -149,7 +162,10 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         """
         out_res: torch.Tensor = torch.cat(
             list(
-                map(lambda i: logits[:, self.verbalizer_tok[i]], range(len(self.verbalizer_tok)))
+                map(
+                    lambda i: logits[:, self.verbalizer_tok[i]],
+                    range(len(self.verbalizer_tok)),
+                )
             ),
             axis=-1,
         )
@@ -160,12 +176,24 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
             out_res = torch.nn.functional.softmax(out_res, dim=1)
         # TODO: Sum multiple tokens together
         if combine:
-            out_res = torch.transpose(torch.stack([torch.sum(out_res[:, v], axis=-1) for v in self.i_dict.values()]), 0, 1)
+            out_res = torch.transpose(
+                torch.stack(
+                    [torch.sum(out_res[:, v], axis=-1) for v in self.i_dict.values()]
+                ),
+                0,
+                1,
+            )
         return out_res
         # TODO: verbalizer for labels
         # return class_probs_combined
 
-    def forward(self, batch: Dict[str, tensor], return_model_output: bool = False, combine: bool = True, **kwargs) -> Union[tensor, Tuple[tensor, Any]]:
+    def forward(
+        self,
+        batch: Dict[str, tensor],
+        return_model_output: bool = False,
+        combine: bool = True,
+        **kwargs,
+    ) -> Union[tensor, Tuple[tensor, Any]]:
         """Forward pass.
 
         Perform the forward pass of the model. The model generates the output based on the input batch.
@@ -196,7 +224,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                     output_scores=True,
                     return_dict_in_generate=True,
                     max_new_tokens=1,  # TODO temperature
-                    **kwargs
+                    **kwargs,
                 )
                 logits = outputs.scores[0].detach().cpu()
         else:
@@ -207,7 +235,9 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                 mask_index.shape[0] == batch["input_ids"].shape[0]
             ), "Mask token not found in input!"
             outputs = self.model(**batch)
-            logits = outputs.logits[range(mask_index.shape[0]), mask_index].detach().cpu()
+            logits = (
+                outputs.logits[range(mask_index.shape[0]), mask_index].detach().cpu()
+            )
 
         probs: tensor = self._class_probs(logits, combine=combine)
         if return_model_output:
