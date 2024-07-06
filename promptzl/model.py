@@ -160,6 +160,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         :param verbalizer_tok: The tokenized verbalizer.
         :return: The class probabilities.
         """
+        # TODO: Check if single and if yes unsqueeze
         out_res: torch.Tensor = torch.cat(
             list(
                 map(
@@ -228,15 +229,16 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                 )
                 logits = outputs.scores[0].detach().cpu()
         else:
-            mask_index = torch.where(
+            mask_index_batch, mask_index_tok = torch.where(
                 batch["input_ids"] == self.tokenizer.mask_token_id
-            )[1]
+            )
             assert (
-                mask_index.shape[0] == batch["input_ids"].shape[0]
+                mask_index_tok.shape[0] == batch["input_ids"].shape[0]
             ), "Mask token not found in input!"
             outputs = self.model(**batch)
+            # TODO: CHeck if this is correct
             logits = (
-                outputs.logits[range(mask_index.shape[0]), mask_index].detach().cpu()
+                outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
             )
 
         probs: tensor = self._class_probs(logits, combine=combine)
