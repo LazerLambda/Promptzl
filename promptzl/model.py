@@ -73,7 +73,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                 else None
             )
 
-        self.verbalizer_tok, self.i_dict = self._get_verbalizer(verbalizer)
+        self.verbalizer_tok, self.i_dict = self._get_verbalizer(verbalizer) # TODO: Warning if only one class provicded or error if verbalizer is not List[List[str]]
         self.calibration_probs: Optional[torch.tensor] = None
 
     def set_contextualized_prior(self, support_set: DataLoader) -> None:
@@ -91,7 +91,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         self.model.eval()
         for batch in support_set:
             batch = {k: v.to(self.model.device) for k, v in batch.items()}
-            logits: torch.tensor = self.forward(batch, combine=False)
+            logits: torch.tensor = self.forward(batch, combine=False)  # TODO predict method with smart batching
             all_logits.append(logits.detach())
         all_logits_combined: torch.tensor = torch.cat(all_logits, dim=0)
         all_logits_combined = all_logits_combined.mean(dim=0)
@@ -160,6 +160,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         :param verbalizer_tok: The tokenized verbalizer.
         :return: The class probabilities.
         """
+        # TODO: Check if single and if yes unsqueeze
         out_res: torch.Tensor = torch.cat(
             list(
                 map(
@@ -228,15 +229,16 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                 )
                 logits = outputs.scores[0].detach().cpu()
         else:
-            mask_index = torch.where(
+            mask_index_batch, mask_index_tok = torch.where(
                 batch["input_ids"] == self.tokenizer.mask_token_id
-            )[1]
+            )
             assert (
-                mask_index.shape[0] == batch["input_ids"].shape[0]
+                mask_index_tok.shape[0] == batch["input_ids"].shape[0]
             ), "Mask token not found in input!"
             outputs = self.model(**batch)
+            # TODO: CHeck if this is correct
             logits = (
-                outputs.logits[range(mask_index.shape[0]), mask_index].detach().cpu()
+                outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
             )
 
         probs: tensor = self._class_probs(logits, combine=combine)
