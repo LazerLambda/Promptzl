@@ -73,7 +73,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
                 else None
             )
 
-        self.verbalizer_tok, self.i_dict = self._get_verbalizer(verbalizer)
+        self.verbalizer_tok, self.i_dict = self._get_verbalizer(verbalizer) # TODO: Warning if only one class provicded or error if verbalizer is not List[List[str]]
         self.calibration_probs: Optional[torch.tensor] = None
 
     def set_contextualized_prior(self, support_set: DataLoader) -> None:
@@ -91,7 +91,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         self.model.eval()
         for batch in support_set:
             batch = {k: v.to(self.model.device) for k, v in batch.items()}
-            logits: torch.tensor = self.forward(batch, combine=False)
+            logits: torch.tensor = self.forward(batch, combine=False)  # TODO predict method with smart batching
             all_logits.append(logits.detach())
         all_logits_combined: torch.tensor = torch.cat(all_logits, dim=0)
         all_logits_combined = all_logits_combined.mean(dim=0)
