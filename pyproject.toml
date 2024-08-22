@@ -9,7 +9,8 @@ version = "0.0.1"
 description = "Promptzl - LLMs as Classifiers"
 readme = "README.md"
 authors = [
-    { name = "Philipp Koch", email = "PhillKoch@protonmail.com" }
+    { name = "Philipp Koch", email = "PhillKoch@protonmail.com" },
+    { name = "Martin Ivanov", email = "yxoozo@gmail.com"}
 ]
 license = { file = "LICENSE" }
 keywords = ["llm", "nlp", "transformers", "classifiers", "predictive modeling"]
