@@ -145,11 +145,10 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
             verbalizer_tok_seq
         ), "Equivalent tokens for different classes detected! This also happens if subwords are equal. Tokens must be unique for each class!"
         # TODO: Consider this in label search!
-        print(i_dict)
         return verbalizer_tok, i_dict
 
     def _class_probs(
-        self, logits: Any, combine: bool = True
+        self, logits: Any, combine: bool = True, return_logits= False
     ) -> tensor:  # TODO: maybe add i_dict or in inference method
         """Get the class probabilities.
 
@@ -173,13 +172,19 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         out_res = torch.nn.functional.softmax(out_res, dim=1)
         if self.calibration_probs is not None:
             assert self.calibration_probs is not None, "Calibration logits not set!"
-            out_res = out_res / self.calibration_probs
-            out_res = torch.nn.functional.softmax(out_res, dim=1)
+            shape = out_res.shape
+            out_res = out_res / (self.calibration_probs + 1e-15)
+            norm = out_res.reshape(shape[0], -1).sum(dim=-1,keepdim=True)
+            out_res = out_res.reshape(shape[0], -1) / norm
+            out_res = out_res.reshape(*shape)
+            # out_res = out_res / self.calibration_probs
+            # out_res = torch.nn.functional.softmax(out_res, dim=1)
         # TODO: Sum multiple tokens together
+        out_res = torch.log(out_res) if return_logits else out_res
         if combine:
             out_res = torch.transpose(
                 torch.stack(
-                    [torch.sum(out_res[:, v], axis=-1) for v in self.i_dict.values()]
+                    [torch.sum(out_res[:, v], axis=-1)/len(v) for v in self.i_dict.values()]
                 ),
                 0,
                 1,
@@ -193,6 +198,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         batch: Dict[str, tensor],
         return_model_output: bool = False,
         combine: bool = True,
+        return_logits: bool = False,
         **kwargs,
     ) -> Union[tensor, Tuple[tensor, Any]]:
         """Forward pass.
@@ -240,8 +246,7 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
             logits = (
                 outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
             )
-
-        probs: tensor = self._class_probs(logits, combine=combine)
+        probs: tensor = self._class_probs(logits, combine=combine, return_logits=return_logits)
         if return_model_output:
             return probs, outputs
         else:
