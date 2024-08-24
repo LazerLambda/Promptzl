@@ -19,7 +19,7 @@ class TestOPClassify:
 
     sample_data = [
         "Albert Einstein was one of the greatest intellects of his time.",
-        "The film was badly made."
+        "The film was badly made.",
     ]
 
     def _init_promptzl(self, model_id, generate):
