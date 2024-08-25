@@ -42,7 +42,7 @@ class TestOPClassify:
             else:
                 model = AutoModelForCausalLM.from_pretrained(model_id)
 
-        test = promptzl.LLM4ForPatternExploitationClassification(
+        test = promptzl.LLM4ClassificationBase(
             model, tokenizer, [["bad"], ["good", "wonderful", "great"]], generate
         )
         return test, device
@@ -83,10 +83,4 @@ class TestOPClassify:
             batch = {k: v.to(device) for k, v in batch.items()}
             output = promptzl.forward(batch, return_logits=True)
             expected_output_op = torch.tensor([[-2.8208, -1.5331], [-0.4941, -2.2750]])
-            print(output.tolist())
-            print(expected_output_op.tolist())
-            print(output - expected_output_op)
-            print(output == expected_output_op)
             assert output == pytest.approx(expected_output_op, abs=1e-4)
-            # assert output.shape[0] == len(batch["input_ids"]) and output.shape[1] == 2
-            # pytest.approx(len(batch), torch.sum(output), abs=0.1)

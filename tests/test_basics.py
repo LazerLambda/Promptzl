@@ -50,7 +50,7 @@ class TestPromptzel:
             else:
                 model = AutoModelForCausalLM.from_pretrained(model_id)
 
-        test = promptzl.LLM4ForPatternExploitationClassification(
+        test = promptzl.LLM4ClassificationBase(
             model, tokenizer, [["bad", "horrible"], ["good"]], generate
         )
         return test, device
@@ -188,7 +188,7 @@ class TestPromptzel:
         model = AutoModelForMaskedLM.from_pretrained(model_id)
 
         with pytest.raises(Exception):
-            test = promptzl.LLM4ForPatternExploitationClassification(
+            test = promptzl.LLM4ClassificationBase(
                 model, tokenizer, [["bad"], ["good"]], False
             )
 
@@ -230,3 +230,75 @@ class TestPromptzel:
             output = promptzl.forward(batch)
             assert output.shape[0] == len(batch["input_ids"]) and output.shape[1] == 2
             pytest.approx(len(batch), torch.sum(output), abs=0.1)
+
+    def test_simple_mlm_classification(self):
+        model = promptzl.MLM4Classification(
+            "nreimers/BERT-Tiny_L-2_H-128_A-2", [["bad", "horrible"], ["good"]]
+        )
+        dataset = Dataset.from_dict({"text": self.sample_data})
+
+        # Tokenize the dataset
+        def tokenize_function(examples):
+            return model.tokenizer(
+                list(
+                    map(
+                        lambda e: e[0] + e[1],
+                        zip(
+                            examples["text"],
+                            [" This review is [MASK] "] * len(examples["text"]),
+                        ),
+                    )
+                ),
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt",
+            )
+
+        tokenized_dataset = dataset.map(
+            tokenize_function, batched=True, remove_columns=["text"]
+        )
+        tokenized_dataset.set_format(
+            type="torch", columns=["input_ids", "attention_mask"]
+        )
+        model.classify(tokenized_dataset)
+        model.classify(tokenized_dataset, batch_size=2)
+        model.classify(tokenized_dataset, batch_size=2, show_progress_bar=True)
+        model.classify(tokenized_dataset, return_type="list")
+        model.classify(tokenized_dataset, return_type="pandas")
+        model.classify(tokenized_dataset, return_type="numpy")
+
+    def test_simple_mlm_classification(self):
+        model = promptzl.CausalModel4Classification(
+            "sshleifer/tiny-gpt2", [["bad", "horrible"], ["good"]]
+        )
+        dataset = Dataset.from_dict({"text": self.sample_data})
+
+        # Tokenize the dataset
+        def tokenize_function(examples):
+            return model.tokenizer(
+                list(
+                    map(
+                        lambda e: e[0] + e[1],
+                        zip(
+                            examples["text"],
+                            [" This review is [MASK] "] * len(examples["text"]),
+                        ),
+                    )
+                ),
+                padding="max_length",
+                truncation=True,
+                return_tensors="pt",
+            )
+
+        tokenized_dataset = dataset.map(
+            tokenize_function, batched=True, remove_columns=["text"]
+        )
+        tokenized_dataset.set_format(
+            type="torch", columns=["input_ids", "attention_mask"]
+        )
+        model.classify(tokenized_dataset)
+        model.classify(tokenized_dataset, batch_size=2)
+        model.classify(tokenized_dataset, batch_size=2, show_progress_bar=True)
+        model.classify(tokenized_dataset, return_type="list")
+        model.classify(tokenized_dataset, return_type="pandas")
+        model.classify(tokenized_dataset, return_type="numpy")

@@ -5,9 +5,12 @@ MIT LICENSE
 
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import pandas as pd
 import torch
 from torch import tensor
 from torch.utils.data import DataLoader
+from tqdm import tqdm
+from transformers import AutoModelForCausalLM, AutoModelForMaskedLM, AutoTokenizer
 from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
@@ -15,7 +18,7 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 from .pattern import Pattern
 
 
-class LLM4ForPatternExploitationClassification(torch.nn.Module):
+class LLM4ClassificationBase(torch.nn.Module):
     """Class for Pattern Exploitatoin Classificatoin.
 
     This class handles the underlying model and the inference mechanism. It aims to tranform a LLM into a
@@ -259,7 +262,74 @@ class LLM4ForPatternExploitationClassification(torch.nn.Module):
         else:
             return probs
 
+    def classify(
+        self,
+        dataset,
+        batch_size=100,
+        show_progress_bar=False,
+        return_logits=False,
+        return_type="torch",
+        **kwargs,
+    ):
+        """Classify the dataset.
+
+        Classify the dataset based on the model. The dataset is tokenized and the model is used to classify the data.
+
+        :param dataset: The dataset to be classified.
+        :param batch_size: The batch size to be used for classification.
+        :param show_progress_bar: A flag to determine if the progress should be shown.
+        :param **kwargs: Additional arguments for the forward function passed to the model.
+        :return: The class probabilities.
+        """
+        assert return_type in [
+            "list",
+            "torch",
+            "numpy",
+            "pandas",
+        ], "`return_type` must be: 'list', 'numpy', 'torch' or 'pandas'"
+        dataloader = DataLoader(dataset, batch_size=batch_size)
+        device = self.model.device
+        collector = []
+        for batch in tqdm(dataloader, desc="Batches", disable=not show_progress_bar):
+            batch = {k: v.to(device) for k, v in batch.items()}
+            output = self.forward(batch, return_logits, **kwargs)
+            collector.append(output)
+        output = torch.cat(collector, axis=0)
+
+        if return_type == "torch":
+            return output
+        elif return_type == "numpy":
+            return output.numpy()
+        elif return_type == "list":
+            return output.tolist()
+        elif return_type == "pandas":
+            return pd.DataFrame(
+                output.numpy(), columns=[e[0] for e in self.verbalizer_raw]
+            )
+
     def __del__(self):
         """Delete the model."""
         del self.model
         torch.cuda.empty_cache()
+
+
+class MLM4Classification(LLM4ClassificationBase):
+    """Docstring TODO."""
+
+    def __init__(self, model_id, verbalizer, **kwargs):
+        """Initialize Class."""
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
+        super().__init__(model, tokenizer, verbalizer, generate=False)
+
+
+class CausalModel4Classification(LLM4ClassificationBase):
+    """Docstring TODO."""
+
+    def __init__(self, model_id, verbalizer, **kwargs):
+        """Initialize Class."""
+        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        if tokenizer.pad_token is None:
+            tokenizer.pad_token = tokenizer.eos_token
+        model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
+        super().__init__(model, tokenizer, verbalizer, generate=True)
