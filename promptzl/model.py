@@ -15,7 +15,72 @@ from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
-from .pattern import Pattern
+
+class Text:
+    """Docstring TODO."""
+    def __init__(self, text):
+        """Initialize TODO."""
+        self.text = text
+
+
+class Key:
+    """Docstring TODO."""
+    def __init__(self, key):
+        """Initialize TODO."""
+        self.key = key
+
+
+class Mask:
+    """Docstring TODO."""
+    pass
+
+
+class Prompt:
+    """Docstring TODO."""
+    def __init__(self, *args, sep=" "):
+        """Initialize TODO."""
+        self.prompt = args
+        self.sep = sep
+        self.tokenizer = None
+
+    def subinit(self, tokenizer, generate: bool):
+        """Docstring TODO."""
+        self.tokenizer = tokenizer
+        self.generate = generate
+        if generate:
+            assert True not in [
+                isinstance(e, Mask) for e in self.prompt
+            ], "When using `CausalModel4Classification`, the prompt must not contain a mask token."
+        else:
+            assert True in [
+                isinstance(e, Mask) for e in self.prompt
+            ], "When using `MLM4Classification`, the prompt must contain a mask token."
+
+    def decide(self, e, data):
+        """Docstring TODO."""
+        assert (
+            self.tokenizer is not None
+        ), "You must call `subinit` before calling `get_text`"
+        if isinstance(e, Text):
+            return e.text
+        elif isinstance(e, Key):
+            return data[e.key]
+        elif isinstance(e, Mask):
+            return self.tokenizer.mask_token
+
+    def get_text(self, data):
+        """Docstring TODO."""
+        return self.sep.join([self.decide(e, data) for e in self.prompt])
+
+    # def get_text_batched(self, data):
+    #     return self.sep.join([[self.decide(e, inst) for e in self.prompt] for inst in data])
+
+    def prepare_dataset(self, dataset):
+        """Docstring TODO."""
+        return dataset.map(
+            lambda e: self.tokenizer(self.get_text(e), max_length=512, padding="max_length", truncation=True),
+            remove_columns=dataset.column_names,
+        )
 
 
 class LLM4ClassificationBase(torch.nn.Module):
@@ -31,7 +96,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         tokenizer: PreTrainedTokenizerBase,  # TODO Check types
         verbalizer: List[List[str]],
         generate: bool,
-        prompt: Optional[Pattern] = None,
+        prompt: Optional[Prompt] = None,
         *args,
         **kwargs,
     ):
@@ -60,21 +125,16 @@ class LLM4ClassificationBase(torch.nn.Module):
                 raise ValueError(
                     "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
                 )
-
+        # TODO: Combine with the above
         if not self._can_generate:
             if not hasattr(self.tokenizer, "mask_token_id"):
                 raise ValueError(
                     "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
                 )  # TODO test this case
 
-        if self.use_pattern:
-            self.prompt: Optional[Pattern] = prompt
-            assert self.prompt is not None, "Prompt is None!"
-            self.prompt_tok: Any = (
-                self.prompt.tokenize(self.tokenizer)
-                if self.prompt is not None
-                else None
-            )
+        self.prompt = prompt
+        if self.prompt is not None:
+            self.prompt.subinit(self.tokenizer, self._can_generate)
 
         self.verbalizer_tok, self.i_dict = self._get_verbalizer(
             verbalizer
@@ -222,28 +282,14 @@ class LLM4ClassificationBase(torch.nn.Module):
         """
         logits: Optional[tensor] = None
         if self._can_generate:
-            if self.use_pattern:
-                pass  # TODO
-                # batch = self.prompt.get_prompt_batch(batch)
-                # # TODO Temperature
-                # outputs = self.model.generate(
-                #     input_ids=batch,
-                #     output_scores=True,
-                #     return_dict_in_generate=True,
-                #     max_new_tokens=2,
-                # )
-                # if return_model_output:
-                #     return outputs, outputs
-                # return outputs
-            else:
-                outputs: GenerateDecoderOnlyOutput = self.model.generate(
-                    **batch,
-                    output_scores=True,
-                    return_dict_in_generate=True,
-                    max_new_tokens=1,  # TODO temperature
-                    **kwargs,
-                )
-                logits = outputs.scores[0].detach().cpu()
+            outputs: GenerateDecoderOnlyOutput = self.model.generate(
+                **batch,
+                output_scores=True,
+                return_dict_in_generate=True,
+                max_new_tokens=1,  # TODO temperature
+                **kwargs,
+            )
+            logits = outputs.scores[0].detach().cpu()
         else:
             mask_index_batch, mask_index_tok = torch.where(
                 batch["input_ids"] == self.tokenizer.mask_token_id
@@ -287,6 +333,12 @@ class LLM4ClassificationBase(torch.nn.Module):
             "numpy",
             "pandas",
         ], "`return_type` must be: 'list', 'numpy', 'torch' or 'pandas'"
+        if not "input_ids" in dataset:
+            if self.prompt is not None:
+                dataset = self.prompt.prepare_dataset(dataset)
+                dataset.set_format(
+                    type="torch", columns=["input_ids", "attention_mask"]
+                )
         dataloader = DataLoader(dataset, batch_size=batch_size)
         device = self.model.device
         collector = []
@@ -313,23 +365,23 @@ class LLM4ClassificationBase(torch.nn.Module):
         torch.cuda.empty_cache()
 
 
-class MLM4Classification(LLM4ClassificationBase):
+class MLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Docstring TODO."""
 
-    def __init__(self, model_id, verbalizer, **kwargs):
+    def __init__(self, model_id, verbalizer, prompt=None, **kwargs):
         """Initialize Class."""
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
-        super().__init__(model, tokenizer, verbalizer, generate=False)
+        super().__init__(model, tokenizer, verbalizer, generate=False, prompt=prompt)
 
 
-class CausalModel4Classification(LLM4ClassificationBase):
+class CausalModel4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Docstring TODO."""
 
-    def __init__(self, model_id, verbalizer, **kwargs):
+    def __init__(self, model_id, verbalizer, prompt=None, **kwargs):
         """Initialize Class."""
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
         model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
-        super().__init__(model, tokenizer, verbalizer, generate=True)
+        super().__init__(model, tokenizer, verbalizer, generate=True, prompt=prompt)

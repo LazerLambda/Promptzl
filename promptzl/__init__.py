@@ -5,7 +5,10 @@ MIT LICENSE
 
 from .model import (
     CausalModel4Classification,
+    Key,
     LLM4ClassificationBase,
+    Mask,
     MLM4Classification,
+    Prompt,
+    Text,
 )
-from .pattern import DataKey, Mask, Pattern, Prompt

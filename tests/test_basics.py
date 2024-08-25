@@ -267,7 +267,7 @@ class TestPromptzel:
         model.classify(tokenized_dataset, return_type="pandas")
         model.classify(tokenized_dataset, return_type="numpy")
 
-    def test_simple_mlm_classification(self):
+    def test_simple_autoreg_classification(self):
         model = promptzl.CausalModel4Classification(
             "sshleifer/tiny-gpt2", [["bad", "horrible"], ["good"]]
         )
@@ -302,3 +302,57 @@ class TestPromptzel:
         model.classify(tokenized_dataset, return_type="list")
         model.classify(tokenized_dataset, return_type="pandas")
         model.classify(tokenized_dataset, return_type="numpy")
+
+
+class TestClassification:
+
+    sample_data = [
+        "The pizza was horribe and the staff rude. Won't recommend.",
+        "The pasta was undercooked and the service was slow. Not going back.",
+        "The salad was wilted and the waiter was dismissive. Avoid at all costs.",
+        "The soup was cold and the ambiance was noisy. Not a pleasant experience.",
+        "The burger was overcooked and the fries were soggy. I wouldn't suggest this place.",
+        "The sushi was not fresh and the staff seemed uninterested. Definitely not worth it.",
+        "The steak was tough and the wine was sour. A disappointing meal.",
+        "The sandwich was bland and the coffee was lukewarm. Not a fan of this café.",
+        "The dessert was stale and the music was too loud. I won't be returning.",
+        "The chicken was dry and the vegetables were overcooked. A poor dining experience.",
+    ]
+
+    def test_simple_causal_class_prompt(self):
+        with pytest.raises(AssertionError):
+            promptzl.CausalModel4Classification(
+                "sshleifer/tiny-gpt2", [["bad", "horrible"], ["good"]],
+                prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask())
+            )
+
+        model = promptzl.CausalModel4Classification(
+            "sshleifer/tiny-gpt2", [["bad", "horrible"], ["good"]],
+            prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was"))
+        )
+        dataset = Dataset.from_dict({"text": self.sample_data})
+        model.classify(dataset)
+        model.classify(dataset, batch_size=2)
+        model.classify(dataset, batch_size=2, show_progress_bar=True)
+        model.classify(dataset, return_type="list")
+        model.classify(dataset, return_type="pandas")
+        model.classify(dataset, return_type="numpy")
+
+    def test_simple_mlm_class_prompt(self):
+        with pytest.raises(AssertionError):
+            promptzl.MLM4Classification(
+                "nreimers/BERT-Tiny_L-2_H-128_A-2", [["bad", "horrible"], ["good"]],
+                prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was"))
+            )
+
+        model = promptzl.MLM4Classification(
+            "nreimers/BERT-Tiny_L-2_H-128_A-2", [["bad", "horrible"], ["good"]],
+            prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask())
+        )
+        dataset = Dataset.from_dict({"text": self.sample_data})
+        model.classify(dataset)
+        model.classify(dataset, batch_size=2)
+        model.classify(dataset, batch_size=2, show_progress_bar=True)
+        model.classify(dataset, return_type="list")
+        model.classify(dataset, return_type="pandas")
+        model.classify(dataset, return_type="numpy")
