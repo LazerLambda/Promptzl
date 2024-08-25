@@ -290,7 +290,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         dataloader = DataLoader(dataset, batch_size=batch_size)
         device = self.model.device
         collector = []
-        for batch in tqdm(dataloader, desc="Batches", disable=not show_progress_bar):
+        for batch in tqdm(dataloader, desc="Classify", disable=not show_progress_bar):
             batch = {k: v.to(device) for k, v in batch.items()}
             output = self.forward(batch, return_logits, **kwargs)
             collector.append(output)
