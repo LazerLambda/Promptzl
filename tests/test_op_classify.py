@@ -45,7 +45,12 @@ class TestOPClassify:
                 model = AutoModelForCausalLM.from_pretrained(model_id)
 
         test = promptzl.LLM4ClassificationBase(
-            model, tokenizer, [["bad"], ["good", "wonderful", "great"]], generate
+            model,
+            tokenizer,
+            prompt_or_verbalizer=promptzl.Verbalizer(
+                [["bad"], ["good", "wonderful", "great"]]
+            ),
+            generate=generate,
         )
         return test, device
 

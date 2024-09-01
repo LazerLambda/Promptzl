@@ -13,110 +13,12 @@ from torch import tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoModelForMaskedLM, AutoTokenizer
-from transformers.data.data_collator import pad_without_fast_tokenizer_warning
 from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
-
-class Text:
-    """Docstring TODO."""
-
-    def __init__(self, text):
-        """Initialize TODO."""
-        self.text = text
-
-
-class Key:
-    """Docstring TODO."""
-
-    def __init__(self, key):
-        """Initialize TODO."""
-        self.key = key
-
-
-class Mask:
-    """Docstring TODO."""
-
-    pass
-
-
-class Prompt:
-    """Docstring TODO."""
-
-    def __init__(self, *args, sep=" "):
-        """Initialize TODO."""
-        self.prompt = args
-        self.sep = sep
-        self.tokenizer = None
-
-    def subinit(self, tokenizer, generate: bool):
-        """Docstring TODO."""
-        self.tokenizer = tokenizer
-        self.generate = generate
-        if generate:
-            assert True not in [
-                isinstance(e, Mask) for e in self.prompt
-            ], "When using `CausalModel4Classification`, the prompt must not contain a mask token."
-        else:
-            assert True in [
-                isinstance(e, Mask) for e in self.prompt
-            ], "When using `MLM4Classification`, the prompt must contain a mask token."
-
-    def decide(self, e, data):
-        """Docstring TODO."""
-        assert (
-            self.tokenizer is not None
-        ), "You must call `subinit` before calling `get_text`"
-        if isinstance(e, Text):
-            return e.text
-        elif isinstance(e, Key):
-            return data[e.key]
-        elif isinstance(e, Mask):
-            return self.tokenizer.mask_token
-
-    def get_text(self, data):
-        """Docstring TODO."""
-        return self.sep.join([self.decide(e, data) for e in self.prompt])
-
-    def prepare_dataset(self, dataset, padding="do_not_pad"):
-        """Docstring TODO."""
-        return dataset.map(
-            lambda e: self.tokenizer(
-                self.get_text(e), padding=padding, truncation=True
-            ),
-            remove_columns=dataset.column_names,
-        )
-
-
-class DataCollatorPromptPad:
-    """Docstring TODO."""
-
-    def __init__(
-        self,
-        tokenizer: Any,
-        padding: str,
-        padding_side: str,
-        max_length: Optional[int] = None,
-        pad_to_multiple_of: Optional[int] = None,
-    ):
-        """Initialize TODO."""
-        self.tokenizer: Any = tokenizer
-        self.padding: Any = padding
-        self.max_length: Optional[int] = max_length
-        self.pad_to_multiple_of: Optional[int] = pad_to_multiple_of
-
-    def __call__(self, elem):
-        """Call TODO."""
-        batch = pad_without_fast_tokenizer_warning(
-            self.tokenizer,
-            elem,
-            padding=self.padding,
-            max_length=self.max_length,
-            pad_to_multiple_of=self.pad_to_multiple_of,
-            return_tensors="pt",
-        )
-        return batch
+from .prompt import Prompt, Verbalizer
+from .utils import DataCollatorPromptPad
 
 
 class LLM4ClassificationBase(torch.nn.Module):
@@ -130,9 +32,8 @@ class LLM4ClassificationBase(torch.nn.Module):
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizerBase,  # TODO Check types
-        verbalizer: List[List[str]],
+        prompt_or_verbalizer,  #: Union[Prompt, Verbalizer],
         generate: bool,
-        prompt: Optional[Prompt] = None,
         *args,
         **kwargs,
     ):
@@ -149,20 +50,28 @@ class LLM4ClassificationBase(torch.nn.Module):
         :param kwargs: Additional keyword arguments to be passed to the model.
         """
         super().__init__()
-        self.verbalizer_raw: List[List[str]] = verbalizer
-        self.use_pattern: bool = prompt is not None
 
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.model: PreTrainedModel = model
 
         self._can_generate: bool = generate
 
-        self.verbalizer_tok, self.i_dict = self._get_verbalizer(verbalizer)
-        self.calibration_probs: Optional[torch.tensor] = None
+        self.prompt: Optional[Prompt] = None
+        self.verbalizer_raw: List[List[str]] = []
 
-        self.prompt = prompt
-        if self.prompt is not None:
+        if isinstance(prompt_or_verbalizer, Prompt):
+            self.prompt = prompt_or_verbalizer
             self.prompt.subinit(self.tokenizer, self._can_generate)
+            self.verbalizer_raw = self.prompt.verbalizer.verbalizer
+        elif isinstance(prompt_or_verbalizer, Verbalizer):
+            self.verbalizer_raw = prompt_or_verbalizer.verbalizer
+        else:
+            raise TypeError(
+                "Argument `prompt_or_verbalizer` must be of either `Prompt` or `Verbalizer`."
+            )
+
+        self.verbalizer_tok, self.i_dict = self._get_verbalizer(self.verbalizer_raw)
+        self.calibration_probs: Optional[torch.tensor] = None
 
         if not self._can_generate:
             if self.tokenizer.mask_token_id is None or not hasattr(
@@ -418,19 +327,19 @@ class LLM4ClassificationBase(torch.nn.Module):
 class MLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Docstring TODO."""
 
-    def __init__(self, model_id, verbalizer, prompt=None, **kwargs):
+    def __init__(self, model_id, prompt_or_verbalizer, **kwargs):
         """Initialize Class."""
         tokenizer = AutoTokenizer.from_pretrained(
             model_id, clean_up_tokenization_spaces=True
         )
         model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
-        super().__init__(model, tokenizer, verbalizer, generate=False, prompt=prompt)
+        super().__init__(model, tokenizer, prompt_or_verbalizer, generate=False)
 
 
 class CausalModel4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Docstring TODO."""
 
-    def __init__(self, model_id, verbalizer, prompt=None, **kwargs):
+    def __init__(self, model_id, prompt_or_verbalizer, **kwargs):
         """Initialize Class."""
         tokenizer = AutoTokenizer.from_pretrained(
             model_id, clean_up_tokenization_spaces=True
@@ -439,4 +348,4 @@ class CausalModel4Classification(LLM4ClassificationBase, torch.nn.Module):
             tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "left"
         model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
-        super().__init__(model, tokenizer, verbalizer, generate=True, prompt=prompt)
+        super().__init__(model, tokenizer, prompt_or_verbalizer, generate=True)
