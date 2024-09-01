@@ -3,14 +3,17 @@
 MIT LICENSE
 """
 
+import random
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import numpy as np
 import pandas as pd
 import torch
 from torch import tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoModelForMaskedLM, AutoTokenizer
+from transformers.data.data_collator import pad_without_fast_tokenizer_warning
 from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
@@ -76,14 +79,44 @@ class Prompt:
         """Docstring TODO."""
         return self.sep.join([self.decide(e, data) for e in self.prompt])
 
-    def prepare_dataset(self, dataset):
+    def prepare_dataset(self, dataset, padding="do_not_pad"):
         """Docstring TODO."""
         return dataset.map(
             lambda e: self.tokenizer(
-                self.get_text(e), max_length=512, padding="max_length", truncation=True
+                self.get_text(e), padding=padding, truncation=True
             ),
             remove_columns=dataset.column_names,
         )
+
+
+class DataCollatorPromptPad:
+    """Docstring TODO."""
+
+    def __init__(
+        self,
+        tokenizer: Any,
+        padding: str,
+        padding_side: str,
+        max_length: Optional[int] = None,
+        pad_to_multiple_of: Optional[int] = None,
+    ):
+        """Initialize TODO."""
+        self.tokenizer: Any = tokenizer
+        self.padding: Any = padding
+        self.max_length: Optional[int] = max_length
+        self.pad_to_multiple_of: Optional[int] = pad_to_multiple_of
+
+    def __call__(self, elem):
+        """Call TODO."""
+        batch = pad_without_fast_tokenizer_warning(
+            self.tokenizer,
+            elem,
+            padding=self.padding,
+            max_length=self.max_length,
+            pad_to_multiple_of=self.pad_to_multiple_of,
+            return_tensors="pt",
+        )
+        return batch
 
 
 class LLM4ClassificationBase(torch.nn.Module):
@@ -299,13 +332,19 @@ class LLM4ClassificationBase(torch.nn.Module):
         else:
             return probs
 
+    def _text_length(self, e):
+        if isinstance(e, dict):
+            if "input_ids" in e.keys():
+                return len(e["input_ids"])
+
     def classify(
         self,
         dataset,
         batch_size=100,
-        show_progress_bar=False,
-        return_logits=False,
-        return_type="torch",
+        show_progress_bar: bool = False,
+        return_logits: bool = False,
+        return_type: str = "torch",
+        calibrate: bool = True,
         **kwargs,
     ):
         """Classify the dataset.
@@ -330,15 +369,35 @@ class LLM4ClassificationBase(torch.nn.Module):
                 dataset.set_format(
                     type="torch", columns=["input_ids", "attention_mask"]
                 )
-        dataloader = DataLoader(dataset, batch_size=batch_size)
-        device = self.model.device
+
+        if calibrate:
+            if self.calibration_probs is None:
+                n: int = len(dataset)
+                n_sample: int = 200 if n > 200 else n // 2
+                random_indices: List[int] = random.sample(range(n), n_sample)
+                dataset_cali = dataset.select(random_indices)
+                dataloader_cali = DataLoader(dataset_cali)
+                self.set_contextualized_prior(dataloader_cali)
+
+        length_sorted_idx = np.argsort([-self._text_length(inst) for inst in dataset])
+        dataset = dataset.select(length_sorted_idx)
+
+        pad_side: str = "left" if self._can_generate else "right"
+        data_collator = DataCollatorPromptPad(self.tokenizer, "max_length", pad_side)
+        dataloader = DataLoader(
+            dataset, batch_size=batch_size, collate_fn=data_collator
+        )
+
         collector = []
-        for batch in tqdm(dataloader, desc="Classify", disable=not show_progress_bar):
+        device = self.model.device
+        for batch in tqdm(
+            dataloader, desc="Classify...", disable=not show_progress_bar
+        ):
             batch = {k: v.to(device) for k, v in batch.items()}
             output = self.forward(batch, return_logits, **kwargs)
             output = torch.nn.functional.softmax(output, dim=-1)
-            collector.append(output)
-        output = torch.cat(collector, axis=0)
+            collector.extend(output)
+        output = torch.stack([collector[idx] for idx in np.argsort(length_sorted_idx)])
 
         if return_type == "torch":
             return output
@@ -362,7 +421,9 @@ class MLM4Classification(LLM4ClassificationBase, torch.nn.Module):
 
     def __init__(self, model_id, verbalizer, prompt=None, **kwargs):
         """Initialize Class."""
-        tokenizer = AutoTokenizer.from_pretrained(model_id, clean_up_tokenization_spaces=True)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_id, clean_up_tokenization_spaces=True
+        )
         model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
         super().__init__(model, tokenizer, verbalizer, generate=False, prompt=prompt)
 
@@ -372,7 +433,9 @@ class CausalModel4Classification(LLM4ClassificationBase, torch.nn.Module):
 
     def __init__(self, model_id, verbalizer, prompt=None, **kwargs):
         """Initialize Class."""
-        tokenizer = AutoTokenizer.from_pretrained(model_id, clean_up_tokenization_spaces=True)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_id, clean_up_tokenization_spaces=True
+        )
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "left"
