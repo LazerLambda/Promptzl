@@ -36,7 +36,9 @@ class TestPromptzel:
         if torch.cuda.is_available():
             device = "cuda"
 
-        tokenizer = AutoTokenizer.from_pretrained(model_id, clean_up_tokenization_spaces=True)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_id, clean_up_tokenization_spaces=True
+        )
         if torch.cuda.is_available():
             if not generate:
                 model = AutoModelForMaskedLM.from_pretrained(model_id)
@@ -182,7 +184,9 @@ class TestPromptzel:
         device = "cpu"
         model_id = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 
-        tokenizer = AutoTokenizer.from_pretrained(model_id, clean_up_tokenization_spaces=True)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_id, clean_up_tokenization_spaces=True
+        )
         tokenizer.mask_token = None
         tokenizer.mask_token_id = None
         model = AutoModelForMaskedLM.from_pretrained(model_id)
