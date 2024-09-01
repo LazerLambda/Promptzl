@@ -182,7 +182,6 @@ class LLM4ClassificationBase(torch.nn.Module):
 
         :param support_set: The support set to be used for calibration.
         """
-        # TODO
         all_logits: List[torch.tensor] = []
         self.model.eval()
         for batch in support_set:
@@ -190,7 +189,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             logits: torch.tensor = self.forward(
                 batch, combine=False
             )  # TODO predict method with smart batching
-            all_logits.append(logits.detach())
+            all_logits.append(logits)
         all_logits_combined: torch.tensor = torch.cat(all_logits, dim=0)
         all_logits_combined = all_logits_combined.mean(dim=0)
         self.calibration_probs = torch.nn.functional.softmax(
