@@ -13,7 +13,7 @@ authors = [
     { name = "Martin Ivanov", email = "yxoozo@gmail.com"}
 ]
 license = { file = "LICENSE" }
-keywords = ["llm", "nlp", "transformers", "classifiers", "predictive modeling"]
+keywords = ["llm", "nlp", "transformers", "classifiers", "predictive modeling", "machine learning", "torch", "huggingface"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",

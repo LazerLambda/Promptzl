@@ -76,9 +76,6 @@ class Prompt:
         """Docstring TODO."""
         return self.sep.join([self.decide(e, data) for e in self.prompt])
 
-    # def get_text_batched(self, data):
-    #     return self.sep.join([[self.decide(e, inst) for e in self.prompt] for inst in data])
-
     def prepare_dataset(self, dataset):
         """Docstring TODO."""
         return dataset.map(
@@ -126,26 +123,21 @@ class LLM4ClassificationBase(torch.nn.Module):
         self.model: PreTrainedModel = model
 
         self._can_generate: bool = generate
-        if not self._can_generate:
-            if self.tokenizer.mask_token_id is None:
-                raise ValueError(
-                    "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
-                )
-        # TODO: Combine with the above
-        if not self._can_generate:
-            if not hasattr(self.tokenizer, "mask_token_id"):
-                raise ValueError(
-                    "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
-                )  # TODO test this case
+
+        self.verbalizer_tok, self.i_dict = self._get_verbalizer(verbalizer)
+        self.calibration_probs: Optional[torch.tensor] = None
 
         self.prompt = prompt
         if self.prompt is not None:
             self.prompt.subinit(self.tokenizer, self._can_generate)
 
-        self.verbalizer_tok, self.i_dict = self._get_verbalizer(
-            verbalizer
-        )  # TODO: Warning if only one class provicded or error if verbalizer is not List[List[str]]
-        self.calibration_probs: Optional[torch.tensor] = None
+        if not self._can_generate:
+            if self.tokenizer.mask_token_id is None or not hasattr(
+                self.tokenizer, "mask_token_id"
+            ):
+                raise ValueError(
+                    "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
+                )
 
     def set_contextualized_prior(self, support_set: DataLoader) -> None:
         """Compute Contextualized Prior.
@@ -172,19 +164,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             all_logits_combined, dim=-1
         )
 
-    # def calibrate(self, labels_logits: torch.tensor) -> torch.tensor:
-    #     """Calibrate the logits.
-
-    #     Calibrate the logits based on the contextualized prior. The logits are normalized (softmax) and multiplied by the prior.
-
-    #     :param labels_logits: The logits to be calibrated.
-    #     :return: The calibrated logits.
-    #     """
-    #     assert self.calibration_probs is not None, "Calibration logits not set!"
-    #     return labels_logits
-
     def _get_verbalizer(
-        self, verbalizer: List[List[str]]
+        self,
+        verbalizer: List[List[str]],
     ) -> Tuple[List[List[int]], Dict[str, List[int]]]:
         """Prepare verbalizer.
 
@@ -194,15 +176,23 @@ class LLM4ClassificationBase(torch.nn.Module):
         :param verbalizer: The verbalizer to be used.
         :return: The tokenized verbalizer and the dictionary with the indexes.
         """
-        verbalizer_tok: List[List[int]] = list(
+        tokenized: List[List[List[List[int]]]] = list(
             map(
                 lambda elem: [
-                    self.tokenizer(e, add_special_tokens=False)["input_ids"][0][0]
+                    self.tokenizer(e, add_special_tokens=False)["input_ids"]
                     for e in elem
                 ],
                 [[[elem] for elem in e] for e in verbalizer],
             )
         )
+        if not self._can_generate:
+            assert [
+                item for one_dim in tokenized for item in one_dim if len(item[0]) != 1
+            ] == [], "Multi token word found. When using MLM-models, only one token per word is permitted."
+        verbalizer_tok: List[List[int]] = [
+            [item[0] for one_dim in two_dim for item in one_dim]
+            for two_dim in tokenized
+        ]
 
         counter = 0
         i_dict: Dict[str, List[int]] = {}
@@ -372,7 +362,7 @@ class MLM4Classification(LLM4ClassificationBase, torch.nn.Module):
 
     def __init__(self, model_id, verbalizer, prompt=None, **kwargs):
         """Initialize Class."""
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        tokenizer = AutoTokenizer.from_pretrained(model_id, clean_up_tokenization_spaces=True)
         model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
         super().__init__(model, tokenizer, verbalizer, generate=False, prompt=prompt)
 
@@ -382,7 +372,7 @@ class CausalModel4Classification(LLM4ClassificationBase, torch.nn.Module):
 
     def __init__(self, model_id, verbalizer, prompt=None, **kwargs):
         """Initialize Class."""
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        tokenizer = AutoTokenizer.from_pretrained(model_id, clean_up_tokenization_spaces=True)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
         tokenizer.padding_side = "left"

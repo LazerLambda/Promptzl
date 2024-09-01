@@ -28,7 +28,7 @@ class TestOPClassify:
         if torch.cuda.is_available():
             device = "cuda"
 
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        tokenizer = AutoTokenizer.from_pretrained(model_id, clean_up_tokenization_spaces=True)
         if torch.cuda.is_available():
             if not generate:
                 model = AutoModelForMaskedLM.from_pretrained(model_id)

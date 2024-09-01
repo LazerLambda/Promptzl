@@ -36,7 +36,7 @@ class TestPromptzel:
         if torch.cuda.is_available():
             device = "cuda"
 
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        tokenizer = AutoTokenizer.from_pretrained(model_id, clean_up_tokenization_spaces=True)
         if torch.cuda.is_available():
             if not generate:
                 model = AutoModelForMaskedLM.from_pretrained(model_id)
@@ -182,7 +182,7 @@ class TestPromptzel:
         device = "cpu"
         model_id = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 
-        tokenizer = AutoTokenizer.from_pretrained(model_id)
+        tokenizer = AutoTokenizer.from_pretrained(model_id, clean_up_tokenization_spaces=True)
         tokenizer.mask_token = None
         tokenizer.mask_token_id = None
         model = AutoModelForMaskedLM.from_pretrained(model_id)
@@ -231,7 +231,35 @@ class TestPromptzel:
             assert output.shape[0] == len(batch["input_ids"]) and output.shape[1] == 2
             pytest.approx(len(batch), torch.sum(output), abs=0.1)
 
-    def test_simple_mlm_classification(self):
+    def test_equal_tokens_error(self):
+        with pytest.raises(AssertionError):
+            promptzl.CausalModel4Classification(
+                "sshleifer/tiny-gpt2",
+                [["bad"], ["bad"]],
+                prompt=promptzl.Prompt(
+                    promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask()
+                ),
+            )
+        with pytest.raises(AssertionError):
+            promptzl.MLM4Classification(
+                "nreimers/BERT-Tiny_L-2_H-128_A-2",
+                [["good"], ["good"]],
+                prompt=promptzl.Prompt(
+                    promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask()
+                ),
+            )
+
+    def test_multiple_tokens_error_mlm(self):
+        with pytest.raises(AssertionError):
+            promptzl.MLM4Classification(
+                "nreimers/BERT-Tiny_L-2_H-128_A-2",
+                [["bad", "very bad"], ["good"]],
+                prompt=promptzl.Prompt(
+                    promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask()
+                ),
+            )
+
+    def test_simple_mlm_classification_wo_prompt(self):
         model = promptzl.MLM4Classification(
             "nreimers/BERT-Tiny_L-2_H-128_A-2", [["bad", "horrible"], ["good"]]
         )
@@ -267,7 +295,7 @@ class TestPromptzel:
         model.classify(tokenized_dataset, return_type="pandas")
         model.classify(tokenized_dataset, return_type="numpy")
 
-    def test_simple_autoreg_classification(self):
+    def test_simple_autoreg_classification_wo_prompt(self):
         model = promptzl.CausalModel4Classification(
             "sshleifer/tiny-gpt2", [["bad", "horrible"], ["good"]]
         )
