@@ -18,6 +18,7 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 class Text:
     """Docstring TODO."""
+
     def __init__(self, text):
         """Initialize TODO."""
         self.text = text
@@ -25,6 +26,7 @@ class Text:
 
 class Key:
     """Docstring TODO."""
+
     def __init__(self, key):
         """Initialize TODO."""
         self.key = key
@@ -32,11 +34,13 @@ class Key:
 
 class Mask:
     """Docstring TODO."""
+
     pass
 
 
 class Prompt:
     """Docstring TODO."""
+
     def __init__(self, *args, sep=" "):
         """Initialize TODO."""
         self.prompt = args
@@ -78,7 +82,9 @@ class Prompt:
     def prepare_dataset(self, dataset):
         """Docstring TODO."""
         return dataset.map(
-            lambda e: self.tokenizer(self.get_text(e), max_length=512, padding="max_length", truncation=True),
+            lambda e: self.tokenizer(
+                self.get_text(e), max_length=512, padding="max_length", truncation=True
+            ),
             remove_columns=dataset.column_names,
         )
 
@@ -215,7 +221,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         return verbalizer_tok, i_dict
 
     def _class_probs(
-        self, logits: Any, combine: bool = True, return_logits=False
+        self, logits: Any, combine: bool = True
     ) -> tensor:  # TODO: maybe add i_dict or in inference method
         """Get the class probabilities.
 
@@ -244,10 +250,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             norm = out_res.reshape(shape[0], -1).sum(dim=-1, keepdim=True)
             out_res = out_res.reshape(shape[0], -1) / norm
             out_res = out_res.reshape(*shape)
-            # out_res = out_res / self.calibration_probs
-            # out_res = torch.nn.functional.softmax(out_res, dim=1)
-        # TODO: Sum multiple tokens together
-        out_res = torch.log(out_res) if return_logits else out_res
+        out_res = torch.log(out_res)
         if combine:
             out_res = torch.transpose(
                 torch.stack(
@@ -300,9 +303,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             outputs = self.model(**batch)
             # TODO: CHeck if this is correct
             logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
-        probs: tensor = self._class_probs(
-            logits, combine=combine, return_logits=return_logits
-        )
+        probs: tensor = self._class_probs(logits, combine=combine)
         if return_model_output:
             return probs, outputs
         else:
@@ -333,7 +334,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             "numpy",
             "pandas",
         ], "`return_type` must be: 'list', 'numpy', 'torch' or 'pandas'"
-        if not "input_ids" in dataset:
+        if "input_ids" not in dataset:
             if self.prompt is not None:
                 dataset = self.prompt.prepare_dataset(dataset)
                 dataset.set_format(
@@ -345,6 +346,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         for batch in tqdm(dataloader, desc="Classify", disable=not show_progress_bar):
             batch = {k: v.to(device) for k, v in batch.items()}
             output = self.forward(batch, return_logits, **kwargs)
+            output = torch.nn.functional.softmax(output, dim=-1)
             collector.append(output)
         output = torch.cat(collector, axis=0)
 
@@ -383,5 +385,6 @@ class CausalModel4Classification(LLM4ClassificationBase, torch.nn.Module):
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.padding_side = "left"
         model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
         super().__init__(model, tokenizer, verbalizer, generate=True, prompt=prompt)
