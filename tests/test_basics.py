@@ -53,7 +53,12 @@ class TestPromptzel:
                 model = AutoModelForCausalLM.from_pretrained(model_id)
 
         test = promptzl.LLM4ClassificationBase(
-            model, tokenizer, [["bad", "horrible"], ["good"]], generate
+            model,
+            tokenizer,
+            prompt_or_verbalizer=promptzl.Verbalizer(
+                [["bad"], ["good", "wonderful", "great"]]
+            ),
+            generate=generate,
         )
         return test, device
 
@@ -193,7 +198,7 @@ class TestPromptzel:
 
         with pytest.raises(Exception):
             test = promptzl.LLM4ClassificationBase(
-                model, tokenizer, [["bad"], ["good"]], False
+                model, tokenizer, [["bad"], ["good"]], generate=False
             )
 
     def test_calibration(self):
@@ -239,17 +244,19 @@ class TestPromptzel:
         with pytest.raises(AssertionError):
             promptzl.CausalModel4Classification(
                 "sshleifer/tiny-gpt2",
-                [["bad"], ["bad"]],
-                prompt=promptzl.Prompt(
-                    promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask()
+                prompt_or_verbalizer=promptzl.Prompt(
+                    promptzl.Key("text"),
+                    promptzl.Text(". It was"),
+                    promptzl.Verbalizer([["bad"], ["bad"]]),
                 ),
             )
         with pytest.raises(AssertionError):
             promptzl.MLM4Classification(
                 "nreimers/BERT-Tiny_L-2_H-128_A-2",
-                [["good"], ["good"]],
-                prompt=promptzl.Prompt(
-                    promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask()
+                prompt_or_verbalizer=promptzl.Prompt(
+                    promptzl.Key("text"),
+                    promptzl.Text(". It was"),
+                    promptzl.Verbalizer([["good"], ["good"]]),
                 ),
             )
 
@@ -257,15 +264,17 @@ class TestPromptzel:
         with pytest.raises(AssertionError):
             promptzl.MLM4Classification(
                 "nreimers/BERT-Tiny_L-2_H-128_A-2",
-                [["bad", "very bad"], ["good"]],
-                prompt=promptzl.Prompt(
-                    promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask()
+                prompt_or_verbalizer=promptzl.Prompt(
+                    promptzl.Key("text"),
+                    promptzl.Text(". It was"),
+                    promptzl.Verbalizer([["bad", "very bad"], ["good"]]),
                 ),
             )
 
     def test_simple_mlm_classification_wo_prompt(self):
         model = promptzl.MLM4Classification(
-            "nreimers/BERT-Tiny_L-2_H-128_A-2", [["bad", "horrible"], ["good"]]
+            "nreimers/BERT-Tiny_L-2_H-128_A-2",
+            promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
         )
         dataset = Dataset.from_dict({"text": self.sample_data})
 
@@ -301,7 +310,7 @@ class TestPromptzel:
 
     def test_simple_autoreg_classification_wo_prompt(self):
         model = promptzl.CausalModel4Classification(
-            "sshleifer/tiny-gpt2", [["bad", "horrible"], ["good"]]
+            "sshleifer/tiny-gpt2", promptzl.Verbalizer([["bad", "horrible"], ["good"]])
         )
         dataset = Dataset.from_dict({"text": self.sample_data})
 
@@ -355,16 +364,28 @@ class TestClassification:
         with pytest.raises(AssertionError):
             promptzl.CausalModel4Classification(
                 "sshleifer/tiny-gpt2",
-                [["bad", "horrible"], ["good"]],
-                prompt=promptzl.Prompt(
-                    promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask()
+                prompt_or_verbalizer=promptzl.Prompt(
+                    promptzl.Key("text"), promptzl.Text(". It was")
+                ),
+            )
+
+        with pytest.raises(AssertionError):
+            promptzl.CausalModel4Classification(
+                "sshleifer/tiny-gpt2",
+                prompt_or_verbalizer=promptzl.Prompt(
+                    promptzl.Key("text"),
+                    promptzl.Verbalizer([["bad"], ["good"]]),
+                    promptzl.Text(". It was"),
                 ),
             )
 
         model = promptzl.CausalModel4Classification(
             "sshleifer/tiny-gpt2",
-            [["bad", "horrible"], ["good"]],
-            prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was")),
+            prompt_or_verbalizer=promptzl.Prompt(
+                promptzl.Key("text"),
+                promptzl.Text(". It was"),
+                promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
+            ),
         )
         dataset = Dataset.from_dict({"text": self.sample_data})
         model.classify(dataset)
@@ -380,15 +401,17 @@ class TestClassification:
         with pytest.raises(AssertionError):
             promptzl.MLM4Classification(
                 "nreimers/BERT-Tiny_L-2_H-128_A-2",
-                [["bad", "horrible"], ["good"]],
-                prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was")),
+                prompt_or_verbalizer=promptzl.Prompt(
+                    promptzl.Key("text"), promptzl.Text(". It was")
+                ),
             )
 
         model = promptzl.MLM4Classification(
             "nreimers/BERT-Tiny_L-2_H-128_A-2",
-            [["bad", "horrible"], ["good"]],
-            prompt=promptzl.Prompt(
-                promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask()
+            prompt_or_verbalizer=promptzl.Prompt(
+                promptzl.Key("text"),
+                promptzl.Text(". It was"),
+                promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
             ),
         )
         dataset = Dataset.from_dict({"text": self.sample_data})
