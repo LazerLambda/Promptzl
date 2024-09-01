@@ -322,13 +322,17 @@ class TestClassification:
     def test_simple_causal_class_prompt(self):
         with pytest.raises(AssertionError):
             promptzl.CausalModel4Classification(
-                "sshleifer/tiny-gpt2", [["bad", "horrible"], ["good"]],
-                prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask())
+                "sshleifer/tiny-gpt2",
+                [["bad", "horrible"], ["good"]],
+                prompt=promptzl.Prompt(
+                    promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask()
+                ),
             )
 
         model = promptzl.CausalModel4Classification(
-            "sshleifer/tiny-gpt2", [["bad", "horrible"], ["good"]],
-            prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was"))
+            "sshleifer/tiny-gpt2",
+            [["bad", "horrible"], ["good"]],
+            prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was")),
         )
         dataset = Dataset.from_dict({"text": self.sample_data})
         model.classify(dataset)
@@ -343,13 +347,17 @@ class TestClassification:
     def test_simple_mlm_class_prompt(self):
         with pytest.raises(AssertionError):
             promptzl.MLM4Classification(
-                "nreimers/BERT-Tiny_L-2_H-128_A-2", [["bad", "horrible"], ["good"]],
-                prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was"))
+                "nreimers/BERT-Tiny_L-2_H-128_A-2",
+                [["bad", "horrible"], ["good"]],
+                prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was")),
             )
 
         model = promptzl.MLM4Classification(
-            "nreimers/BERT-Tiny_L-2_H-128_A-2", [["bad", "horrible"], ["good"]],
-            prompt=promptzl.Prompt(promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask())
+            "nreimers/BERT-Tiny_L-2_H-128_A-2",
+            [["bad", "horrible"], ["good"]],
+            prompt=promptzl.Prompt(
+                promptzl.Key("text"), promptzl.Text(". It was"), promptzl.Mask()
+            ),
         )
         dataset = Dataset.from_dict({"text": self.sample_data})
         otpt = model.classify(dataset)
