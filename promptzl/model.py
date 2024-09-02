@@ -301,10 +301,10 @@ class LLM4ClassificationBase(torch.nn.Module):
             ```
         2. Dataset is prepared on the fly:
                 ```
-                    model = MLM4Classification('a-model-on-hf',
-                        Prompt(Key('text'), Prompt('It was '), Verbalizer([['bad'], ['good']]))
-                    dataset = Dataset.from_dict({'text': ["The pizza was good.", "The pizza was bad."]})
-                    model.classify(dataset)
+                model = MLM4Classification('a-model-on-hf',
+                    Prompt(Key('text'), Prompt('It was '), Verbalizer([['bad'], ['good']]))
+                dataset = Dataset.from_dict({'text': ["The pizza was good.", "The pizza was bad."]})
+                model.classify(dataset)
             ```
         By default, calibration is applied as described in [Hu et al., 2022](https://aclanthology.org/2022.acl-long.158/),
         this can be reset by setting `calibrate` to `False`.
