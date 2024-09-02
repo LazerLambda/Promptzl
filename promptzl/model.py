@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 import torch
+from datasets import Dataset
 from torch import tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -22,32 +23,35 @@ from .utils import DataCollatorPromptPad
 
 
 class LLM4ClassificationBase(torch.nn.Module):
-    """Class for Pattern Exploitatoin Classificatoin.
-
-    This class handles the underlying model and the inference mechanism. It aims to tranform a LLM into a
-    classifier.
-    """
+    """Handles the main computations like extracting the logits, calibration and returning new logits."""
 
     def __init__(
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizerBase,  # TODO Check types
-        prompt_or_verbalizer,  #: Union[Prompt, Verbalizer],
+        prompt_or_verbalizer: Union[Prompt, Verbalizer],
         generate: bool,
-        *args,
-        **kwargs,
     ):
-        """Initialize Class.
+        """Initialize of the Main Class.
 
-        Build the class based on the desired use case determined by the arguments.
+        Args:
+            model (PreTrainedModel): The model to be used. It is a pretrained model from the Huggingface Transformers library.
+            tokenizer (PreTrainedTokenizerBase): The tokenizer to be used. It is a pretrained tokenizer from the Huggingface
+            Transformers library.
+            prompt_or_verbalizer (Union[Prompt, Verbalizer]): An Prompt object or a Verbalizer Object. The verbalizer object is used,
+            when the data is already pre-processed otherwise
+                the pre-processing happens inside the Prompt class. Example:
+                    1. Verbalizer:
+                        ```Verbalizer([['good'], ['bad']])```
+                    2. Prompt:
+                        ```Prompt(Text("Classify the following with 'good' or 'bad'"), Text('text'), Verbalizer([['good'], ['bad']]))```
+            generate (bool): A flag to determine if the model is autoregressive and can _generate_ or not. If not, the
+                model is treated as a masked language model.
+                E.g.: `[["good"], ["bad"]]`, `[["good", "positive"], ["bad", "negative"]]`
 
-        :param model: The model to be used. It is a pretrained model from the Huggingface Transformers library.
-        :param tokenizer: The tokenizer to be used. It is a pretrained tokenizer from the Huggingface Transformers library.
-        :param verbalizer: The verbalizer to be used. It is a list of lists of strings. Each list of strings represents a class.
-        :param generate: A flag to determine if the model is autoregressive and can _generate_ or not. If not, the model is treated as a masked language model.
-            E.g.: `[["good"], ["bad"]]`, `[["good", "positive"], ["bad", "negative"]]`
-        :param prompt: The prompt to be used. If None, the model will be used without a prompt. This case requires the data to be preprocessed.
-        :param kwargs: Additional keyword arguments to be passed to the model.
+        Raise:
+            TypeError: In case neither a Prompt of a Verbalizer object is passed for `prompt_or_verbalizer`.
+            ValueError: In case the `tokenizer` object does not possess a `mask_token_id` attribute.
         """
         super().__init__()
 
@@ -71,7 +75,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             )
 
         self.verbalizer_tok, self.i_dict = self._get_verbalizer(self.verbalizer_raw)
-        self.calibration_probs: Optional[torch.tensor] = None
+        self.calibration_probs: Optional[tensor] = None
 
         if not self._can_generate:
             if self.tokenizer.mask_token_id is None or not hasattr(
@@ -89,17 +93,18 @@ class LLM4ClassificationBase(torch.nn.Module):
         the prior.Function taken from [OpenPrompt])(https://thunlp.github.io/OpenPrompt/_modules/openprompt/utils/calibrate.html#calibrate) and
         adapted for our framework.
 
-        :param support_set: The support set to be used for calibration.
+        Args:
+            support_set (DataLoader): The support set to be used for calibration.
         """
-        all_logits: List[torch.tensor] = []
+        all_logits: List[tensor] = []
         self.model.eval()
         for batch in support_set:
             batch = {k: v.to(self.model.device) for k, v in batch.items()}
-            logits: torch.tensor = self.forward(
+            logits: tensor = self.forward(
                 batch, combine=False
             )  # TODO predict method with smart batching
             all_logits.append(logits)
-        all_logits_combined: torch.tensor = torch.cat(all_logits, dim=0)
+        all_logits_combined: tensor = torch.cat(all_logits, dim=0)
         all_logits_combined = all_logits_combined.mean(dim=0)
         self.calibration_probs = torch.nn.functional.softmax(
             all_logits_combined, dim=-1
@@ -114,8 +119,15 @@ class LLM4ClassificationBase(torch.nn.Module):
         Preprocess the verbalizer to be used in the model. The verbalizer is tokenized and the indexes are stored in a dictionary.
         The indices are further necessary to obtain the logits from the models output.
 
-        :param verbalizer: The verbalizer to be used.
-        :return: The tokenized verbalizer and the dictionary with the indexes.
+        Args:
+            verbalizer (List[List[str]]): The verbalizer to be used. E.g.: `[["good"], ["bad"]]`, `[["good", "positive"], ["bad", "negative"]]`.
+
+        Raises:
+            AssertionError: In case a verbalizer with the same tokens in multiple classes is passed or in case a label word with
+            multiple subtokens is used in MLM.
+
+        Returns:
+            Tuple[List[List[int]], Dict[str, List[int]]]: The tokenized verbalizer (first) and the dictionary with the indices (second) as a tuple.
         """
         tokenized: List[List[List[List[int]]]] = list(
             map(
@@ -151,20 +163,24 @@ class LLM4ClassificationBase(torch.nn.Module):
         # TODO: Consider this in label search!
         return verbalizer_tok, i_dict
 
-    def _class_probs(
-        self, logits: Any, combine: bool = True
+    def _class_logits(
+        self, logits: tensor, combine: bool = True, calibrate: bool = False
     ) -> tensor:  # TODO: maybe add i_dict or in inference method
-        """Get the class probabilities.
+        """Get the Class Logits.
 
         Get the class probabilities from the logits. The logits are transformed into probabilities using the softmax function
         based on the indices.
 
-        :param logits: The models logits from the batch.
-        :param verbalizer_tok: The tokenized verbalizer.
-        :return: The class probabilities.
+        Args:
+            logits (tensor): The models logits from the batch.
+            combine (bool): Boolean determining whether or not the logits for different class labels will be averaged for each class.
+            calibrate (bool): Boolean determining whether or not logits will be calibrated.
+
+        Returns:
+            tensor: The class probabilities.
         """
         # TODO: Check if single and if yes unsqueeze
-        out_res: torch.Tensor = torch.cat(
+        out_res: tensor = torch.cat(
             list(
                 map(
                     lambda i: logits[:, self.verbalizer_tok[i]],
@@ -174,8 +190,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             axis=-1,
         )
         out_res = torch.nn.functional.softmax(out_res, dim=1)
-        if self.calibration_probs is not None:
-            assert self.calibration_probs is not None, "Calibration logits not set!"
+        if self.calibration_probs is not None and calibrate:
             shape = out_res.shape
             out_res = out_res / (self.calibration_probs + 1e-15)
             norm = out_res.reshape(shape[0], -1).sum(dim=-1, keepdim=True)
@@ -202,17 +217,22 @@ class LLM4ClassificationBase(torch.nn.Module):
         batch: Dict[str, tensor],
         return_model_output: bool = False,
         combine: bool = True,
-        return_logits: bool = False,
+        calibrate: bool = False,
         **kwargs,
     ) -> Union[tensor, Tuple[tensor, Any]]:
-        """Forward pass.
+        """Forward Function.
 
-        Perform the forward pass of the model. The model generates the output based on the input batch.
+        Perform the forward pass of the model.
 
-        :param batch: The input batch.
-        :param return_model_output: A flag to determine if the model output should be returned.
-        :param combine: A flag to determine if the probabilities for each label word should be combined.
-        :return: The class probabilities.
+        Args:
+            batch (Dict[str, tensor]): The input batch.
+            return_model_output (bool): A flag to determine if the model output should be returned.
+            combine (bool): A flag to determine if the probabilities for each label word should be combined.
+            calibrate (bool): Boolean determining whether or not logits will be calibrated.
+            kwargs: Additional arguments for the model.
+
+        Returns:
+            Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
         logits: Optional[tensor] = None
         if self._can_generate:
@@ -232,38 +252,79 @@ class LLM4ClassificationBase(torch.nn.Module):
                 mask_index_tok.shape[0] == batch["input_ids"].shape[0]
             ), "Mask token not found in input!"
             outputs = self.model(**batch)
-            # TODO: CHeck if this is correct
             logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
-        probs: tensor = self._class_probs(logits, combine=combine)
+        probs: tensor = self._class_logits(logits, combine=combine, calibrate=calibrate)
         if return_model_output:
             return probs, outputs
         else:
             return probs
 
-    def _text_length(self, e):
-        if isinstance(e, dict):
-            if "input_ids" in e.keys():
-                return len(e["input_ids"])
+    def _text_length(self, elem: Dict[str, tensor]) -> int:
+        """Get Length of Instance.
+
+        Args:
+            elem (dict): Data instance of which length is to be determined.
+
+        Raises:
+            NotImplementedError: In case elem is not a `dict` type.
+
+        Returns:
+            int: Length of instances
+        """
+        if isinstance(elem, dict):
+            # if "input_ids" in elem.keys():
+            return len(elem["input_ids"])
+        # elem:
+        else:
+            raise NotImplementedError(f"Case '{type(elem)}' not implemented")
 
     def classify(
         self,
-        dataset,
-        batch_size=100,
+        dataset: Union[Dataset, List[str]],
+        batch_size: int = 100,
         show_progress_bar: bool = False,
         return_logits: bool = False,
         return_type: str = "torch",
         calibrate: bool = True,
         **kwargs,
     ):
-        """Classify the dataset.
+        """Classify a Dataset.
 
-        Classify the dataset based on the model. The dataset is tokenized and the model is used to classify the data.
+        Classify a dataset using a prompt and a verbalizer. The classification can happen in two different steps:
+        1. Dataset is already prepared:
+            # TODO check if it works
+            ```
+                model = MLM4Classification('a-model-on-hf', Verbalizer([['bad'], ['good']]))
+                dataset = [e + 'It was [MASK]' for e in dataset]
+                dataset = Dataset.from_dict({'text': dataset}).map(tokenizer)
+                model.classify(dataset)
+            ```
+        2. Dataset is prepared on the fly:
+                ```
+                    model = MLM4Classification('a-model-on-hf',
+                        Prompt(Key('text'), Prompt('It was '), Verbalizer([['bad'], ['good']]))
+                    dataset = Dataset.from_dict({'text': ["The pizza was good.", "The pizza was bad."]})
+                    model.classify(dataset)
+            ```
+        By default, calibration is applied as described in [Hu et al., 2022](https://aclanthology.org/2022.acl-long.158/),
+        this can be reset by setting `calibrate` to `False`.
 
-        :param dataset: The dataset to be classified.
-        :param batch_size: The batch size to be used for classification.
-        :param show_progress_bar: A flag to determine if the progress should be shown.
-        :param **kwargs: Additional arguments for the forward function passed to the model.
-        :return: The class probabilities.
+        Args:
+            dataset (Union[Dataset, List[str]]): Dataset to be classified. In case of `List[str]`, a prompt is required for
+                `prompt_or_verbalizer` upon initialization.
+            batch_size (int): Batch size for inference.
+            show_progress_bar (bool): Show progress bar during inference.
+            return_logits (bool): Boolean determining whether or not logits will be returned.
+            return_type (str): Desired return type. Must be in: ["list", "torch", "numpy", "pandas"]. Default is "torch"
+            calibrate (bool): Boolean determining whether or not logits will be calibrated.
+            **kwargs: Additional arguments for the underlying huggingface-model.
+
+        Raises:
+            AssertionError: In case `return_type` is misspecified, `dataset` has the wrong type and if `prompt_or_verbalizer`
+                is not set correctly.
+
+        Returns:
+            Union[tensor, np.ndarray, List[List[float]], pd.DataFrame]: Probabilities for different classes for all instances.
         """
         assert return_type in [
             "list",
@@ -271,12 +332,22 @@ class LLM4ClassificationBase(torch.nn.Module):
             "numpy",
             "pandas",
         ], "`return_type` must be: 'list', 'numpy', 'torch' or 'pandas'"
-        if "input_ids" not in dataset:
-            if self.prompt is not None:
-                dataset = self.prompt.prepare_dataset(dataset)
-                dataset.set_format(
-                    type="torch", columns=["input_ids", "attention_mask"]
-                )
+        if isinstance(dataset, Dataset):
+            if "input_ids" not in dataset:
+                if self.prompt is not None:
+                    dataset = self.prompt.prepare_dataset(dataset)
+                    dataset.set_format(
+                        type="torch", columns=["input_ids", "attention_mask"]
+                    )
+        if isinstance(dataset, list):
+            assert [
+                e for e in dataset if not isinstance(e, str)
+            ] == [], "Data is not of type `List[str]`"
+            assert (
+                self.prompt is not None
+            ), "When using data as `List[str]` a Prompt for `prompt_or_verbalizer` is required on initialization."
+            dataset = Dataset.from_dict({"text": dataset})
+            dataset = self.prompt.prepare_dataset(dataset)
 
         if calibrate:
             if self.calibration_probs is None:
@@ -296,14 +367,18 @@ class LLM4ClassificationBase(torch.nn.Module):
             dataset, batch_size=batch_size, collate_fn=data_collator
         )
 
-        collector = []
+        collector: List[tensor] = []
         device = self.model.device
         for batch in tqdm(
             dataloader, desc="Classify...", disable=not show_progress_bar
         ):
             batch = {k: v.to(device) for k, v in batch.items()}
-            output = self.forward(batch, return_logits, **kwargs)
-            output = torch.nn.functional.softmax(output, dim=-1)
+            output = self.forward(batch, calibrate=calibrate, **kwargs)
+            output = (
+                torch.nn.functional.softmax(output, dim=-1)
+                if not return_logits
+                else output
+            )
             collector.extend(output)
         output = torch.stack([collector[idx] for idx in np.argsort(length_sorted_idx)])
 
@@ -325,24 +400,58 @@ class LLM4ClassificationBase(torch.nn.Module):
 
 
 class MLM4Classification(LLM4ClassificationBase, torch.nn.Module):
-    """Docstring TODO."""
+    """Masked-Language-Modeling-Based Classification.
 
-    def __init__(self, model_id, prompt_or_verbalizer, **kwargs):
-        """Initialize Class."""
+    This class can be used with all masked-language-based language models from huggingface.co.
+    """
+
+    def __init__(
+        self, model_id: str, prompt_or_verbalizer: Union[Prompt, Verbalizer], **kwargs
+    ):
+        """Initialize Class.
+
+        Args:
+            model_id (str): Valid model identifier for huggingface.co.
+            prompt_or_verbalizer (Union[Prompt, Verbalizer]): An Prompt object or a Verbalizer Object. The verbalizer object
+                is used, when the data is already pre-processed otherwise
+                the pre-processing happens inside the Prompt class. Example:
+                    1. Verbalizer:
+                        ```Verbalizer([['good'], ['bad']])```
+                    2. Prompt:
+                        ```Prompt(Text("Classify the following with 'good' or 'bad'"), Text('text'), Verbalizer([['good'], ['bad']]))```
+            **kwargs: Additional arguments for initializing the underlying huggingface-model.
+        """
         tokenizer = AutoTokenizer.from_pretrained(
-            model_id, clean_up_tokenization_spaces=True
+            model_id, clean_up_tokenization_spaces=True, use_fast=True
         )
         model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
         super().__init__(model, tokenizer, prompt_or_verbalizer, generate=False)
 
 
 class CausalModel4Classification(LLM4ClassificationBase, torch.nn.Module):
-    """Docstring TODO."""
+    """Causal-Language-Modeling-Based Classification.
 
-    def __init__(self, model_id, prompt_or_verbalizer, **kwargs):
-        """Initialize Class."""
+    This class can be used with all causal/autoregressive language models from huggingface.co.
+    """
+
+    def __init__(
+        self, model_id: str, prompt_or_verbalizer: Union[Prompt, Verbalizer], **kwargs
+    ):
+        """Initialize Class.
+
+        Args:
+            model_id (str): Valid model identifier for huggingface.co.
+            prompt_or_verbalizer (Union[Prompt, Verbalizer]): An Prompt object or a Verbalizer Object. The verbalizer object
+            is used, when the data is already pre-processed otherwise
+                the pre-processing happens inside the Prompt class. Example:
+                    1. Verbalizer:
+                        ```Verbalizer([['good'], ['bad']])```
+                    2. Prompt:
+                        ```Prompt(Text("Classify the following with 'good' or 'bad'"), Text('text'), Verbalizer([['good'], ['bad']]))```
+            **kwargs: Additional arguments for initializing the underlying huggingface-model.
+        """
         tokenizer = AutoTokenizer.from_pretrained(
-            model_id, clean_up_tokenization_spaces=True
+            model_id, clean_up_tokenization_spaces=True, use_fast=True
         )
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token

@@ -1,4 +1,3 @@
-import operator
 import os
 import sys
 
@@ -88,6 +87,6 @@ class TestOPClassify:
 
         for batch in dataloader:
             batch = {k: v.to(device) for k, v in batch.items()}
-            output = promptzl.forward(batch, return_logits=True)
+            output = promptzl.forward(batch)
             expected_output_op = torch.tensor([[-2.8208, -1.5331], [-0.4941, -2.2750]])
             assert output == pytest.approx(expected_output_op, abs=1e-4)

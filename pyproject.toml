@@ -30,7 +30,7 @@ dependencies = [
     "datasets>=2.19.0",
     "accelerate>=0.31.0",
     "bitsandbytes>=0.43.1",
-    "torch">=2.0.0,
+    "torch>=2.0.0",
     "numpy<2.0.0",
     "tqdm",
 ]
@@ -44,3 +44,10 @@ homepage = "https://github.com/LazerLambda/Promptzl"
 
 [tool.setuptools.dynamic]
 optional-dependencies.test = { file = ["test-requirements.txt"] }
+
+[tool.ruff]
+select = ["D"]
+exclude = ["tests", "tests/*", "source/"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

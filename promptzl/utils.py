@@ -2,13 +2,19 @@
 
 MIT LICENSE
 """
-from typing import Any, Optional
 
+from typing import Any, Dict, Optional
+
+from torch import tensor
 from transformers.data.data_collator import pad_without_fast_tokenizer_warning
 
 
 class DataCollatorPromptPad:
-    """Docstring TODO."""
+    """Data-Collator for Padding.
+
+    Similar to `DataCollatorWithPadding` from the transformers library but works on already tokenized
+    datasets.
+    """
 
     def __init__(
         self,
@@ -18,14 +24,29 @@ class DataCollatorPromptPad:
         max_length: Optional[int] = None,
         pad_to_multiple_of: Optional[int] = None,
     ):
-        """Initialize TODO."""
+        """Initialize Class.
+
+        Args:
+            tokenizer (Any): Tokenizer for padding.
+            padding (str): Padding strategy.
+            padding_side (str): Padding side.
+            max_length (int): Max length.
+            pad_to_multiple_of (int): Important when using tensor cores (https://discuss.huggingface.co/t/whats-a-good-value-for-pad-to-multiple-of/1481).
+        """
         self.tokenizer: Any = tokenizer
-        self.padding: Any = padding
+        self.padding: str = padding
         self.max_length: Optional[int] = max_length
         self.pad_to_multiple_of: Optional[int] = pad_to_multiple_of
 
-    def __call__(self, elem):
-        """Call TODO."""
+    def __call__(self, elem: Any) -> Dict[str, tensor]:
+        """Call Collator.
+
+        Args:
+            elem (Any): Instances for creating a batch.
+
+        Returns:
+            Dict[str, tensor]: Batch.
+        """
         batch = pad_without_fast_tokenizer_warning(
             self.tokenizer,
             elem,
