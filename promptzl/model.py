@@ -74,9 +74,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                 "Argument `prompt_or_verbalizer` must be of either `Prompt` or `Verbalizer`."
             )
 
-        self.verbalizer_tok, self.i_dict = self._get_verbalizer(self.verbalizer_raw)
-        self.calibration_probs: Optional[tensor] = None
-
         if not self._can_generate:
             if self.tokenizer.mask_token_id is None or not hasattr(
                 self.tokenizer, "mask_token_id"
@@ -84,6 +81,9 @@ class LLM4ClassificationBase(torch.nn.Module):
                 raise ValueError(
                     "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
                 )
+
+        self.verbalizer_tok, self.i_dict = self._get_verbalizer(self.verbalizer_raw)
+        self.calibration_probs: Optional[tensor] = None
 
     def set_contextualized_prior(self, support_set: DataLoader) -> None:
         """Compute Contextualized Prior.
@@ -274,7 +274,6 @@ class LLM4ClassificationBase(torch.nn.Module):
         if isinstance(elem, dict):
             # if "input_ids" in elem.keys():
             return len(elem["input_ids"])
-        # elem:
         else:
             raise NotImplementedError(f"Case '{type(elem)}' not implemented")
 
