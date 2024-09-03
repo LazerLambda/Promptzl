@@ -41,6 +41,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             prompt_or_verbalizer (Union[Prompt, Verbalizer]): An Prompt object or a Verbalizer Object. The verbalizer object is used,
             when the data is already pre-processed otherwise
                 the pre-processing happens inside the Prompt class. Example:
+
                     1. Verbalizer:
                         ```Verbalizer([['good'], ['bad']])```
                     2. Prompt:
@@ -291,20 +292,23 @@ class LLM4ClassificationBase(torch.nn.Module):
 
         Classify a dataset using a prompt and a verbalizer. The classification can happen in two different steps:
         1. Dataset is already prepared:
-            # TODO check if it works
-            ```
+
+            .. highlight:: python
+            .. code-block:: python
+
                 model = MLM4Classification('a-model-on-hf', Verbalizer([['bad'], ['good']]))
                 dataset = [e + 'It was [MASK]' for e in dataset]
                 dataset = Dataset.from_dict({'text': dataset}).map(tokenizer)
                 model.classify(dataset)
-            ```
         2. Dataset is prepared on the fly:
-                ```
+            .. highlight:: python
+            .. code-block:: python
+
                 model = MLM4Classification('a-model-on-hf',
                     Prompt(Key('text'), Prompt('It was '), Verbalizer([['bad'], ['good']]))
                 dataset = Dataset.from_dict({'text': ["The pizza was good.", "The pizza was bad."]})
                 model.classify(dataset)
-            ```
+
         By default, calibration is applied as described in [Hu et al., 2022](https://aclanthology.org/2022.acl-long.158/),
         this can be reset by setting `calibrate` to `False`.
 
