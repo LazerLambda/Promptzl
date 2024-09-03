@@ -6,9 +6,9 @@ readinglist.md
 
 *.html
 
-.ruff_cache
-.pytest_cache
-.mypy_cache
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
 
 
 # Distribution / packaging
