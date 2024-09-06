@@ -8,6 +8,25 @@ from typing import Any, Dict, Optional
 from torch import tensor
 from transformers.data.data_collator import pad_without_fast_tokenizer_warning
 
+class DataCollatorPrompt:
+
+    def __init__(self, prompt, tokenizer, padding_side: str, padding: bool=True):
+        self.prompt = prompt
+        self.tokenizer = tokenizer
+        self.padding_side = padding_side
+        self.padding = padding
+        self.max_len = tokenizer.model_max_length
+
+    def __call__(self, examples):
+        batch = self.tokenizer(
+            *[[self.prompt.get_text(example) for example in examples]],
+            padding=self.padding,
+            truncation="longest_first",
+            return_tensors="pt",
+            max_length=self.max_len # TODO: Check in s-trafo
+        )
+        return batch
+
 
 class DataCollatorPromptPad:
     """Data-Collator for Padding.

@@ -18,8 +18,8 @@ from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
-from .prompt import Prompt, Verbalizer
-from .utils import DataCollatorPromptPad
+from .prompt import Prompt, Key, Verbalizer
+from .utils import DataCollatorPrompt, DataCollatorPromptPad
 
 
 class LLM4ClassificationBase(torch.nn.Module):
@@ -69,6 +69,8 @@ class LLM4ClassificationBase(torch.nn.Module):
             self.verbalizer_raw = self.prompt.verbalizer.verbalizer
         elif isinstance(prompt_or_verbalizer, Verbalizer):
             self.verbalizer_raw = prompt_or_verbalizer.verbalizer
+            self.prompt = Prompt(prompt_or_verbalizer)
+            self.prompt.subinit(self.tokenizer, self._can_generate)
         else:
             raise TypeError(
                 "Argument `prompt_or_verbalizer` must be of either `Prompt` or `Verbalizer`."
@@ -272,8 +274,10 @@ class LLM4ClassificationBase(torch.nn.Module):
             int: Length of instances
         """
         if isinstance(elem, dict):
-            # if "input_ids" in elem.keys():
-            return len(elem["input_ids"])
+            if "input_ids" in elem.keys():
+                return len(elem["input_ids"])
+            else:
+                return sum([len(k) for k in elem.keys()])
         else:
             raise NotImplementedError(f"Case '{type(elem)}' not implemented")
 
@@ -331,13 +335,23 @@ class LLM4ClassificationBase(torch.nn.Module):
             "numpy",
             "pandas",
         ], "`return_type` must be: 'list', 'numpy', 'torch' or 'pandas'"
+
+        datacollator_set: bool = False
+        pad_side: str = "left" if self._can_generate else "right"
         if isinstance(dataset, Dataset):
-            if "input_ids" not in dataset:
+            if "input_ids" not in dataset.column_names:
                 if self.prompt is not None:
-                    dataset = self.prompt.prepare_dataset(dataset)
-                    dataset.set_format(
-                        type="torch", columns=["input_ids", "attention_mask"]
-                    )
+                    # dataset = self.prompt.prepare_dataset(dataset)
+                    # dataset.set_format(
+                    #     type="torch", columns=["input_ids", "attention_mask"]
+                    # )
+                    pass
+            else:
+                dataset.set_format(
+                    type="torch", columns=["input_ids", "attention_mask"]
+                )
+                data_collator = DataCollatorPromptPad(self.tokenizer, "max_length", pad_side)
+                datacollator_set = True
         if isinstance(dataset, list):
             assert [
                 e for e in dataset if not isinstance(e, str)
@@ -346,7 +360,10 @@ class LLM4ClassificationBase(torch.nn.Module):
                 self.prompt is not None
             ), "When using data as `List[str]` a Prompt for `prompt_or_verbalizer` is required on initialization."
             dataset = Dataset.from_dict({"text": dataset})
-            dataset = self.prompt.prepare_dataset(dataset)
+            # dataset = self.prompt.prepare_dataset(dataset)
+
+        if not datacollator_set:
+            data_collator = DataCollatorPrompt(self.prompt, self.tokenizer, pad_side, padding=True)
 
         if calibrate:
             if self.calibration_probs is None:
@@ -354,14 +371,13 @@ class LLM4ClassificationBase(torch.nn.Module):
                 n_sample: int = 200 if n > 200 else n // 2
                 random_indices: List[int] = random.sample(range(n), n_sample)
                 dataset_cali = dataset.select(random_indices)
-                dataloader_cali = DataLoader(dataset_cali)
+                dataloader_cali = DataLoader(dataset_cali, collate_fn=data_collator)
                 self.set_contextualized_prior(dataloader_cali)
 
         length_sorted_idx = np.argsort([-self._text_length(inst) for inst in dataset])
         dataset = dataset.select(length_sorted_idx)
 
-        pad_side: str = "left" if self._can_generate else "right"
-        data_collator = DataCollatorPromptPad(self.tokenizer, "max_length", pad_side)
+        # data_collator = DataCollatorPromptPad(self.tokenizer, "max_length", pad_side)
         dataloader = DataLoader(
             dataset, batch_size=batch_size, collate_fn=data_collator
         )
