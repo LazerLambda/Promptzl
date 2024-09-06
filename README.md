@@ -36,7 +36,7 @@ In just a few lines of code, you can transform a LLM of choice into an old-schoo
     Dataset.from_dict({'text': ["The pizza was good.", "The pizza was bad."]})
 
     # Verbalizer (define label words)
-    verbalizer = Prompt(Key('text'), Prompt('It was '), Verbalizer([['bad'], ['good']]))
+    verbalizer = Prompt(Key('text'), Text('It was '), Verbalizer([['bad'], ['good']]))
 
     # Inference
     model = MLM4Classification('a-hf-model', verbalizer)
