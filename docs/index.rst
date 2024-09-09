@@ -7,7 +7,7 @@ Promptzl
 ========
 
 What is it?
-===========
+-----------
 
 Promptzl turns LLMs into old school classifiers that can be used for zero<sup>+</sup>-shot classification or distillation.
 
@@ -15,14 +15,17 @@ The resulting model is a pytorch-based classifier where you are in charge of. No
 
 
 Installation
-============
+------------
 
 Download this repository, navigate to the folder and run:
-`pip install .`
+
+.. code-block:: bash
+
+   pip install .
 
 
 How does it work?
-=================
+-----------------
 
 LLMs output a value for each token that is predicted from which a distribution is formed that determines which token is chosen.
 
@@ -32,7 +35,8 @@ At this point, it is possible to extract the LLM's logits to determine which tok
 
 To make it work, a prompt and a verbalizer a required. The prompt transforms the problem into a prediction task of one token and the verbalizer selects the tokens of interest.
 
-### Getting Started
+Getting Started
+---------------
 
 In just a few lines of code, you can transform a LLM of choice into an old-school classifier with all it's desirable properties:
 
@@ -53,7 +57,7 @@ In just a few lines of code, you can transform a LLM of choice into an old-schoo
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 0
    :caption: Contents:
 
    modules

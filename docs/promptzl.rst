@@ -1,37 +1,35 @@
-promptzl package
-================
+API Documentation
+=================
 
-Submodules
-----------
 
-promptzl.model module
----------------------
+Model
+-----
 
 .. automodule:: promptzl.model
    :members:
    :undoc-members:
    :show-inheritance:
 
-promptzl.prompt module
-----------------------
+Prompt
+------
 
 .. automodule:: promptzl.prompt
    :members:
    :undoc-members:
    :show-inheritance:
 
-promptzl.utils module
----------------------
+.. promptzl.utils module
+.. ---------------------
 
-.. automodule:: promptzl.utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. .. automodule:: promptzl.utils
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
 
-Module contents
----------------
+.. Module contents
+.. ---------------
 
-.. automodule:: promptzl
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. .. automodule:: promptzl
+..    :members:
+..    :undoc-members:
+..    :show-inheritance:
