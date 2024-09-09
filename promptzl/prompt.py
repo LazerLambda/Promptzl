@@ -18,12 +18,21 @@ class Text:
             text (str): Text used in the prompt. E.g.: ``Prompt(Key('text'), Text('It was'), Verbalizer([['good'], ['bad']]))```
         """
         self.text = text
+        self.text_tokenized = None
+    
+    def set_text_tokenized(self, tokenizer: Any):
+        """Set Tokenized Text.
+
+        Args:
+            tokenizer (Any): Tokenizer for preparing the dataset and using the mask token.
+        """
+        self.text_tokenized = tokenizer.encode(self.text)
 
 
 class Key:
     """Class for a Dataset-Key within the Prompt Object."""
 
-    def __init__(self, key: str = "text"):
+    def __init__(self, key: str = "text", truncate: bool = False):
         """Initialize Key Object.
 
         Args:
@@ -85,6 +94,8 @@ class Prompt:
                 self.prompt[-1], Verbalizer
             ), "When using `CausalModel4Classification`, the last token must be of type `Verbalizer`."
         self.verbalizer: Verbalizer = verb_filtered[0]
+        [e.set_text_tokenized(self.tokenizer)for e in self.prompt if isinstance(e, Text)]
+        self.used_tokens: int = sum([len(e.text_tokenized) for e in self.prompt if isinstance(e, Text)]) - 1  # -1 for mask/last token
 
     def decide(self, elem: Union[Key, Text, Verbalizer], data: Dataset) -> str:
         """Decide String for Prompt.
@@ -117,6 +128,20 @@ class Prompt:
         else:
             raise NotImplementedError(f"Type '{type(elem)}' not considered.")
 
+    def decide_tokenized(self, elem):
+        assert (
+            self.tokenizer is not None
+        ), "You must call `subinit` before calling `get_text`"
+        if isinstance(elem, Text):
+            return torch.tensor(elem.text_tokenized)
+        elif isinstance(elem, Key):
+            return tokenizer.encode(data[elem.key]))
+        elif isinstance(elem, Verbalizer):
+            return (
+                self.tokenizer.mask_token if not self.generate else ""
+            )  # TODO check of eos?
+        else:
+
     def get_text(self, data: Dataset) -> str:
         """Join Prompt to String.
 
@@ -129,6 +154,9 @@ class Prompt:
             str: Prompt in natural language.
         """
         return self.sep.join([self.decide(e, data) for e in self.prompt])
+
+    def get_tokenized(self, data: Dataset) -> Dict[str, tensor]:
+        
 
     def prepare_dataset(self, dataset: Dataset, padding="do_not_pad"):
         """Prepare Dataset.

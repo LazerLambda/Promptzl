@@ -3,10 +3,47 @@
 MIT LICENSE
 """
 
-from typing import Any, Dict, Optional
+import torch
+from typing import Any, Dict, List, Optional, Tuple
 
 from torch import tensor
 from transformers.data.data_collator import pad_without_fast_tokenizer_warning
+from .prompt import Prompt
+
+def split_tokens_left_right(input_ids: tensor, attention_mask: tensor, generate: bool) -> Tuple[tensor, tensor, List[tensor]]:
+    if generate:
+        attention_mask = attention_mask[:, :-1]
+    rows_indices: tensor = tensor(range(input_ids.size(0)))
+    bos_indices: tensor = input_ids.shape[1] - attention_mask.sum(dim=1) 
+    bos_tokens: tensor = input_ids[rows_indices, bos_indices]
+    eos_tokens: tensor = input_ids[rows_indices, torch.zeros_like(bos_indices, dtype=int) + input_ids.shape[1] - 1]
+    text_tokens: tensor = [input_ids[i][e] for i, e in enumerate(list(map(lambda e: list(range(1, e)), bos_indices - 1)))]
+    return eos_tokens, bos_tokens, text_tokens
+
+# def split_tokens_right_left(input_ids: tensor, attention_mask: tensor) -> Tuple[tensor, tensor, List[tensor]]:
+#     rows_indices: tensor = tensor(range(input_ids.size(0)))
+#     eos_indices: tensor = attention_mask.sum(dim=1) - 1
+#     eos_tokens: tensor = input_ids[rows_indices, eos_indices]
+#     bos_tokens: tensor = input_ids[rows_indices, torch.zeros_like(eos_indices, dtype=int)]
+#     text_tokens: tensor = [input_ids[i][e] for i, e in enumerate(list(map(lambda e: list(range(1, e)), eos_indices - 1)))]
+#     return eos_tokens, bos_tokens, text_tokens
+
+
+
+def combine_text(prompt: Prompt, batch: Dict[str, tensor]) -> str:
+    """Combine prompt and text.
+
+    Args:
+        prompt (Prompt): Prompt.
+        text (str): Text.
+
+    Returns:
+        str: Combined text.
+    """
+    eos_tokens, bos_tokens, text_tokens = extract_last_tokens(batch["input_ids"], batch["attention_mask"])
+
+    
+
 
 class DataCollatorPrompt:
 
@@ -18,6 +55,7 @@ class DataCollatorPrompt:
         self.max_len = tokenizer.model_max_length
 
     def __call__(self, examples):
+        print(examples)
         batch = self.tokenizer(
             *[[self.prompt.get_text(example) for example in examples]],
             padding=self.padding,
@@ -25,6 +63,7 @@ class DataCollatorPrompt:
             return_tensors="pt",
             max_length=self.max_len # TODO: Check in s-trafo
         )
+        print(batch)
         return batch
 
 

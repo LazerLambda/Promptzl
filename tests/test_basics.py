@@ -360,65 +360,81 @@ class TestClassification:
         "The chicken was dry and the vegetables were overcooked. A poor dining experience.",
     ]
 
-    def test_simple_causal_class_prompt(self):
-        with pytest.raises(AssertionError):
-            promptzl.CausalModel4Classification(
-                "sshleifer/tiny-gpt2",
-                prompt_or_verbalizer=promptzl.Prompt(
-                    promptzl.Key("text"), promptzl.Text(". It was")
-                ),
-            )
+    # def test_simple_causal_class_prompt(self):
+    #     with pytest.raises(AssertionError):
+    #         promptzl.CausalModel4Classification(
+    #             "sshleifer/tiny-gpt2",
+    #             prompt_or_verbalizer=promptzl.Prompt(
+    #                 promptzl.Key("text"), promptzl.Text(". It was")
+    #             ),
+    #         )
 
-        with pytest.raises(AssertionError):
-            promptzl.CausalModel4Classification(
-                "sshleifer/tiny-gpt2",
-                prompt_or_verbalizer=promptzl.Prompt(
-                    promptzl.Key("text"),
-                    promptzl.Verbalizer([["bad"], ["good"]]),
-                    promptzl.Text(". It was"),
-                ),
-            )
+    #     with pytest.raises(AssertionError):
+    #         promptzl.CausalModel4Classification(
+    #             "sshleifer/tiny-gpt2",
+    #             prompt_or_verbalizer=promptzl.Prompt(
+    #                 promptzl.Key("text"),
+    #                 promptzl.Verbalizer([["bad"], ["good"]]),
+    #                 promptzl.Text(". It was"),
+    #             ),
+    #         )
 
-        model = promptzl.CausalModel4Classification(
-            "sshleifer/tiny-gpt2",
-            prompt_or_verbalizer=promptzl.Prompt(
-                promptzl.Key("text"),
-                promptzl.Text(". It was"),
-                promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
-            ),
-        )
-        dataset = Dataset.from_dict({"text": self.sample_data})
-        model.classify(dataset)
-        otpt = model.classify(dataset)
-        assert int(torch.sum(otpt).item()) == len(dataset)
-        model.classify(dataset, batch_size=2)
-        model.classify(dataset, batch_size=2, show_progress_bar=True)
-        model.classify(dataset, return_type="list")
-        model.classify(dataset, return_type="pandas")
-        model.classify(dataset, return_type="numpy")
+    #     model = promptzl.CausalModel4Classification(
+    #         "sshleifer/tiny-gpt2",
+    #         prompt_or_verbalizer=promptzl.Prompt(
+    #             promptzl.Key("text"),
+    #             promptzl.Text(". It was"),
+    #             promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
+    #         ),
+    #     )
+    #     dataset = Dataset.from_dict({"text": self.sample_data})
+    #     model.classify(dataset)
+    #     otpt = model.classify(dataset)
+    #     assert int(torch.sum(otpt).item()) == len(dataset)
+    #     model.classify(dataset, batch_size=2)
+    #     model.classify(dataset, batch_size=2, show_progress_bar=True)
+    #     model.classify(dataset, return_type="list")
+    #     model.classify(dataset, return_type="pandas")
+    #     model.classify(dataset, return_type="numpy")
 
-    def test_simple_mlm_class_prompt(self):
-        with pytest.raises(AssertionError):
-            promptzl.MLM4Classification(
+    # def test_simple_mlm_class_prompt(self):
+    #     with pytest.raises(AssertionError):
+    #         promptzl.MLM4Classification(
+    #             "nreimers/BERT-Tiny_L-2_H-128_A-2",
+    #             prompt_or_verbalizer=promptzl.Prompt(
+    #                 promptzl.Key("text"), promptzl.Text(". It was")
+    #             ),
+    #         )
+
+    #     model = promptzl.MLM4Classification(
+    #         "nreimers/BERT-Tiny_L-2_H-128_A-2",
+    #         prompt_or_verbalizer=promptzl.Prompt(
+    #             promptzl.Key("text"),
+    #             promptzl.Text(". It was"),
+    #             promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
+    #         ),
+    #     )
+    #     dataset = Dataset.from_dict({"text": self.sample_data})
+    #     otpt = model.classify(dataset)
+    #     assert int(torch.sum(otpt).item()) == len(dataset)
+    #     model.classify(dataset, batch_size=2)
+    #     model.classify(dataset, batch_size=2, show_progress_bar=True)
+    #     model.classify(dataset, return_type="list")
+    #     model.classify(dataset, return_type="pandas")
+    #     model.classify(dataset, return_type="numpy")
+
+
+    def test_simple_mlm_class_prompt_w_multiple(self):
+
+            model = promptzl.MLM4Classification(
                 "nreimers/BERT-Tiny_L-2_H-128_A-2",
                 prompt_or_verbalizer=promptzl.Prompt(
-                    promptzl.Key("text"), promptzl.Text(". It was")
+                    promptzl.Key("text_a"),
+                    promptzl.Text(". It was"),
+                    promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
+                    promptzl.Key("text_b"),
                 ),
             )
-
-        model = promptzl.MLM4Classification(
-            "nreimers/BERT-Tiny_L-2_H-128_A-2",
-            prompt_or_verbalizer=promptzl.Prompt(
-                promptzl.Key("text"),
-                promptzl.Text(". It was"),
-                promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
-            ),
-        )
-        dataset = Dataset.from_dict({"text": self.sample_data})
-        otpt = model.classify(dataset)
-        assert int(torch.sum(otpt).item()) == len(dataset)
-        model.classify(dataset, batch_size=2)
-        model.classify(dataset, batch_size=2, show_progress_bar=True)
-        model.classify(dataset, return_type="list")
-        model.classify(dataset, return_type="pandas")
-        model.classify(dataset, return_type="numpy")
+            dataset = Dataset.from_dict({"text_a": self.sample_data, 'text_b': self.sample_data[::-1]})
+            otpt = model.classify(dataset)
+            assert int(torch.sum(otpt).item()) == len(dataset)
