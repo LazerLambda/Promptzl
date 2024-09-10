@@ -7,30 +7,23 @@ import torch
 from typing import Any, Dict, List, Optional, Tuple
 
 from torch import tensor
+from transformers import PreTrainedTokenizerBase
 from transformers.data.data_collator import pad_without_fast_tokenizer_warning
 from .prompt import Prompt
 
-def split_tokens_left_right(input_ids: tensor, attention_mask: tensor, generate: bool) -> Tuple[tensor, tensor, List[tensor]]:
-    if generate:
-        attention_mask = attention_mask[:, :-1]
-    rows_indices: tensor = tensor(range(input_ids.size(0)))
-    bos_indices: tensor = input_ids.shape[1] - attention_mask.sum(dim=1) 
-    bos_tokens: tensor = input_ids[rows_indices, bos_indices]
-    eos_tokens: tensor = input_ids[rows_indices, torch.zeros_like(bos_indices, dtype=int) + input_ids.shape[1] - 1]
-    text_tokens: tensor = [input_ids[i][e] for i, e in enumerate(list(map(lambda e: list(range(1, e)), bos_indices - 1)))]
-    return eos_tokens, bos_tokens, text_tokens
-
-# def split_tokens_right_left(input_ids: tensor, attention_mask: tensor) -> Tuple[tensor, tensor, List[tensor]]:
-#     rows_indices: tensor = tensor(range(input_ids.size(0)))
-#     eos_indices: tensor = attention_mask.sum(dim=1) - 1
-#     eos_tokens: tensor = input_ids[rows_indices, eos_indices]
-#     bos_tokens: tensor = input_ids[rows_indices, torch.zeros_like(eos_indices, dtype=int)]
-#     text_tokens: tensor = [input_ids[i][e] for i, e in enumerate(list(map(lambda e: list(range(1, e)), eos_indices - 1)))]
-#     return eos_tokens, bos_tokens, text_tokens
+def extract_text(input_ids: tensor, tokenizer: : PreTrainedTokenizerBase) -> Tuple[tensor, tensor, tensor]:
+    text_ids: tensor = input_ids[torch.isin(input_ids, torch.tensor(tokenizer.all_special_ids), invert=True)]
+    special_token_idx = torch.where(torch.isin(input_ids, torch.tensor(tokenizer.all_special_ids), invert=False))[0]
+    range_tensor: tensor = torch.arange(special_token_idx.size(0))
+    prefix_special, suffix_special = (
+        input_ids[special_token_idx[range_tensor - special_token_idx == 0]],
+        input_ids[special_token_idx[range_tensor - special_token_idx != 0]]
+    )
+    return text_ids, prefix_special, suffix_special
 
 
 
-def combine_text(prompt: Prompt, batch: Dict[str, tensor]) -> str:
+def combine_text(prompt: Prompt, batch: Dict[str, tensor], tokenizer: PreTrainedTokenizerBase) -> str:
     """Combine prompt and text.
 
     Args:
@@ -40,12 +33,35 @@ def combine_text(prompt: Prompt, batch: Dict[str, tensor]) -> str:
     Returns:
         str: Combined text.
     """
-    eos_tokens, bos_tokens, text_tokens = extract_last_tokens(batch["input_ids"], batch["attention_mask"])
-
-    
+    batch_tokenized = [tokenizer.encode(*[v]) if i == 0 else tokenizer.encode(*[v], add_special_tokens=False)
+                       for i, (k,v) in tokenizer.batch.items()]
+    text_ids, prefix_special, suffix_special = extract_text(batch["input_ids"], prompt.tokenizer)
 
 
 class DataCollatorPrompt:
+
+    def __init__(self, prompt, tokenizer, padding_side: str, padding: bool=True):
+        self.prompt = prompt
+        self.tokenizer = tokenizer
+        self.padding_side = padding_side
+        self.padding = padding
+        self.max_len = tokenizer.model_max_length
+
+    def __call__(self, examples):
+        print(examples)
+        batch = self.tokenizer(
+            *[[self.prompt.get_text(example) for example in examples]],
+            padding=self.padding,
+            truncation="longest_first",
+            return_tensors="pt",
+            max_length=self.max_len # TODO: Check in s-trafo
+        )
+        print(batch)
+        return batch
+
+
+
+class DataCollatorPromptFast:
 
     def __init__(self, prompt, tokenizer, padding_side: str, padding: bool=True):
         self.prompt = prompt

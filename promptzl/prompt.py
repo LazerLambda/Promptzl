@@ -128,19 +128,19 @@ class Prompt:
         else:
             raise NotImplementedError(f"Type '{type(elem)}' not considered.")
 
-    def decide_tokenized(self, elem):
-        assert (
-            self.tokenizer is not None
-        ), "You must call `subinit` before calling `get_text`"
-        if isinstance(elem, Text):
-            return torch.tensor(elem.text_tokenized)
-        elif isinstance(elem, Key):
-            return tokenizer.encode(data[elem.key]))
-        elif isinstance(elem, Verbalizer):
-            return (
-                self.tokenizer.mask_token if not self.generate else ""
-            )  # TODO check of eos?
-        else:
+    # def decide_tokenized(self, elem):
+    #     assert (
+    #         self.tokenizer is not None
+    #     ), "You must call `subinit` before calling `get_text`"
+    #     if isinstance(elem, Text):
+    #         return torch.tensor(elem.text_tokenized)
+    #     elif isinstance(elem, Key):
+    #         return tokenizer.encode(data[elem.key]))
+    #     elif isinstance(elem, Verbalizer):
+    #         return (
+    #             self.tokenizer.mask_token if not self.generate else ""
+    #         )  # TODO check of eos?
+    #     else:
 
     def get_text(self, data: Dataset) -> str:
         """Join Prompt to String.
