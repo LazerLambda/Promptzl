@@ -19,7 +19,7 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 from .prompt import Prompt, Verbalizer
-from .utils import DataCollatorPromptPad
+from .utils import DataCollatorPrompt, DataCollatorPromptFast, DataCollatorPromptPad
 
 
 class LLM4ClassificationBase(torch.nn.Module):
@@ -28,10 +28,10 @@ class LLM4ClassificationBase(torch.nn.Module):
     def __init__(
         self,
         model: PreTrainedModel,
-        tokenizer: PreTrainedTokenizerBase,  # TODO Check types
+        tokenizer: PreTrainedTokenizerBase,
         prompt_or_verbalizer: Union[Prompt, Verbalizer],
         generate: bool,
-    ):
+    ) -> None:
         """Initialize of the Main Class.
 
         Args:
@@ -69,6 +69,8 @@ class LLM4ClassificationBase(torch.nn.Module):
             self.verbalizer_raw = self.prompt.verbalizer.verbalizer
         elif isinstance(prompt_or_verbalizer, Verbalizer):
             self.verbalizer_raw = prompt_or_verbalizer.verbalizer
+            self.prompt = Prompt(prompt_or_verbalizer)  # type: ignore[arg-type]
+            self.prompt.subinit(self.tokenizer, self._can_generate)
         else:
             raise TypeError(
                 "Argument `prompt_or_verbalizer` must be of either `Prompt` or `Verbalizer`."
@@ -139,9 +141,13 @@ class LLM4ClassificationBase(torch.nn.Module):
             )
         )
         if not self._can_generate:
-            assert [
+            check_token_list: List[List[List[int]]] = [
                 item for one_dim in tokenized for item in one_dim if len(item[0]) != 1
-            ] == [], "Multi token word found. When using MLM-models, only one token per word is permitted."
+            ]
+            assert check_token_list == [], (
+                "Multi token word found. When using MLM-models, only one token per word is permitted.",
+                f"['{self.tokenizer.decode(check_token_list[0][0])}'] -> '{check_token_list[0]}'",
+            )
         verbalizer_tok: List[List[int]] = [
             [item[0] for one_dim in two_dim for item in one_dim]
             for two_dim in tokenized
@@ -160,7 +166,6 @@ class LLM4ClassificationBase(torch.nn.Module):
         assert len(set(verbalizer_tok_seq)) == len(
             verbalizer_tok_seq
         ), "Equivalent tokens for different classes detected! This also happens if subwords are equal. Tokens must be unique for each class!"
-        # TODO: Consider this in label search!
         return verbalizer_tok, i_dict
 
     def _class_logits(
@@ -179,12 +184,11 @@ class LLM4ClassificationBase(torch.nn.Module):
         Returns:
             tensor: The class probabilities.
         """
-        # TODO: Check if single and if yes unsqueeze
         out_res: tensor = torch.cat(
             list(
                 map(
-                    lambda i: logits[:, self.verbalizer_tok[i]],
-                    range(len(self.verbalizer_tok)),
+                    lambda e: logits[:, e],
+                    self.verbalizer_tok,
                 )
             ),
             axis=-1,
@@ -209,8 +213,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                 1,
             )
         return out_res
-        # TODO: verbalizer for labels
-        # return class_probs_combined
 
     def forward(
         self,
@@ -218,7 +220,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         return_model_output: bool = False,
         combine: bool = True,
         calibrate: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> Union[tensor, Tuple[tensor, Any]]:
         """Forward Function.
 
@@ -259,7 +261,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         else:
             return probs
 
-    def _text_length(self, elem: Dict[str, tensor]) -> int:
+    def _text_length(self, elem: Dict[str, Union[tensor, str, int]]) -> int:
         """Get Length of Instance.
 
         Args:
@@ -272,8 +274,11 @@ class LLM4ClassificationBase(torch.nn.Module):
             int: Length of instances
         """
         if isinstance(elem, dict):
-            # if "input_ids" in elem.keys():
-            return len(elem["input_ids"])
+            if "input_ids" in elem.keys():
+                return len(elem["input_ids"])
+            else:
+                # return sum([len(k) for k in elem.keys()])
+                return sum([len(v) if isinstance(v, str) else 0 for v in elem.values()])
         else:
             raise NotImplementedError(f"Case '{type(elem)}' not implemented")
 
@@ -284,9 +289,10 @@ class LLM4ClassificationBase(torch.nn.Module):
         show_progress_bar: bool = False,
         return_logits: bool = False,
         return_type: str = "torch",
-        calibrate: bool = True,
-        **kwargs,
-    ):
+        calibrate: Union[bool] = True,
+        data_collator: str = "safe",
+        **kwargs: Any,
+    ) -> Union[tensor, np.ndarray, List[List[float]], pd.DataFrame]:
         """Classify a Dataset.
 
         Classify a dataset using a prompt and a verbalizer. The classification can happen in two different steps:
@@ -315,7 +321,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             show_progress_bar (bool): Show progress bar during inference.
             return_logits (bool): Boolean determining whether or not logits will be returned.
             return_type (str): Desired return type. Must be in: ["list", "torch", "numpy", "pandas"]. Default is "torch"
-            calibrate (bool): Boolean determining whether or not logits will be calibrated.
+            calibrate (Union[bool]): Boolean determining whether or not logits will be calibrated.
+            data_collator (str): Data collator to be used. Must be in: ["fast", "safe"]. Default is "safe". The fast data collator
+                is faster but does not truncate data if the context length is to long. .
             **kwargs: Additional arguments for the underlying huggingface-model.
 
         Raises:
@@ -331,13 +339,19 @@ class LLM4ClassificationBase(torch.nn.Module):
             "numpy",
             "pandas",
         ], "`return_type` must be: 'list', 'numpy', 'torch' or 'pandas'"
+
+        data_collator_class: Optional[
+            Union[DataCollatorPrompt, DataCollatorPromptFast, DataCollatorPromptPad]
+        ] = None
+        pad_side: str = "left" if self._can_generate else "right"
         if isinstance(dataset, Dataset):
-            if "input_ids" not in dataset:
-                if self.prompt is not None:
-                    dataset = self.prompt.prepare_dataset(dataset)
-                    dataset.set_format(
-                        type="torch", columns=["input_ids", "attention_mask"]
-                    )
+            if "input_ids" in dataset.column_names:
+                dataset.set_format(
+                    type="torch", columns=["input_ids", "attention_mask"]
+                )
+                data_collator_class = DataCollatorPromptPad(
+                    self.tokenizer, "max_length", pad_side
+                )
         if isinstance(dataset, list):
             assert [
                 e for e in dataset if not isinstance(e, str)
@@ -346,24 +360,44 @@ class LLM4ClassificationBase(torch.nn.Module):
                 self.prompt is not None
             ), "When using data as `List[str]` a Prompt for `prompt_or_verbalizer` is required on initialization."
             dataset = Dataset.from_dict({"text": dataset})
-            dataset = self.prompt.prepare_dataset(dataset)
 
-        if calibrate:
+        if data_collator_class is None:
+            if data_collator == "fast":
+                data_collator_class = DataCollatorPromptFast(
+                    self.prompt, self.tokenizer, pad_side  # type: ignore[arg-type]
+                )
+            elif data_collator == "safe":
+                data_collator_class = DataCollatorPrompt(
+                    self.prompt, self.tokenizer, pad_side  # type: ignore[arg-type]
+                )
+            else:
+                raise ValueError(
+                    "Argument `data_collator` must be either 'fast' or 'safe'."
+                )
+
+        if bool(calibrate):
             if self.calibration_probs is None:
+                n_sample: int = 200
+                if isinstance(calibrate, int):
+                    n_sample = calibrate if calibrate > 0 else n_sample
                 n: int = len(dataset)
-                n_sample: int = 200 if n > 200 else n // 2
+                if n_sample > n:
+                    n_sample = int(n // 2)
                 random_indices: List[int] = random.sample(range(n), n_sample)
                 dataset_cali = dataset.select(random_indices)
-                dataloader_cali = DataLoader(dataset_cali)
+                dataloader_cali = DataLoader(
+                    dataset_cali, collate_fn=data_collator_class
+                )
                 self.set_contextualized_prior(dataloader_cali)
 
         length_sorted_idx = np.argsort([-self._text_length(inst) for inst in dataset])
         dataset = dataset.select(length_sorted_idx)
 
-        pad_side: str = "left" if self._can_generate else "right"
-        data_collator = DataCollatorPromptPad(self.tokenizer, "max_length", pad_side)
         dataloader = DataLoader(
-            dataset, batch_size=batch_size, collate_fn=data_collator
+            dataset,
+            batch_size=batch_size,
+            collate_fn=data_collator_class,
+            shuffle=False,
         )
 
         collector: List[tensor] = []
@@ -387,12 +421,12 @@ class LLM4ClassificationBase(torch.nn.Module):
             return output.numpy()
         elif return_type == "list":
             return output.tolist()
-        elif return_type == "pandas":
+        else:
             return pd.DataFrame(
                 output.numpy(), columns=[e[0] for e in self.verbalizer_raw]
             )
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Delete the model."""
         del self.model
         torch.cuda.empty_cache()
@@ -405,8 +439,11 @@ class MLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """
 
     def __init__(
-        self, model_id: str, prompt_or_verbalizer: Union[Prompt, Verbalizer], **kwargs
-    ):
+        self,
+        model_id: str,
+        prompt_or_verbalizer: Union[Prompt, Verbalizer],
+        **kwargs: Any,
+    ) -> None:
         """Initialize Class.
 
         Args:
@@ -434,8 +471,11 @@ class CausalModel4Classification(LLM4ClassificationBase, torch.nn.Module):
     """
 
     def __init__(
-        self, model_id: str, prompt_or_verbalizer: Union[Prompt, Verbalizer], **kwargs
-    ):
+        self,
+        model_id: str,
+        prompt_or_verbalizer: Union[Prompt, Verbalizer],
+        **kwargs: Any,
+    ) -> None:
         """Initialize Class.
 
         Args:

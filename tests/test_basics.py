@@ -422,3 +422,36 @@ class TestClassification:
         model.classify(dataset, return_type="list")
         model.classify(dataset, return_type="pandas")
         model.classify(dataset, return_type="numpy")
+
+    def test_simple_mlm_class_prompt_w_multiple(self):
+
+        model = promptzl.MLM4Classification(
+            "nreimers/BERT-Tiny_L-2_H-128_A-2",
+            prompt_or_verbalizer=promptzl.Prompt(
+                promptzl.Key("text_a"),
+                promptzl.Text(". It was"),
+                promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
+                promptzl.Key("text_b"),
+            ),
+        )
+        dataset = Dataset.from_dict(
+            {"text_a": self.sample_data, "text_b": self.sample_data[::-1]}
+        )
+        otpt = model.classify(dataset)
+        assert int(torch.sum(otpt).item()) == len(dataset)
+
+    def test_sequence_length_restriction(self):
+        model = promptzl.MLM4Classification(
+            "nreimers/BERT-Tiny_L-2_H-128_A-2",
+            prompt_or_verbalizer=promptzl.Prompt(
+                promptzl.Key("text_a"),
+                promptzl.Text(". It was"),
+                promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
+                promptzl.Key("text_b"),
+            ),
+        )
+        dataset = Dataset.from_dict(
+            {"text_a": ["a " * 1000 + "a"] * 3, "text_b": ["b " * 1000 + "b"] * 3}
+        )
+        otpt = model.classify(dataset)
+        assert int(torch.sum(otpt).item()) == len(dataset)
