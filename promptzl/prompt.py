@@ -100,10 +100,34 @@ class Prompt:
             sep (str): Seperator for combining text and data,
                 i.e. `Prompt(Key('text'), Text('It was ...') ..., sep='#)` -> `'lorem ipsum...#It was ...'`
         """
-        self.prompt: List[Union[Key, Text, Verbalizer]] = list(args) if len(args) > 1 else [args[0]]  # type: ignore[arg-type,list-item]
         self.sep: str = sep
         self.tokenizer: Optional[PreTrainedTokenizerBase] = None
         self.truncate_data: bool = truncate_data
+        self.prompt: List[Union[Key, Text, Verbalizer]] = list(args) if len(args) > 1 else [args[0]]  # type: ignore[arg-type,list-item]
+
+        assert len(
+            [
+                e
+                for e in self.prompt
+                if isinstance(e, Verbalizer)
+                or isinstance(e, Key)
+                or isinstance(e, Text)
+            ]
+        ) == len(
+            self.prompt
+        ), "Only Key, Text and Verbalizer objects are allowed in Prompt."
+
+        verb_filtered: List[Verbalizer] = [
+            e for e in self.prompt if isinstance(e, Verbalizer)
+        ]
+
+        self.key_list: List[str] = [e.key for e in self.prompt if isinstance(e, Key)]
+
+        assert (
+            len(verb_filtered) == 1
+        ), "The prompt must contain the verbalizer. E.g. `Prompt(Key('text'), Text('It was '), Verbalizer([['good'], ['bad']]))`."
+
+        self.verbalizer: Verbalizer = verb_filtered[0]
 
     def subinit(self, tokenizer: Any, generate: bool) -> None:
         """Subinitialization for Main Class.
@@ -116,20 +140,11 @@ class Prompt:
         """
         self.tokenizer = tokenizer
         self.generate = generate
-        verb_filtered: List[Verbalizer] = [
-            e for e in self.prompt if isinstance(e, Verbalizer)
-        ]
-        self.key_list: List[str] = [e.key for e in self.prompt if isinstance(e, Key)]
-        assert len(verb_filtered) == 1, "One Verbalizer must be provided in prompt."
-        assert True in [
-            isinstance(e, Verbalizer) for e in self.prompt
-        ], "The prompt must contain the verbalizer. E.g. `Prompt(Key('text'), Text('It was '), Verbalizer([['good'], ['bad']]))`."
+
         if generate:
             assert isinstance(
                 self.prompt[-1], Verbalizer
-            ), "When using `CausalModel4Classification`, the last token must be of type `Verbalizer`."
-
-        self.verbalizer: Verbalizer = verb_filtered[0]
+            ), "When using `CausalLM4Classification`, the last token must be of type `Verbalizer`."
 
         for e in [e for e in self.prompt if isinstance(e, Text)]:
             e.set_text_tokenized(self.tokenizer)
@@ -175,10 +190,8 @@ class Prompt:
             return elem.text
         elif isinstance(elem, Key):
             return data[elem.key]
-        elif isinstance(elem, Verbalizer):
-            return self.tokenizer.mask_token if not self.generate else ""
         else:
-            raise NotImplementedError(f"Type '{type(elem)}' not considered.")
+            return self.tokenizer.mask_token if not self.generate else ""
 
     def get_text(self, data: Dataset) -> str:
         """Join Prompt to String.

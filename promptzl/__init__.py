@@ -4,8 +4,8 @@ MIT LICENSE
 """
 
 from .model import (
-    CausalModel4Classification,
+    CausalLM4Classification,
     LLM4ClassificationBase,
-    MLM4Classification,
+    MaskedLM4Classification,
 )
 from .prompt import Key, Prompt, Text, Verbalizer
