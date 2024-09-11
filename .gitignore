@@ -74,3 +74,4 @@ wandb
 checkpoints
 tmp
 .DS_Store
+notebooks/*
