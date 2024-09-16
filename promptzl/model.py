@@ -87,6 +87,9 @@ class LLM4ClassificationBase(torch.nn.Module):
         self.verbalizer_tok, self.i_dict = self._get_verbalizer(self.verbalizer_raw)
         self.calibration_probs: Optional[tensor] = None
 
+        if self._can_generate:
+            self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
+
     def set_contextualized_prior(self, support_set: DataLoader) -> None:
         """Compute Contextualized Prior.
 
@@ -184,6 +187,9 @@ class LLM4ClassificationBase(torch.nn.Module):
         Returns:
             tensor: The class probabilities.
         """
+        # TODO: replace with function in forward function
+        # Verbalizer indices from new function are too nested
+        print(self.verbalizer_tok, self.i_dict)
         out_res: tensor = torch.cat(
             list(
                 map(
@@ -201,6 +207,8 @@ class LLM4ClassificationBase(torch.nn.Module):
             out_res = out_res.reshape(shape[0], -1) / norm
             out_res = out_res.reshape(*shape)
         out_res = torch.log(out_res)
+
+        # TODO: Combine Function
         if combine:
             out_res = torch.transpose(
                 torch.stack(
@@ -237,6 +245,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
         logits: Optional[tensor] = None
+        # print([self.tokenizer.decode(e) for e in batch["input_ids"]])
         if self._can_generate:
             outputs: GenerateDecoderOnlyOutput = self.model.generate(
                 **batch,
@@ -289,7 +298,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         show_progress_bar: bool = False,
         return_logits: bool = False,
         return_type: str = "torch",
-        calibrate: Union[bool] = True,
+        calibrate: Union[bool] = False,
         calibrate_samples: int = 200,
         data_collator: str = "safe",
         **kwargs: Any,

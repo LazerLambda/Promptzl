@@ -18,4 +18,4 @@ class TestUtils:
 
     def test_data_collator_pad_init(self):
         tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2')
-        data_collator = DataCollatorPromptPad(tokenizer, padding='max_length')
+        data_collator = DataCollatorPromptPad(tokenizer, padding='max_length', padding_side='left')

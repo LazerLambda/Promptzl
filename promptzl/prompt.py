@@ -104,6 +104,7 @@ class Prompt:
         self.tokenizer: Optional[PreTrainedTokenizerBase] = None
         self.truncate_data: bool = truncate_data
         self.prompt: List[Union[Key, Text, Verbalizer]] = list(args) if len(args) > 1 else [args[0]]  # type: ignore[arg-type,list-item]
+        self.intermediate_token: Optional[str] = None
 
         assert len(
             [
@@ -118,7 +119,7 @@ class Prompt:
         ), "Only Key, Text and Verbalizer objects are allowed in Prompt."
 
         verb_filtered: List[Verbalizer] = [
-            e for e in self.prompt if isinstance(e, Verbalizer)
+            (i, e) for i, e in enumerate(self.prompt) if isinstance(e, Verbalizer)
         ]
 
         self.key_list: List[str] = [e.key for e in self.prompt if isinstance(e, Key)]
@@ -127,7 +128,9 @@ class Prompt:
             len(verb_filtered) == 1
         ), "The prompt must contain the verbalizer. E.g. `Prompt(Key('text'), Text('It was '), Verbalizer([['good'], ['bad']]))`."
 
-        self.verbalizer: Verbalizer = verb_filtered[0]
+        self.verbalizer: Verbalizer = verb_filtered[0][1]
+        self.idx: int = verb_filtered[0][0]
+        self.before_verb: Union[Text, Key] = self.prompt[self.idx - 1]
 
     def subinit(self, tokenizer: Any, generate: bool) -> None:
         """Subinitialization for Main Class.
@@ -165,6 +168,15 @@ class Prompt:
         )  # -1 for mask/last token
         if not self.generate:
             self.verbalizer.set_mask_token(self.tokenizer.mask_token_id)
+        if self.generate:
+            if self.idx != 0:
+                if self.sep != "":
+                    self.intermediate_token = self.sep
+                elif isinstance(self.before_verb, Text):
+                    self.intermediate_token = self.before_verb.text[-1]
+                else:
+                    # TODO: Warning!
+                    pass
 
     def decide(self, elem: Union[Key, Text, Verbalizer], data: Dataset) -> str:
         """Decide String for Prompt.
