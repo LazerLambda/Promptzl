@@ -31,6 +31,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         tokenizer: PreTrainedTokenizerBase,
         prompt_or_verbalizer: Union[Prompt, Verbalizer],
         generate: bool,
+        multi_token: bool = False,
     ) -> None:
         """Initialize of the Main Class.
 
@@ -70,7 +71,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         elif isinstance(prompt_or_verbalizer, Verbalizer):
             self.verbalizer_raw = prompt_or_verbalizer.verbalizer
             self.prompt = Prompt(prompt_or_verbalizer)  # type: ignore[arg-type]
-            self.prompt.subinit(self.tokenizer, self._can_generate)
+            self.prompt.subinit(self.tokenizer, self._can_generate, multi_token)
         else:
             raise TypeError(
                 "Argument `prompt_or_verbalizer` must be of either `Prompt` or `Verbalizer`."
@@ -167,6 +168,28 @@ class LLM4ClassificationBase(torch.nn.Module):
             verbalizer_tok_seq
         ), "Equivalent tokens for different classes detected! This also happens if subwords are equal. Tokens must be unique for each class!"
         return verbalizer_tok, i_dict
+    
+    def _combine_logits(self, logits: tensor) -> tensor:
+        """Combine Logits.
+
+        Combine the logits for different class labels.
+
+        Args:
+            logits (tensor): The logits to be combined.
+
+        Returns:
+            tensor: The combined logits.
+        """
+        return torch.transpose(
+            torch.stack(
+                [
+                    torch.sum(logits[:, v], axis=-1) / len(v)
+                    for v in self.i_dict.values()
+                ]
+            ),
+            0,
+            1,
+        )
 
     def _class_logits(
         self, logits: tensor, combine: bool = True, calibrate: bool = False
@@ -184,6 +207,30 @@ class LLM4ClassificationBase(torch.nn.Module):
         Returns:
             tensor: The class probabilities.
         """
+        out_res = torch.nn.functional.softmax(logits, dim=1)
+        if self.calibration_probs is not None and calibrate:
+            shape = out_res.shape
+            out_res = out_res / (self.calibration_probs + 1e-15)
+            norm = out_res.reshape(shape[0], -1).sum(dim=-1, keepdim=True)
+            out_res = out_res.reshape(shape[0], -1) / norm
+            out_res = out_res.reshape(*shape)
+        out_res = torch.log(out_res)
+        if combine:
+            out_res = self._combine_logits(out_res)
+        return out_res
+    
+    def _extract_logits(self, logits: tensor) -> tensor:
+        """Extract Logits.
+
+        Extract the logits from the model output.
+
+        Args:
+            logits (tensor): The model output.
+
+        Returns:
+            tensor: The extracted logits.
+        """
+        # TODO
         out_res: tensor = torch.cat(
             list(
                 map(
@@ -193,25 +240,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             ),
             axis=-1,
         )
-        out_res = torch.nn.functional.softmax(out_res, dim=1)
-        if self.calibration_probs is not None and calibrate:
-            shape = out_res.shape
-            out_res = out_res / (self.calibration_probs + 1e-15)
-            norm = out_res.reshape(shape[0], -1).sum(dim=-1, keepdim=True)
-            out_res = out_res.reshape(shape[0], -1) / norm
-            out_res = out_res.reshape(*shape)
-        out_res = torch.log(out_res)
-        if combine:
-            out_res = torch.transpose(
-                torch.stack(
-                    [
-                        torch.sum(out_res[:, v], axis=-1) / len(v)
-                        for v in self.i_dict.values()
-                    ]
-                ),
-                0,
-                1,
-            )
         return out_res
 
     def forward(
@@ -255,6 +283,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             ), "Mask token not found in input!"
             outputs = self.model(**batch)
             logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
+        logits = self._extract_logits(logits)
         probs: tensor = self._class_logits(logits, combine=combine, calibrate=calibrate)
         if return_model_output:
             return probs, outputs

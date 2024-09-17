@@ -105,7 +105,7 @@ class Prompt:
         self.tokenizer: Optional[PreTrainedTokenizerBase] = None
         self.truncate_data: bool = truncate_data
 
-    def subinit(self, tokenizer: Any, generate: bool) -> None:
+    def subinit(self, tokenizer: Any, generate: bool, multi_token: bool = False) -> None:
         """Subinitialization for Main Class.
 
         Second initializatio that happens hidden in the main class.
