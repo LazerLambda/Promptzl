@@ -112,25 +112,41 @@ class TestClassification:
         otpt = model.classify(dataset)
         assert int(torch.sum(otpt).item()) == len(dataset)
 
-    # def test_sequence_length_restriction_mlm(self):
-    #     model = promptzl.MaskedLM4Classification(
-    #         "nreimers/BERT-Tiny_L-2_H-128_A-2",
-    #         prompt_or_verbalizer=promptzl.Prompt(
-    #             promptzl.Key("text_a"),
-    #             promptzl.Text(". It was"),
-    #             promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
-    #             promptzl.Key("text_b"),
-    #         ),
-    #     )
-    #     dataset = Dataset.from_dict(
-    #         {"text_a": ["a " * 1000 + "a"] * 3, "text_b": ["b " * 1000 + "b"] * 3}
-    #     )
-    #     model.classify(dataset, data_collator="safe")
+    def test_sequence_length_restriction_mlm(self):
+        model = promptzl.MaskedLM4Classification(
+            "nreimers/BERT-Tiny_L-2_H-128_A-2",
+            prompt_or_verbalizer=promptzl.Prompt(
+                promptzl.Key("text_a"),
+                promptzl.Text(". It was"),
+                promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
+                promptzl.Key("text_b"),
+            ),
+        )
+        dataset = Dataset.from_dict(
+            {"text_a": ["a " * 1000 + "a"] * 3, "text_b": ["b " * 1000 + "b"] * 3}
+        )
+        model.classify(dataset, data_collator="safe")
 
-    def test_missing_mask_long_sequence(self):
+    def test_missing_mask_long_sequence_mlm(self):
         with pytest.raises(AssertionError):
             model = promptzl.MaskedLM4Classification(
                 "nreimers/BERT-Tiny_L-2_H-128_A-2",
+                prompt_or_verbalizer=promptzl.Prompt(
+                    promptzl.Key("text_a"),
+                    promptzl.Text(". It was"),
+                    promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
+                    promptzl.Key("text_b"),
+                ),
+            )
+            dataset = Dataset.from_dict(
+                {"text_a": ["a " * 1000 + "a"] * 3, "text_b": ["b " * 1000 + "b"] * 3}
+            )
+            model.classify(dataset, data_collator="fast")
+
+    def test_missing_mask_long_sequence_causal(self):
+        with pytest.raises(AssertionError):
+            model = promptzl.CausalLM4Classification(
+                "sshleifer/tiny-gpt2",
                 prompt_or_verbalizer=promptzl.Prompt(
                     promptzl.Key("text_a"),
                     promptzl.Text(". It was"),

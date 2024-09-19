@@ -4,13 +4,14 @@ MIT LICENSE
 """
 
 import random
-from typing import Any, Dict, List, Optional, Tuple, Union
+from functools import reduce
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from warnings import warn
 
 import numpy as np
 import pandas as pd
 import torch
 from datasets import Dataset
-from functools import reduce
 from torch import tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -32,7 +33,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         tokenizer: PreTrainedTokenizerBase,
         prompt_or_verbalizer: Union[Prompt, Verbalizer],
         generate: bool,
-        multi_token: bool = False,
+        lower_verbalizer: bool = False,
     ) -> None:
         """Initialize of the Main Class.
 
@@ -50,6 +51,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             generate (bool): A flag to determine if the model is autoregressive and can _generate_ or not. If not, the
                 model is treated as a masked language model.
                 E.g.: `[["good"], ["bad"]]`, `[["good", "positive"], ["bad", "negative"]]`
+            lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
 
         Raise:
             TypeError: In case neither a Prompt of a Verbalizer object is passed for `prompt_or_verbalizer`.
@@ -80,13 +82,26 @@ class LLM4ClassificationBase(torch.nn.Module):
         elif isinstance(prompt_or_verbalizer, Verbalizer):
             self.verbalizer_raw = prompt_or_verbalizer.verbalizer
             self.prompt = Prompt(prompt_or_verbalizer)  # type: ignore[arg-type]
-            self.prompt.subinit(self.tokenizer, self._can_generate, multi_token)
+            self.prompt.subinit(self.tokenizer, self._can_generate)
         else:
             raise TypeError(
                 "Argument `prompt_or_verbalizer` must be of either `Prompt` or `Verbalizer`."
             )
 
-        self.verbalizer_tok, self.i_dict = self._get_verbalizer(self.verbalizer_raw)
+        # self.verbalizer_tok, self.i_dict = self._get_verbalizer(self.verbalizer_raw)
+        # TODO Add last token for generation
+        if self._can_generate:
+            self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
+                self.verbalizer_raw,
+                lower=lower_verbalizer,
+                last_token=self.prompt.intermediate_token,
+                generate=self._can_generate,
+            )
+        else:    
+            self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
+                self.verbalizer_raw,
+                lower=lower_verbalizer
+            )
         self.calibration_probs: Optional[tensor] = None
 
         if self._can_generate:
@@ -117,84 +132,147 @@ class LLM4ClassificationBase(torch.nn.Module):
             all_logits_combined, dim=-1
         )
 
-    def get_masked_verbalizer(self, verbalizer_raw):
-
-    def get_causal_verbalizer(self, verbalizer_raw: List[List[str]],  lower: bool, last_token: str, ignore_last_token: bool) -> List[List[str]]:
-
-        combine = lambda a, b: [e[0] + e[1] for e in list(zip(a, b))]
-
-        if lower:
-            verbalizer_raw = combine(verbalizer_raw, [list(map(lambda elem: elem.lower(), e)) for e in verbalizer_raw])
-
-        verbalizer_tokenized = [[self.tokenizer.encode(e, add_special_tokens=False)[0]] for e in [item for sublist in verbalizer_raw for item in sublist]]
-        if not ignore_last_token:
-            last_token_ids = self.tokenizer.encode(last_token, add_special_tokens=False)
-            last_token_added = list(map(lambda labels: list(map(lambda e: last_token + e,labels)), verbalizer_raw))
-            last_token_added = [[list(filter(lambda token: token not in last_token_ids, self.tokenizer.encode(e, add_special_tokens=False)))[0] for e in labels] for labels in last_token_added]
-            verbalizer = combine(verbalizer_tokenized, last_token_added)
-
-        verbalizer_indices = [[item for sublist in verbalizer for item in sublist]]
-
-        indices = list(range(len(verbalizer_indices[0])))
-        grouped_indices = list(reduce(lambda coll, elem : (coll[0] + [indices[coll[1]:(coll[1]+len(elem))]], coll[1] + len(elem)), verbalizer, ([], 0)))[0]
-
-        return verbalizer, verbalizer_indices, grouped_indices
+    # def get_masked_verbalizer(self, verbalizer_raw):
 
     def _get_verbalizer(
         self,
-        verbalizer: List[List[str]],
-    ) -> Tuple[List[List[int]], Dict[str, List[int]]]:
-        """Prepare verbalizer.
+        verbalizer_raw: List[List[str]],
+        lower: bool = False,
+        last_token: Optional[str] = None,
+        generate: bool = False,
+    ) -> Tuple[List[int], List[List[int]]]:
 
-        Preprocess the verbalizer to be used in the model. The verbalizer is tokenized and the indexes are stored in a dictionary.
-        The indices are further necessary to obtain the logits from the models output.
+        combine: Callable[
+            [List[List[Any]], List[List[Any]]], List[List[Any]]
+        ] = lambda a, b: [e[0] + e[1] for e in list(zip(a, b))]
 
-        Args:
-            verbalizer (List[List[str]]): The verbalizer to be used. E.g.: `[["good"], ["bad"]]`, `[["good", "positive"], ["bad", "negative"]]`.
-
-        Raises:
-            AssertionError: In case a verbalizer with the same tokens in multiple classes is passed or in case a label word with
-            multiple subtokens is used in MLM.
-
-        Returns:
-            Tuple[List[List[int]], Dict[str, List[int]]]: The tokenized verbalizer (first) and the dictionary with the indices (second) as a tuple.
-        """
-        tokenized: List[List[List[List[int]]]] = list(
-            map(
-                lambda elem: [
-                    self.tokenizer(e, add_special_tokens=False)["input_ids"]
-                    for e in elem
-                ],
-                [[[elem] for elem in e] for e in verbalizer],
+        if lower:
+            verbalizer_raw = combine(
+                verbalizer_raw, [[elem.lower() for elem in e] for e in verbalizer_raw]
             )
-        )
-        if not self._can_generate:
-            check_token_list: List[List[List[int]]] = [
-                item for one_dim in tokenized for item in one_dim if len(item[0]) != 1
+            verbalizer_raw = list(map(lambda e: list(set(e)), verbalizer_raw))
+
+        verbalizer_tokenized_raw: List[List[List[int]]] = [
+            [self.tokenizer.encode(e, add_special_tokens=False) for e in label_words]
+            for label_words in verbalizer_raw
+        ]
+        if not generate:
+            if True in [
+                True in [len(v) > 1 for v in e] for e in verbalizer_tokenized_raw
+            ]:
+                warn(
+                    "Warning: Some tokens are subwords and only the first subword is used. This may lead to unexpected behavior. Consider using a different word."
+                )
+        verbalizer_tokenized: List[List[int]] = [
+            [tok[0] for tok in label_tok] for label_tok in verbalizer_tokenized_raw
+        ]
+
+        if last_token is not None:
+            last_token_ids: List[int] = self.tokenizer.encode(
+                last_token, add_special_tokens=False
+            )
+            last_token_added: List[List[str]] = list(
+                map(
+                    lambda labels: list(map(lambda e: last_token + e, labels)),
+                    verbalizer_raw,
+                )
+            )
+            last_token_added = [
+                [
+                    list(
+                        filter(
+                            lambda token: token not in last_token_ids,
+                            self.tokenizer.encode(e, add_special_tokens=False),
+                        )
+                    )[0]
+                    for e in labels
+                ]
+                for labels in last_token_added
             ]
-            assert check_token_list == [], (
-                "Multi token word found. When using MLM-models, only one token per word is permitted.",
-                f"['{self.tokenizer.decode(check_token_list[0][0])}'] -> '{check_token_list[0]}'",
-            )
-        verbalizer_tok: List[List[int]] = [
-            [item[0] for one_dim in two_dim for item in one_dim]
-            for two_dim in tokenized
-        ]
+            verbalizer_tokenized = combine(verbalizer_tokenized, last_token_added)
 
-        counter = 0
-        i_dict: Dict[str, List[int]] = {}
-        for e in verbalizer:
-            i_dict[e[0]] = []
-            for _ in e:
-                i_dict[e[0]].append(counter)
-                counter += 1
-        verbalizer_tok_seq: List[int] = [
-            item for innerlist in verbalizer_tok for item in innerlist
+        # Remove duplicates
+        verbalizer: List[List[int]] = list(
+            map(lambda e: list(set(e)), verbalizer_tokenized)
+        )
+
+        # Check for duplicates in different classes
+        verbalizer_indices: List[int] = [
+            item for sublist in verbalizer for item in sublist
         ]
-        assert len(set(verbalizer_tok_seq)) == len(
-            verbalizer_tok_seq
+        assert len(set(verbalizer_indices)) == len(
+            verbalizer_indices
         ), "Equivalent tokens for different classes detected! This also happens if subwords are equal. Tokens must be unique for each class!"
-        return verbalizer_tok, i_dict
+
+        indices: List[int] = list(range(len(verbalizer_indices)))
+        grouped_indices: List[List[int]] = list(  # type: ignore[assignment]
+            reduce(
+                lambda coll, elem: (  # type: ignore[arg-type,return-value]
+                    coll[0] + [indices[coll[1] : (coll[1] + len(elem))]],  # type: ignore[index]
+                    coll[1] + len(elem),  # type: ignore[index]
+                ),
+                verbalizer,
+                ([], 0),
+            )
+        )[0]
+
+        return verbalizer_indices, grouped_indices
+
+    # def _get_verbalizer(
+    #     self,
+    #     verbalizer: List[List[str]],
+    # ) -> Tuple[List[List[int]], Dict[str, List[int]]]:
+    #     """Prepare verbalizer.
+
+    #     Preprocess the verbalizer to be used in the model. The verbalizer is tokenized and the indexes are stored in a dictionary.
+    #     The indices are further necessary to obtain the logits from the models output.
+
+    #     Args:
+    #         verbalizer (List[List[str]]): The verbalizer to be used. E.g.: `[["good"], ["bad"]]`, `[["good", "positive"], ["bad", "negative"]]`.
+
+    #     Raises:
+    #         AssertionError: In case a verbalizer with the same tokens in multiple classes is passed or in case a label word with
+    #         multiple subtokens is used in MLM.
+
+    #     Returns:
+    #         Tuple[List[List[int]], Dict[str, List[int]]]: The tokenized verbalizer (first) and the dictionary with the indices (second) as a tuple.
+    #     """
+    #     tokenized: List[List[List[List[int]]]] = list(
+    #         map(
+    #             lambda elem: [
+    #                 self.tokenizer(e, add_special_tokens=False)["input_ids"]
+    #                 for e in elem
+    #             ],
+    #             [[[elem] for elem in e] for e in verbalizer],
+    #         )
+    #     )
+    #     if not self._can_generate:
+    #         check_token_list: List[List[List[int]]] = [
+    #             item for one_dim in tokenized for item in one_dim if len(item[0]) != 1
+    #         ]
+    #         assert check_token_list == [], (
+    #             "Multi token word found. When using MLM-models, only one token per word is permitted.",
+    #             f"['{self.tokenizer.decode(check_token_list[0][0])}'] -> '{check_token_list[0]}'",
+    #         )
+    #     verbalizer_tok: List[List[int]] = [
+    #         [item[0] for one_dim in two_dim for item in one_dim]
+    #         for two_dim in tokenized
+    #     ]
+
+    #     counter = 0
+    #     i_dict: Dict[str, List[int]] = {}
+    #     for e in verbalizer:
+    #         i_dict[e[0]] = []
+    #         for _ in e:
+    #             i_dict[e[0]].append(counter)
+    #             counter += 1
+    #     verbalizer_tok_seq: List[int] = [
+    #         item for innerlist in verbalizer_tok for item in innerlist
+    #     ]
+    #     assert len(set(verbalizer_tok_seq)) == len(
+    #         verbalizer_tok_seq
+    #     ), "Equivalent tokens for different classes detected! This also happens if subwords are equal. Tokens must be unique for each class!"
+    #     return verbalizer_tok, i_dict
 
     def _combine_logits(self, logits: tensor) -> tensor:
         """Combine Logits.
@@ -207,15 +285,11 @@ class LLM4ClassificationBase(torch.nn.Module):
         Returns:
             tensor: The combined logits.
         """
-        return torch.transpose(
-            torch.stack(
-                [
-                    torch.sum(logits[:, v], axis=-1) / len(v)
-                    for v in self.i_dict.values()
-                ]
-            ),
-            0,
-            1,
+        return torch.stack(
+            [
+                torch.stack([torch.sum(e[idx] / len(idx)) for idx in self.grouped_indices])
+                for e in logits
+            ]
         )
 
     def _class_logits(
@@ -246,29 +320,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             out_res = self._combine_logits(out_res)
         return out_res
 
-    def _extract_logits(self, logits: tensor) -> tensor:
-        """Extract Logits.
-
-        Extract the logits from the model output.
-
-        Args:
-            logits (tensor): The model output.
-
-        Returns:
-            tensor: The extracted logits.
-        """
-        # TODO
-        out_res: tensor = torch.cat(
-            list(
-                map(
-                    lambda e: logits[:, e],
-                    self.verbalizer_tok,
-                )
-            ),
-            axis=-1,
-        )
-        return out_res
-
     def forward(
         self,
         batch: Dict[str, tensor],
@@ -292,7 +343,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
         logits: Optional[tensor] = None
-        # print([self.tokenizer.decode(e) for e in batch["input_ids"]])
         if self._can_generate:
             outputs: GenerateDecoderOnlyOutput = self.model.generate(
                 **batch,
@@ -311,7 +361,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             ), "Mask token not found in input!"
             outputs = self.model(**batch)
             logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
-        logits = self._extract_logits(logits)
+        logits = logits[
+            :, self.verbalizer_indices
+        ]
         probs: tensor = self._class_logits(logits, combine=combine, calibrate=calibrate)
         if return_model_output:
             return probs, outputs

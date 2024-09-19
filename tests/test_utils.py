@@ -17,5 +17,7 @@ class TestUtils:
 
 
     def test_data_collator_pad_init(self):
-        tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2')
+        tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2', clean_up_tokenization_spaces=True)
         data_collator = DataCollatorPromptPad(tokenizer, padding='max_length', padding_side='left')
+
+    # TODO: Test combine and test max lengths

@@ -25,23 +25,23 @@ class TestPrompt():
         assert len(prompt.__repr__()) > 0
     
     def test_subinit_causal(self):
-        tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2')
+        tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2', clean_up_tokenization_spaces=True)
         prompt = Prompt(Text('Test'), Key('a'), Verbalizer([['bad'], ['good']]))
         prompt.subinit(tokenizer, generate=True)
 
     def test_subinit_masked(self):
-        tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2')
+        tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2', clean_up_tokenization_spaces=True)
         prompt = Prompt(Text('Test'), Key('a'), Verbalizer([['bad'], ['good']]))
         prompt.subinit(tokenizer, generate=False)
 
     def test_get_text_masked(self):
-        tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2')
+        tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2', clean_up_tokenization_spaces=True)
         prompt = Prompt(Text('Test'), Key('a'), Verbalizer([['bad'], ['good']]))
         prompt.subinit(tokenizer, generate=False)
         assert prompt.get_text({'a': 'Test'}) == f"Test Test {tokenizer.mask_token}"
 
     def test_get_text_causal(self):
-        tokenizer = AutoTokenizer.from_pretrained('sshleifer/tiny-gpt2')
+        tokenizer = AutoTokenizer.from_pretrained('sshleifer/tiny-gpt2', clean_up_tokenization_spaces=True)
         prompt = Prompt(Text('Test'), Key('a'), Verbalizer([['bad'], ['good']]))
         prompt.subinit(tokenizer, generate=True)
         assert prompt.get_text({'a': 'Test'}) == f"Test Test "
@@ -53,7 +53,8 @@ class TestPrompt():
         with pytest.raises(AssertionError):
             Prompt(Text('Test'), Key('a'))
 
-        tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2')
+        # TODO: What?
+        tokenizer = AutoTokenizer.from_pretrained('nreimers/BERT-Tiny_L-2_H-128_A-2', clean_up_tokenization_spaces=True)
         prompt = Prompt(Text('Test'), Key('a'), Verbalizer([['bad'], ['good']]))
 
 

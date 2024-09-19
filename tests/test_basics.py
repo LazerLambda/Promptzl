@@ -260,7 +260,7 @@ class TestPromptzel:
             )
 
     def test_multiple_tokens_error_mlm(self):
-        with pytest.raises(AssertionError):
+        with pytest.warns(UserWarning, match="Warning: Some tokens are subwords and only the first subword is used. This may lead to unexpected behavior. Consider using a different word."):
             promptzl.MaskedLM4Classification(
                 "nreimers/BERT-Tiny_L-2_H-128_A-2",
                 prompt_or_verbalizer=promptzl.Prompt(
