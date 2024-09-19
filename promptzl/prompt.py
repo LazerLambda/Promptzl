@@ -3,12 +3,12 @@
 MIT LICENSE
 """
 
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Tuple, Union
+from warnings import warn
 
 from datasets import Dataset
 from torch import tensor
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
-from warnings import warn
 
 
 class Tokenizable:
@@ -119,7 +119,7 @@ class Prompt:
             self.prompt
         ), "Only Key, Text and Verbalizer objects are allowed in Prompt."
 
-        verb_filtered: List[Verbalizer] = [
+        verb_filtered: List[Tuple[int, Verbalizer]] = [
             (i, e) for i, e in enumerate(self.prompt) if isinstance(e, Verbalizer)
         ]
 
@@ -131,11 +131,9 @@ class Prompt:
 
         self.verbalizer: Verbalizer = verb_filtered[0][1]
         self.idx: int = verb_filtered[0][0]
-        self.before_verb: Union[Text, Key] = self.prompt[self.idx - 1]
+        self.before_verb: Union[Text, Key, Verbalizer] = self.prompt[self.idx - 1]
 
-    def subinit(
-        self, tokenizer: Any, generate: bool
-    ) -> None:
+    def subinit(self, tokenizer: Any, generate: bool) -> None:
         """Subinitialization for Main Class.
 
         Second initializatio that happens hidden in the main class.
@@ -179,7 +177,9 @@ class Prompt:
                     self.intermediate_token = self.before_verb.text[-1]
                 else:
                     # TODO: Test this case!
-                    warn("Data is used directly before the verbalizer. Without a seperator, the verbalizer can not be enhanced automatically.")
+                    warn(
+                        "Data is used directly before the verbalizer. Without a seperator, the verbalizer can not be enhanced automatically."
+                    )
             # TODO: Test Prompt(Verbalizer([[...], [...]]), Key('text'), Text('...')) /Prompt(Verbalizer([[...], [...]]))
 
     def decide(self, elem: Union[Key, Text, Verbalizer], data: Dataset) -> str:

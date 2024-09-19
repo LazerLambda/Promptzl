@@ -97,10 +97,9 @@ class LLM4ClassificationBase(torch.nn.Module):
                 last_token=self.prompt.intermediate_token,
                 generate=self._can_generate,
             )
-        else:    
+        else:
             self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
-                self.verbalizer_raw,
-                lower=lower_verbalizer
+                self.verbalizer_raw, lower=lower_verbalizer
             )
         self.calibration_probs: Optional[tensor] = None
 
@@ -161,7 +160,8 @@ class LLM4ClassificationBase(torch.nn.Module):
                 True in [len(v) > 1 for v in e] for e in verbalizer_tokenized_raw
             ]:
                 warn(
-                    "Warning: Some tokens are subwords and only the first subword is used. This may lead to unexpected behavior. Consider using a different word."
+                    "Warning: Some tokens are subwords and only the first subword is used. "
+                    + "This may lead to unexpected behavior. Consider using a different word."
                 )
         verbalizer_tokenized: List[List[int]] = [
             [tok[0] for tok in label_tok] for label_tok in verbalizer_tokenized_raw
@@ -287,7 +287,9 @@ class LLM4ClassificationBase(torch.nn.Module):
         """
         return torch.stack(
             [
-                torch.stack([torch.sum(e[idx] / len(idx)) for idx in self.grouped_indices])
+                torch.stack(
+                    [torch.sum(e[idx] / len(idx)) for idx in self.grouped_indices]
+                )
                 for e in logits
             ]
         )
@@ -361,9 +363,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             ), "Mask token not found in input!"
             outputs = self.model(**batch)
             logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
-        logits = logits[
-            :, self.verbalizer_indices
-        ]
+        logits = logits[:, self.verbalizer_indices]
         probs: tensor = self._class_logits(logits, combine=combine, calibrate=calibrate)
         if return_model_output:
             return probs, outputs
