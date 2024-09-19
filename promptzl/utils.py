@@ -93,9 +93,11 @@ class DataCollatorPrompt:
             return_token_type_ids=False,
         )
 
-    def _format_tokens(self, elem: tensor, key: str) -> tensor:
+    def _format_tokens(
+        self, elem: tensor, key: str, prefix_len: int, suffix_len: int
+    ) -> tensor:
         return (
-            elem[key][0 :: self.max_allowed_per_prompt]
+            elem[key][0 : (self.max_allowed_per_prompt - suffix_len - prefix_len)]
             if self.truncate_data
             else elem[key]
         )
@@ -105,7 +107,9 @@ class DataCollatorPrompt:
             [elem["prefix"]]
             + [
                 (
-                    self._format_tokens(elem, e.key)
+                    self._format_tokens(
+                        elem, e.key, len(elem["prefix"]), len(elem["suffix"])
+                    )
                     if isinstance(e, Key)
                     else e.text_tokenized
                 )
@@ -155,7 +159,7 @@ class DataCollatorPrompt:
             self.tokenizer,
             [self._combine_and_prepare(e) for e in data],
             padding="longest",
-            max_length=512,
+            max_length=self.tokenizer.max_len_single_sentence - 1,  # TODO generate
             return_tensors="pt",
         )
         return batch
