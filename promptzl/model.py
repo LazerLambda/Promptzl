@@ -65,6 +65,14 @@ class LLM4ClassificationBase(torch.nn.Module):
         self.prompt: Optional[Prompt] = None
         self.verbalizer_raw: List[List[str]] = []
 
+        if not self._can_generate:
+            if self.tokenizer.mask_token_id is None or not hasattr(
+                self.tokenizer, "mask_token_id"
+            ):
+                raise ValueError(
+                    "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
+                )
+
         if isinstance(prompt_or_verbalizer, Prompt):
             self.prompt = prompt_or_verbalizer
             self.prompt.subinit(self.tokenizer, self._can_generate)
@@ -78,16 +86,11 @@ class LLM4ClassificationBase(torch.nn.Module):
                 "Argument `prompt_or_verbalizer` must be of either `Prompt` or `Verbalizer`."
             )
 
-        if not self._can_generate:
-            if self.tokenizer.mask_token_id is None or not hasattr(
-                self.tokenizer, "mask_token_id"
-            ):
-                raise ValueError(
-                    "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
-                )
-
         self.verbalizer_tok, self.i_dict = self._get_verbalizer(self.verbalizer_raw)
         self.calibration_probs: Optional[tensor] = None
+
+        if self._can_generate:
+            self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
 
     def set_contextualized_prior(self, support_set: DataLoader) -> None:
         """Compute Contextualized Prior.
@@ -289,6 +292,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
         logits: Optional[tensor] = None
+        # print([self.tokenizer.decode(e) for e in batch["input_ids"]])
         if self._can_generate:
             outputs: GenerateDecoderOnlyOutput = self.model.generate(
                 **batch,
@@ -342,7 +346,8 @@ class LLM4ClassificationBase(torch.nn.Module):
         show_progress_bar: bool = False,
         return_logits: bool = False,
         return_type: str = "torch",
-        calibrate: Union[bool] = True,
+        calibrate: Union[bool] = False,
+        calibrate_samples: int = 200,
         data_collator: str = "safe",
         **kwargs: Any,
     ) -> Union[tensor, np.ndarray, List[List[float]], pd.DataFrame]:
@@ -352,14 +357,14 @@ class LLM4ClassificationBase(torch.nn.Module):
         1. Dataset is already prepared:
             # TODO check if it works
             ```
-                model = MLM4Classification('a-model-on-hf', Verbalizer([['bad'], ['good']]))
+                model = MaskedLM4Classification('a-model-on-hf', Verbalizer([['bad'], ['good']]))
                 dataset = [e + 'It was [MASK]' for e in dataset]
                 dataset = Dataset.from_dict({'text': dataset}).map(tokenizer)
                 model.classify(dataset)
             ```
         2. Dataset is prepared on the fly:
                 ```
-                model = MLM4Classification('a-model-on-hf',
+                model = MaskedLM4Classification('a-model-on-hf',
                     Prompt(Key('text'), Prompt('It was '), Verbalizer([['bad'], ['good']]))
                 dataset = Dataset.from_dict({'text': ["The pizza was good.", "The pizza was bad."]})
                 model.classify(dataset)
@@ -375,6 +380,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             return_logits (bool): Boolean determining whether or not logits will be returned.
             return_type (str): Desired return type. Must be in: ["list", "torch", "numpy", "pandas"]. Default is "torch"
             calibrate (Union[bool]): Boolean determining whether or not logits will be calibrated.
+            calibrate_samples (int): Number of samples to be used for calibration. Only works if `calibrate` is set to `True`.
             data_collator (str): Data collator to be used. Must be in: ["fast", "safe"]. Default is "safe". The fast data collator
                 is faster but does not truncate data if the context length is to long. .
             **kwargs: Additional arguments for the underlying huggingface-model.
@@ -386,6 +392,10 @@ class LLM4ClassificationBase(torch.nn.Module):
         Returns:
             Union[tensor, np.ndarray, List[List[float]], pd.DataFrame]: Probabilities for different classes for all instances.
         """
+        assert data_collator in [
+            "safe",
+            "fast",
+        ], "`data_collator` must be: 'safe' or 'fast'"
         assert return_type in [
             "list",
             "torch",
@@ -419,24 +429,17 @@ class LLM4ClassificationBase(torch.nn.Module):
                 data_collator_class = DataCollatorPromptFast(
                     self.prompt, self.tokenizer, pad_side  # type: ignore[arg-type]
                 )
-            elif data_collator == "safe":
+            else:
                 data_collator_class = DataCollatorPrompt(
                     self.prompt, self.tokenizer, pad_side  # type: ignore[arg-type]
-                )
-            else:
-                raise ValueError(
-                    "Argument `data_collator` must be either 'fast' or 'safe'."
                 )
 
         if bool(calibrate):
             if self.calibration_probs is None:
-                n_sample: int = 200
-                if isinstance(calibrate, int):
-                    n_sample = calibrate if calibrate > 0 else n_sample
                 n: int = len(dataset)
-                if n_sample > n:
-                    n_sample = int(n // 2)
-                random_indices: List[int] = random.sample(range(n), n_sample)
+                if calibrate_samples > n:
+                    calibrate_samples = int(n // 2)
+                random_indices: List[int] = random.sample(range(n), calibrate_samples)
                 dataset_cali = dataset.select(random_indices)
                 dataloader_cali = DataLoader(
                     dataset_cali, collate_fn=data_collator_class
@@ -485,7 +488,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         torch.cuda.empty_cache()
 
 
-class MLM4Classification(LLM4ClassificationBase, torch.nn.Module):
+class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Masked-Language-Modeling-Based Classification.
 
     This class can be used with all masked-language-based language models from huggingface.co.
@@ -517,7 +520,7 @@ class MLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         super().__init__(model, tokenizer, prompt_or_verbalizer, generate=False)
 
 
-class CausalModel4Classification(LLM4ClassificationBase, torch.nn.Module):
+class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Causal-Language-Modeling-Based Classification.
 
     This class can be used with all causal/autoregressive language models from huggingface.co.

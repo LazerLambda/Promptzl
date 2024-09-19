@@ -95,7 +95,7 @@ class DataCollatorPrompt:
 
     def _format_tokens(self, elem: tensor, key: str) -> tensor:
         return (
-            elem[key][0 :: self.max_allowed_per_prompt]
+            elem[key][0 : self.max_allowed_per_prompt]
             if self.truncate_data
             else elem[key]
         )
@@ -155,7 +155,7 @@ class DataCollatorPrompt:
             self.tokenizer,
             [self._combine_and_prepare(e) for e in data],
             padding="longest",
-            max_length=512,
+            max_length=self.tokenizer.max_len_single_sentence - 1,  # TODO generate
             return_tensors="pt",
         )
         return batch
