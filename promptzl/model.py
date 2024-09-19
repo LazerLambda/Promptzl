@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import torch
 from datasets import Dataset
+from functools import reduce
 from torch import tensor
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -113,6 +114,29 @@ class LLM4ClassificationBase(torch.nn.Module):
             all_logits_combined, dim=-1
         )
 
+    def get_masked_verbalizer(self, verbalizer_raw):
+
+    def get_causal_verbalizer(self, verbalizer_raw: List[List[str]],  lower: bool, last_token: str, ignore_last_token: bool) -> List[List[str]]:
+
+        combine = lambda a, b: [e[0] + e[1] for e in list(zip(a, b))]
+
+        if lower:
+            verbalizer_raw = combine(verbalizer_raw, [list(map(lambda elem: elem.lower(), e)) for e in verbalizer_raw])
+
+        verbalizer_tokenized = [[self.tokenizer.encode(e, add_special_tokens=False)[0]] for e in [item for sublist in verbalizer_raw for item in sublist]]
+        if not ignore_last_token:
+            last_token_ids = self.tokenizer.encode(last_token, add_special_tokens=False)
+            last_token_added = list(map(lambda labels: list(map(lambda e: last_token + e,labels)), verbalizer_raw))
+            last_token_added = [[list(filter(lambda token: token not in last_token_ids, self.tokenizer.encode(e, add_special_tokens=False)))[0] for e in labels] for labels in last_token_added]
+            verbalizer = combine(verbalizer_tokenized, last_token_added)
+
+        verbalizer_indices = [[item for sublist in verbalizer for item in sublist]]
+
+        indices = list(range(len(verbalizer_indices[0])))
+        grouped_indices = list(reduce(lambda coll, elem : (coll[0] + [indices[coll[1]:(coll[1]+len(elem))]], coll[1] + len(elem)), verbalizer, ([], 0)))[0]
+
+        return verbalizer, verbalizer_indices, grouped_indices
+
     def _get_verbalizer(
         self,
         verbalizer: List[List[str]],
@@ -168,7 +192,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             verbalizer_tok_seq
         ), "Equivalent tokens for different classes detected! This also happens if subwords are equal. Tokens must be unique for each class!"
         return verbalizer_tok, i_dict
-    
+
     def _combine_logits(self, logits: tensor) -> tensor:
         """Combine Logits.
 
@@ -218,7 +242,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         if combine:
             out_res = self._combine_logits(out_res)
         return out_res
-    
+
     def _extract_logits(self, logits: tensor) -> tensor:
         """Extract Logits.
 
