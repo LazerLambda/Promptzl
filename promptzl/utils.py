@@ -49,8 +49,9 @@ class DataCollatorPrompt:
             )
         )
         self.truncate_data: bool = self.prompt.truncate_data
+        keys_in_prompt: int = max(len(self.prompt.key_list), 1)
         self.max_allowed_per_prompt: int = int(
-            (self.max_len - self.prompt.used_tokens) // len(self.prompt.key_list)
+            (self.max_len - self.prompt.used_tokens) // keys_in_prompt
         )
 
     def _extract_text(
