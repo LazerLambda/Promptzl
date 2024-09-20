@@ -39,7 +39,7 @@ class Text(Tokenizable):
         """
         self.text_tokenized = tokenizer(
             self.text, return_tensors="pt", add_special_tokens=False
-        )["input_ids"].squeeze()
+        )["input_ids"][0]
 
     def __str__(self) -> str:
         """Return String Representation."""

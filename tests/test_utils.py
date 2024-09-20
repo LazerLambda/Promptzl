@@ -21,3 +21,7 @@ class TestUtils:
         data_collator = DataCollatorPromptPad(tokenizer, padding='max_length', padding_side='left')
 
     # TODO: Test combine and test max lengths
+
+    # TODO Test concat empty tensor
+
+    # TODO Test List[str] input with safe datacollator (keys_in_prompt)

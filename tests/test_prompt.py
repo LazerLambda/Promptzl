@@ -58,3 +58,5 @@ class TestPrompt():
         prompt = Prompt(Text('Test'), Key('a'), Verbalizer([['bad'], ['good']]))
 
 
+
+    # TODO: Test dataset['test'] with only Verbalizer -> Error
