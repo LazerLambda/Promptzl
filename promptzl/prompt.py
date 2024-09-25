@@ -85,7 +85,7 @@ class Verbalizer(Tokenizable):
 
     def __str__(self) -> str:
         """Return String Representation."""
-        return f"<Verbalizer: [{', '.join(['[\"%s\",...]' % str(elem[0]) for elem in self.verbalizer])}]>"
+        return "<Verbalizer: [" + ", ".join(["[\"%s\",...]" % str(elem[0]) for elem in self.verbalizer]) + "]>"
 
 
 class Prompt:
