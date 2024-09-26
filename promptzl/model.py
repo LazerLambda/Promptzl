@@ -492,11 +492,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                 output.numpy(), columns=[e[0] for e in self.verbalizer_raw]
             )
 
-    def __del__(self) -> None:
-        """Delete the model."""
-        del self.model
-        torch.cuda.empty_cache()
-
 
 class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Masked-Language-Modeling-Based Classification.
