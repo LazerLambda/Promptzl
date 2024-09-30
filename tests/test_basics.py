@@ -362,3 +362,14 @@ class TestPromptzel:
         )
         model.forward(batch=tokenizer('This is a test.', return_tensors="pt"), return_model_output=True)
         model.forward(batch=tokenizer('This is a test.', return_tensors="pt"), return_model_output=False)
+
+    def test_init_with_tuple(self):
+        model = promptzl.MaskedLM4Classification(
+            "nreimers/BERT-Tiny_L-2_H-128_A-2",
+            promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
+            ("Hello %s! It is %m", ['text'], [["bad", "horrible"], ["good"]])
+        )
+        model = promptzl.CausalLM4Classification(
+            "sshleifer/tiny-gpt2",
+            ("Hello %s!", ['text'], [["bad", "horrible"], ["good"]])
+        )

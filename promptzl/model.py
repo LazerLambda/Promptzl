@@ -20,7 +20,7 @@ from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
-from .prompt import Key, Prompt, Verbalizer
+from .prompt import Key, Prompt, Verbalizer, get_prompt
 from .utils import DataCollatorPrompt, DataCollatorPromptFast, DataCollatorPromptPad
 
 
@@ -31,7 +31,9 @@ class LLM4ClassificationBase(torch.nn.Module):
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizerBase,
-        prompt_or_verbalizer: Union[Prompt, Verbalizer],
+        prompt_or_verbalizer: Union[
+            Prompt, Verbalizer, Tuple[str, List[str], List[List[str]]]
+        ],
         generate: bool,
         lower_verbalizer: bool = False,
     ) -> None:
@@ -41,13 +43,18 @@ class LLM4ClassificationBase(torch.nn.Module):
             model (PreTrainedModel): The model to be used. It is a pretrained model from the Huggingface Transformers library.
             tokenizer (PreTrainedTokenizerBase): The tokenizer to be used. It is a pretrained tokenizer from the Huggingface
             Transformers library.
-            prompt_or_verbalizer (Union[Prompt, Verbalizer]): An Prompt object or a Verbalizer Object. The verbalizer object is used,
-            when the data is already pre-processed otherwise
+            prompt_or_verbalizer (Union[Prompt, Verbalizer, Tuple[str, List[str], Verbalizer]]): An Prompt objectm, a Verbalizer Object or a
+            tuple with a c-string like placeholder pattern, List of keys or a key for the data and a Verbalizer. The verbalizer object
+            is used, when the data is already pre-processed otherwise
                 the pre-processing happens inside the Prompt class. Example:
                     1. Verbalizer:
                         ```Verbalizer([['good'], ['bad']])```
                     2. Prompt:
-                        ```Prompt(Text("Classify the following with 'good' or 'bad'"), Text('text'), Verbalizer([['good'], ['bad']]))```
+                        ```Prompt(Text("Classify the following with 'good' or 'bad'"), Text('text'), Verbalizer([['good'], ['bad']]))``
+                    3. Tuple[str, List[str], Verbalizer]:
+                        ```("Classify the following with 'good' or 'bad': %s", ['text'], Verbalizer([['good'], ['bad']]) )```
+                        In case only one key in the template, a single string can also be provided:
+                        ```("Classify the following with 'good' or 'bad': %s", 'text', Verbalizer([['good'], ['bad']]) )```
             generate (bool): A flag to determine if the model is autoregressive and can _generate_ or not. If not, the
                 model is treated as a masked language model.
                 E.g.: `[["good"], ["bad"]]`, `[["good", "positive"], ["bad", "negative"]]`
@@ -74,8 +81,14 @@ class LLM4ClassificationBase(torch.nn.Module):
                 raise ValueError(
                     "The tokenizer does not have a mask token. Please use a model that supports masked language modeling."
                 )
-
-        if isinstance(prompt_or_verbalizer, Prompt):
+        # TODO: Change initialize to three different argumtents: template, key_list and verbalizer
+        if isinstance(prompt_or_verbalizer, tuple):
+            self.prompt = get_prompt(
+                prompt=prompt_or_verbalizer[0],
+                key_list=prompt_or_verbalizer[1],
+                verbalizer=prompt_or_verbalizer[2],
+            )
+        elif isinstance(prompt_or_verbalizer, Prompt):
             self.prompt = prompt_or_verbalizer
             self.prompt.subinit(self.tokenizer, self._can_generate)
             self.verbalizer_raw = self.prompt.verbalizer.verbalizer
@@ -502,7 +515,9 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     def __init__(
         self,
         model_id: str,
-        prompt_or_verbalizer: Union[Prompt, Verbalizer],
+        prompt_or_verbalizer: Union[
+            Prompt, Verbalizer, Tuple[str, List[str], List[List[str]]]
+        ],
         lower_verbalizer: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -510,13 +525,18 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
 
         Args:
             model_id (str): Valid model identifier for huggingface.co.
-            prompt_or_verbalizer (Union[Prompt, Verbalizer]): An Prompt object or a Verbalizer Object. The verbalizer object
-                is used, when the data is already pre-processed otherwise
+            prompt_or_verbalizer (Union[Prompt, Verbalizer, Tuple[str, List[str], Verbalizer]]): An Prompt objectm, a Verbalizer Object or a
+            tuple with a c-string like placeholder pattern, List of keys or a key for the data and a Verbalizer. The verbalizer object
+            is used, when the data is already pre-processed otherwise
                 the pre-processing happens inside the Prompt class. Example:
                     1. Verbalizer:
                         ```Verbalizer([['good'], ['bad']])```
                     2. Prompt:
-                        ```Prompt(Text("Classify the following with 'good' or 'bad'"), Text('text'), Verbalizer([['good'], ['bad']]))```
+                        ```Prompt(Text("Classify the following with 'good' or 'bad'"), Text('text'), Verbalizer([['good'], ['bad']]))``
+                    3. Tuple[str, List[str], Verbalizer]:
+                        ```("Classify the following with 'good' or 'bad': %s", ['text'], Verbalizer([['good'], ['bad']]) )```
+                        In case only one key in the template, a single string can also be provided:
+                        ```("Classify the following with 'good' or 'bad': %s", 'text', Verbalizer([['good'], ['bad']]) )```
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
             **kwargs: Additional arguments for initializing the underlying huggingface-model.
         """
@@ -542,7 +562,9 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     def __init__(
         self,
         model_id: str,
-        prompt_or_verbalizer: Union[Prompt, Verbalizer],
+        prompt_or_verbalizer: Union[
+            Prompt, Verbalizer, Tuple[str, List[str], List[List[str]]]
+        ],
         lower_verbalizer: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -550,13 +572,18 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
 
         Args:
             model_id (str): Valid model identifier for huggingface.co.
-            prompt_or_verbalizer (Union[Prompt, Verbalizer]): An Prompt object or a Verbalizer Object. The verbalizer object
+            prompt_or_verbalizer (Union[Prompt, Verbalizer, Tuple[str, List[str], Verbalizer]]): An Prompt objectm, a Verbalizer Object or a
+            tuple with a c-string like placeholder pattern, List of keys or a key for the data and a Verbalizer. The verbalizer object
             is used, when the data is already pre-processed otherwise
                 the pre-processing happens inside the Prompt class. Example:
                     1. Verbalizer:
                         ```Verbalizer([['good'], ['bad']])```
                     2. Prompt:
                         ```Prompt(Text("Classify the following with 'good' or 'bad'"), Text('text'), Verbalizer([['good'], ['bad']]))``
+                    3. Tuple[str, List[str], Verbalizer]:
+                        ```("Classify the following with 'good' or 'bad': %s", ['text'], Verbalizer([['good'], ['bad']]) )```
+                        In case only one key in the template, a single string can also be provided:
+                        ```("Classify the following with 'good' or 'bad': %s", 'text', Verbalizer([['good'], ['bad']]) )```
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
             **kwargs: Additional arguments for initializing the underlying huggingface-model.
         """

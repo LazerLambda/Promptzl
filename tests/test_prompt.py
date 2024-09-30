@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 # Now we can import the promptzel package
 from promptzl import *
+from promptzl.prompt import get_prompt
 
 
 class TestPrompt():
@@ -60,3 +61,30 @@ class TestPrompt():
 
 
     # TODO: Test dataset['test'] with only Verbalizer -> Error
+
+def test_get_prompt_init():
+    prompt = get_prompt("asd %s askl %m ödj %s", ["text_a", "text_b"], verbalizer=[["<VERBALIZER>"]])
+    assert isinstance(prompt, Prompt)
+    prompt = get_prompt("asd %s asklödj %s", ["text_a", "text_b"], verbalizer=[["<VERBALIZER>"]])
+    assert isinstance(prompt, Prompt)
+    prompt = get_prompt("asd %s asklödj", "text", verbalizer=[["<VERBALIZER>"]])
+    assert isinstance(prompt, Prompt)
+    
+
+def test_get_prompt_mask_plcholder_guards():
+    with pytest.raises(AssertionError):
+        get_prompt("asd %s askl %m ödj %s askl %m ödj", ["text_a", "text_b"], verbalizer=[["<VERBALIZER>"]])
+    
+    with pytest.raises(AssertionError):
+        get_prompt("asd %s askl %m ödj %m %s", ["text_a", "text_b"], verbalizer=[["<VERBALIZER>"]])
+
+def test_get_prompt_key_list_guards():
+    with pytest.raises(ValueError):
+        get_prompt("asd %s asklödj %s", ["", "text_b"], verbalizer=[["<VERBALIZER>"]])
+    
+    with pytest.raises(TypeError):
+        get_prompt("asd %s asklödj", 0, verbalizer=[["<VERBALIZER>"]])
+
+def test_get_prompt_place_holders_guards():
+    with pytest.raises(AssertionError):
+        get_prompt("asd %s asklödj", ["text_a", "text_b"], verbalizer=[["<VERBALIZER>"]])

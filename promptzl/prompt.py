@@ -243,3 +243,65 @@ class Prompt:
     def __repr__(self) -> str:
         """Repr Representation."""
         return self.__str__()
+
+
+def get_prompt(
+    prompt: str, key_list: Union[List[str], str], verbalizer: List[List[str]]
+) -> Prompt:
+    """Get Prompt Ready for Instantiation.
+
+    Prepare Prompt class by using a template string with %s and %m placeholders.
+    %s refers to the dataset key, %m refers to the mask. The respective dataset keys
+    are passed in the argument `key_list`.
+
+    Args:
+        prompt (str): Template prompt with c-string-style placeholders (%s: dataset key, %m: mask/verbalizer).
+        key_list (Union[List[str], str]): List of column-keys for the used dataset.
+        verbalizer (List[List[str]]): Verbalizer list.
+
+    Raises:
+        TypeError: If `key_list` is not of type Union[List[str], str].
+        AssertionError: If the number of keys in `key_list` does not match the number of %s placeholders in `prompt`.
+
+    Returns:
+        str: The instantiated prompt with placeholders replaced by the corresponding keys and masks.
+    """
+    n: int = 0
+    if isinstance(key_list, list):
+        n = len(key_list)
+    elif isinstance(key_list, str):
+        n = 1
+    else:
+        raise TypeError("Argument `key_list` must be of type Union[List[str], str].")
+    prompt_splitted: List[str] = prompt.split("%s")
+    assert (
+        n == len(prompt_splitted) - 1
+    ), "Number of keys in `key_list` does not match %s-placeholders"
+    collector: List[Union[Tuple[str, Union[Key, Text]], Text, Key, Verbalizer]] = []
+
+    for i in range(len(prompt_splitted)):
+        if len(prompt_splitted[i]) > 0:
+            collector.append((prompt_splitted[i], Text(prompt_splitted[i])))
+        if i < len(key_list):
+            if len(key_list[i]) > 0:
+                collector.append((key_list[i], Key(key_list[i])))
+            else:
+                raise ValueError(
+                    f"`key_list` must not contain empty elements!\nkey_list: '{key_list}'"
+                )
+    mask_loc: List[Tuple[int, List[str]]] = [(i, e[0].split("%m")) for i, e in enumerate(collector) if "%m" in e[0]]  # type: ignore[index]
+    if len(mask_loc) > 0:
+        assert (
+            len(mask_loc) == 1 and len(mask_loc[0][1]) == 2
+        ), "Only one %m-placeholder must be provided."
+        idx: int = mask_loc[0][0]
+        mask_splitted: List[str] = mask_loc[0][1]
+        collector = (
+            collector[0:idx]
+            + [Text(mask_splitted[0]), Verbalizer(verbalizer), Text(mask_splitted[1])]
+            + collector[(idx + 1) : :]
+        )
+    else:
+        collector.append(Verbalizer(verbalizer))
+    collector = [e[1] if isinstance(e, tuple) else e for e in collector]
+    return Prompt(*collector, sep="")
