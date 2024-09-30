@@ -72,6 +72,16 @@ class Verbalizer(Tokenizable):
             verbalizer (List[List[str]]): Verbalizer used in the prompt. E.g.: ``Prompt(Key('text'), Text('It was'), Verbalizer([['good'], ['bad']]))```.
                 It is important to select appropriate label words.
         """
+        # TODO: Test these cases!
+        assert (
+            len([e for e in verbalizer if not isinstance(e, list)]) == 0
+        ), "Verbalizer must be of type List[List[str]]."
+        assert (
+            len(
+                [e for sublist in verbalizer for e in sublist if not isinstance(e, str)]
+            )
+            == 0
+        ), "Verbalizer must be of type List[List[str]]."
         self.verbalizer: List[List[str]] = verbalizer
         super().__init__()
 
@@ -228,7 +238,7 @@ class Prompt:
 
     def __str__(self) -> str:
         """Return String Representation."""
-        return " ".join([str(e) for e in self.prompt])
+        return "".join([str(e) for e in self.prompt])
 
     def __repr__(self) -> str:
         """Repr Representation."""
