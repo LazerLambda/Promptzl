@@ -88,3 +88,10 @@ def test_get_prompt_key_list_guards():
 def test_get_prompt_place_holders_guards():
     with pytest.raises(AssertionError):
         get_prompt("asd %s asklödj", ["text_a", "text_b"], verbalizer=[["<VERBALIZER>"]])
+
+def test_addability():
+    prompt = (Text('Text') + Key('a') + Verbalizer([['bad'], ['good']])).init()
+    prompt = (Text('Text') + Key('a') + Verbalizer([['bad'], ['good']])).init(sep=" ")
+    prompt = (Text('Text') + Key('a') + Verbalizer([['bad'], ['good']])).init(truncate_data=True)
+    prompt = (Text('Text') + Key('a') + Verbalizer([['bad'], ['good']])).init(sep=" ", truncate_data=True)
+    assert str(prompt) == """Text <Data-Key: 'a'> <Verbalizer: [["bad",...], ["good",...]]>"""
