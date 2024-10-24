@@ -15,11 +15,39 @@ class Tokenizable:
     """Base Class for Tokenizable Objects."""
 
     def __init__(self) -> None:
-        """Initialize Tokenized Object."""
+        """Initialize Tokenizable Object."""
         self.text_tokenized = tensor([], dtype=int)
 
 
-class Text(Tokenizable):
+class Addable:
+    """Base Class for Addability."""
+
+    def __init__(self, collector: List["Addable"]) -> None:
+        """Initialize Addable Object."""
+        self.collector: List["Addable"] = collector
+
+    def __add__(self, other: "Addable") -> "Addable":
+        """Add two Addable Objects.
+
+        Args:
+            other (Addable): Another addable object.
+
+        Returns:
+            Addable: Combined objects.
+        """
+        self.collector.append(other)
+        return Addable(self.collector)
+
+    def init(self, **kwargs):  # type: ignore[no-untyped-def]
+        """Initialize Prompt.
+
+        Args:
+            **kwargs: Additional arguments for Prompt class.
+        """
+        return Prompt(*self.collector, **kwargs)
+
+
+class Text(Tokenizable, Addable):
     """Class for Text within the Prompt Object."""
 
     def __init__(self, text: str):
@@ -29,7 +57,8 @@ class Text(Tokenizable):
             text (str): Text used in the prompt. E.g.: ``Prompt(Key('text'), Text('It was'), Verbalizer([['good'], ['bad']]))```
         """
         self.text = text
-        super().__init__()
+        Tokenizable.__init__(self)
+        Addable.__init__(self, [self])
 
     def set_text_tokenized(self, tokenizer: Any) -> None:
         """Set Tokenized Text.
@@ -46,7 +75,7 @@ class Text(Tokenizable):
         return self.text
 
 
-class Key:
+class Key(Addable):
     """Class for a Dataset-Key within the Prompt Object."""
 
     def __init__(self, key: str = "text", truncate: bool = False):
@@ -56,13 +85,14 @@ class Key:
             key (str): Key used to access the text in the dataset. E.g.: ``Prompt(Key('text'), Text('It was'), Verbalizer([['good'], ['bad']]))```
         """
         self.key = key
+        super().__init__([self])
 
     def __str__(self) -> str:
         """Return String Representation."""
         return f"<Data-Key: '{self.key}'>"
 
 
-class Verbalizer(Tokenizable):
+class Verbalizer(Tokenizable, Addable):
     """Class for Verbalizer within the Prompt Object."""
 
     def __init__(self, verbalizer: List[List[str]]):
@@ -83,7 +113,8 @@ class Verbalizer(Tokenizable):
             == 0
         ), "Verbalizer must be of type List[List[str]]."
         self.verbalizer: List[List[str]] = verbalizer
-        super().__init__()
+        Tokenizable.__init__(self)
+        Addable.__init__(self, [self])
 
     def set_mask_token(self, mask_token: str) -> None:
         """Set Mask Token.
@@ -118,6 +149,7 @@ class Prompt:
         self.sep: str = sep
         self.tokenizer: Optional[PreTrainedTokenizerBase] = None
         self.truncate_data: bool = truncate_data
+        # TODO: Can be put into subinit to use __add__ function
         self.prompt: List[Union[Key, Text, Verbalizer]] = list(args) if len(args) > 1 else [args[0]]  # type: ignore[arg-type,list-item]
         self.intermediate_token: Optional[str] = None
 
@@ -238,7 +270,7 @@ class Prompt:
 
     def __str__(self) -> str:
         """Return String Representation."""
-        return "".join([str(e) for e in self.prompt])
+        return self.sep.join([str(e) for e in self.prompt])
 
     def __repr__(self) -> str:
         """Repr Representation."""
