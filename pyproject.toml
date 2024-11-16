@@ -32,6 +32,8 @@ dependencies = [
     "bitsandbytes>=0.43.1",
     "torch>=2.0.0",
     "numpy<2.0.0",
+    "pandas",
+    "polars",
     "tqdm",
 ]
 
