@@ -14,7 +14,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import promptzl
 from promptzl import *
 
-
 sample_data = [
     "The pizza was horribe and the staff rude. Won't recommend.",
     "The pasta was undercooked and the service was slow. Not going back.",
@@ -234,8 +233,10 @@ def test_sample_wo_pattern_mlm():
         pytest.approx(len(batch), torch.sum(output), abs=0.1)
 
 
+# TODO:
 def test_simple_mlm_classification_wo_prompt(): # TODO: put to classify
     pass
 
+# TODO:
 def test_simple_autoreg_classification_wo_prompt():
     pass

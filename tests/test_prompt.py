@@ -15,6 +15,8 @@ import promptzl
 from promptzl import *
 from promptzl.utils import SystemPrompt
 
+model_id_gen = "sshleifer/tiny-gpt2"
+model_id_mlm = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 
 sample_data = [
     "The pizza was horribe and the staff rude. Won't recommend.",
@@ -68,24 +70,34 @@ def test_multiple_tokens_warning_mlm():
 
 def test_str_method():
     prompt = Txt('Test ') + TKy('a') + Txt(" ") + IKy('a') + Txt(" ") + Vbz([['bad'], ['good']])
-    assert str(prompt) == "Test <a> [a] [['bad',...],['good',...]]"
+    assert str(prompt) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
     prompt = Txt('Test ') + TKy('a') + Txt(" ") + IKy('a') + Txt(" ") + Vbz([['bad'], ['good']])
-    assert str(prompt) == "Test <a> [a] [['bad',...],['good',...]]"
+    assert str(prompt) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
 
     systemprompt = SystemPrompt(prompt, AutoTokenizer.from_pretrained(model_id_mlm))
-    assert str(systemprompt) == "Test <a> [a] [['bad',...],['good',...]]"
+    assert str(systemprompt) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
 
     systemprompt = SystemPrompt(prompt, AutoTokenizer.from_pretrained(model_id_gen), mlm=False)
-    assert str(systemprompt) == "Test <a> [a] [['bad',...],['good',...]]"
+    assert str(systemprompt) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
 
 def test_repr_method():
     prompt = Txt('Test ') + TKy('a') + Txt(" ") + IKy('a') + Txt(" ") + Vbz([['bad'], ['good']])
-    assert prompt.__repr__() == "Test <a> [a] [['bad',...],['good',...]]"
+    assert prompt.__repr__() == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
     prompt = Txt('Test ') + TKy('a') + Txt(" ") + IKy('a') + Txt(" ") + Vbz([['bad'], ['good']])
-    assert prompt.__repr__() == "Test <a> [a] [['bad',...],['good',...]]"
-    assert ''.join([e.__repr__() for e in prompt.collector]) == "Test <a> [a] [['bad',...],['good',...]]"
+    assert prompt.__repr__() == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
+    assert ''.join([e.__repr__() for e in prompt.collector]) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
 
 
+def test_fn_str_method():
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, padding_side="left")
+    prompt = Txt('Test ') + TKy('a') + Txt(" ") + IKy('a') + Txt(" ") + Vbz([['bad'], ['good']])
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
+    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
+    assert isinstance(prompt.__fn_str__(tokenizer), str)
+
+    assert callable(prompt.prompt_fun(tokenizer))
 
 
 

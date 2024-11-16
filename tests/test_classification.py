@@ -4,7 +4,7 @@ import sys
 import pytest
 import torch
 from datasets import Dataset, DatasetDict
-from torch.utils.data import DataLoader  
+from torch.utils.data import DataLoader
 from transformers import AutoModelForCausalLM, AutoModelForMaskedLM, AutoTokenizer
 
 # Add the parent directory to the sys.path
@@ -13,7 +13,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 # Now we can import the promptzel package
 import promptzl
 from promptzl import *
-
 
 sample_data = [
     "The pizza was horribe and the staff rude. Won't recommend.",
@@ -90,8 +89,24 @@ def test_simple_mlm_class_prompt():
     model.prompt.truncate = False
     model.classify(dataset)
 
+def test_w_o_truncation():
+    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    dataset = Dataset.from_dict({"text": sample_data})
 
+    model = promptzl.CausalLM4Classification(
+        model_id_gen,
+        prompt=prompt,
+        truncate=True
+    )
+    model.classify(dataset)
+    model = promptzl.MaskedLM4Classification(
+        model_id_mlm,
+        prompt=prompt,
+        truncate=True
+    )
+    model.classify(dataset)
 
+# TODO: Test with List[str] and tokenized input
 
 
 

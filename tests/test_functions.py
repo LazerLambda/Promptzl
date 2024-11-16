@@ -82,6 +82,9 @@ def test_forward_function():
         assert isinstance(model_output, ModelOutput)
         assert torch.sum(output).round().item() == float(batch_size)
 
+        _, _ = test.forward(batch, return_logits=True, return_model_output=True)
+        _, _ = test.forward(batch, return_logits=True)
+
     prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
     test = MaskedLM4Classification(model_id_mlm, prompt)
     batch_size=2
@@ -92,3 +95,6 @@ def test_forward_function():
         _, model_output = test.forward(batch, return_model_output=True)
         assert isinstance(model_output, ModelOutput)
         assert torch.sum(output).round().item() == float(batch_size)
+
+        _, _ = test.forward(batch, return_logits=True, return_model_output=True)
+        _, _ = test.forward(batch, return_logits=True)
