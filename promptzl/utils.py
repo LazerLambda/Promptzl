@@ -171,7 +171,7 @@ class SystemPrompt:
         n: int = len(data[list(data.keys())[0]])
 
         # Prepare prompts in batch
-        tknzd_prmpt: List[Union[List[int], TKy, IKy, Vbz]] = [
+        tknzd_prmpt: List[Union[List[List[int]], TKy, IKy, Vbz]] = [
             [e] * n if not isinstance(e, (Vbz, IKy, TKy)) else e
             for e in self.template_prmpt
         ]
@@ -202,12 +202,12 @@ class SystemPrompt:
         tknzd_prmpt = [[self.prefix] * n] + tknzd_prmpt + [[self.suffix] * n]
 
         # Remove superfluous tokens
-        tknzd_prmpt = [e for e in tknzd_prmpt if len(e) > 0]
+        tknzd_prmpt = [e for e in tknzd_prmpt if len(e) > 0]  # type: ignore[arg-type]
 
         # Add lists together horizontically
         tknzd_prmpt = [reduce(operator.add, e) for e in zip(*tknzd_prmpt)]
 
-        return tknzd_prmpt
+        return tknzd_prmpt  # type: ignore[return-value]
 
     def pad_and_stack(self, data: List[List[int]]) -> Dict[str, tensor]:
         """Pad and Stack Data.
@@ -229,12 +229,10 @@ class SystemPrompt:
                 [[1] * len(e) + [0] * (n - len(e)) for e in data]
             )
         else:
-            input_ids: tensor = tensor(
+            input_ids = tensor(
                 [[self.tokenizer.pad_token_id] * (n - len(e)) + e for e in data]
             )
-            attention_mask: tensor = tensor(
-                [[0] * (n - len(e)) + [1] * len(e) for e in data]
-            )
+            attention_mask = tensor([[0] * (n - len(e)) + [1] * len(e) for e in data])
         return {"input_ids": input_ids, "attention_mask": attention_mask}
 
     def get_tensors(self, data: Dict[str, List[Union[str, Any]]]) -> Dict[str, tensor]:
@@ -266,23 +264,23 @@ class SystemPrompt:
         Returns:
             List[List[int]]: Tokenized Data.
         """
-        prepared_data: Union[List[str, Dict[str, tensor]]] = [
+        prepared_data: Union[List[str], Dict[str, tensor]] = [
             self.prmpt_f(tuple([elem for elem in e]))
             for e in zip(*[data[val] for val in self.key_list])
         ]
         prepared_data = self.tokenizer(
             prepared_data, padding="longest", return_tensors="pt"
         )
-        if prepared_data["input_ids"].shape[1] > self.tokenizer.model_max_length:
+        if prepared_data["input_ids"].shape[1] > self.tokenizer.model_max_length:  # type: ignore[call-overload]
             warn(
                 "Data is longer than model's maximum length. Truncating data, this may lead to inaccurate results.",
                 category=UserWarning,
             )
             return self.get_tensors(data)
         else:
-            return prepared_data
+            return prepared_data  # type: ignore[return-value]
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Represent Object as String.
 
         Returns:

@@ -58,7 +58,9 @@ class Prompt:
         """
         return self.__str__()
 
-    def prompt_fun(self, tokenizer: PreTrainedTokenizerBase) -> Callable[[Tuple[str]], str]:
+    def prompt_fun(
+        self, tokenizer: PreTrainedTokenizerBase
+    ) -> Callable[[Tuple[str]], str]:
         """Return a function that can be used to build the prompt.
 
         The function Return a string formatting function '%s' that can be
