@@ -1,6 +1,8 @@
 # <p style="text-align: center;">Pr🥨mptzl</p>
 
-Zero/Few-Shot classifications with prompts and LLMs. Turn your LLM into a classifier!
+Promptzl is a simple library for turning LLMs into traditional PyTorch-based classifiers using the 🤗 Transformers library.
+
+Classify large datasets quickly and easily while maintaining full control!
 
 ## Installation
 
@@ -12,17 +14,15 @@ Download this repository, navigate to the folder and run:
 In just a few lines of code, you can transform a LLM of choice into an old-school classifier with all it's desirable properties:
 ```{python}
     from promptzl import *
-    from datasets import Dataset
+    from datasets import load_dataset
 
-    # Dataset
-    Dataset.from_dict({'text': ["The pizza was good.", "The pizza was bad."]})
+    dataset = load_dataset("SetFit/ag_news")
 
-    # Verbalizer (define label words)
-    verbalizer = Prompt(Key('text'), Text('It was '), Verbalizer([['bad'], ['good']]))
+    verbalizer = Vbz({1: ["World"], 2: ["Sports"], 3: ["Business"], 4: ["Tech"]})
+    prompt = Txt("[Category:") + verbalizer + Txt("] ") + TKy()
 
-    # Inference
-    model = MLM4Classification('a-hf-model', verbalizer)
-    model.classify(dataset)
+    model = MaskedLM4Classification("roberta-large", prompt, trust_remote_code=True)
+    output = model.classify(dataset['test'], show_progress_bar=True)
 ```
 
 ## Installation (Dev)

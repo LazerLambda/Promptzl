@@ -2,6 +2,7 @@ genbadge[all]
 tox
 mypy
 pytest
+pydata-sphinx-theme
 pytest-cov
 black
 flake8
