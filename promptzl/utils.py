@@ -1,6 +1,13 @@
+"""Utils for Prompt Generation.
+
+Promptzl, 2024
+
+MIT LICENSE
+"""
+
 import operator
 from functools import reduce
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 from warnings import warn
 
 from datasets import Dataset
@@ -11,12 +18,31 @@ from .prompt import IKy, Prompt, TKy, Txt, Vbz
 
 
 class SystemPrompt:
+    """Class for Internal Prmopt Handling."""
+
     def __init__(
         self,
         prompt: Prompt,
         tokenizer: PreTrainedTokenizerFast,
         mlm: bool = True,
     ):
+        """Initialize Class.
+
+        Initialize and check if prompt is valid.
+
+        Args:
+            prompt (Prompt): Prompt to be used.
+            tokenizer (PreTrainedTokenizerFast): Tokenizer to be used.
+            mlm (bool, optional): Whether to use MLM. Defaults to True.
+
+        Raises:
+            ValueError: If prompt does not include a verbalizer.
+            ValueError: If prompt does not include a key.
+            ValueError: If tokenizer does not have a mask token.
+            AssertionError: If prompt is not of type Prompt.
+            AssertionError: If tokenizer is not of type PreTrainedTokenizerFast.
+            AssertionError: If mlm is not of type bool.
+        """
         self.prompt: Prompt = prompt
         self.tokenizer: PreTrainedTokenizerFast = tokenizer
         self.mlm: bool = mlm
@@ -29,12 +55,14 @@ class SystemPrompt:
 
         # TODO: Check if prompt includes key
         # TODO: Check if vbz is at the end for causal
-        try:
-            self.verbalizer: Vbz = [
-                e for e in self.prompt.collector if isinstance(e, Vbz)
-            ][0]
-        except:
+
+        verb_filter: List[Vbz] = [
+            e for e in self.prompt.collector if isinstance(e, Vbz)
+        ]
+        if len(verb_filter) != 1:
             raise ValueError(f"No verbalizer found in prompt:\n\t'-> {str(prompt)}")
+        else:
+            self.verbalizer: Vbz = verb_filter[0]
 
         if len([e for e in self.prompt.collector if isinstance(e, (TKy, IKy))]) < 1:
             raise ValueError(
@@ -74,7 +102,9 @@ class SystemPrompt:
         }
 
         self.template_prmpt: List[Union[List[int], TKy, IKy, Vbz]] = [
-            self._tokenize_txt(e) if isinstance(e, Txt) else e
+            self.tokenizer(e.text, add_special_tokens=False)["input_ids"]
+            if isinstance(e, Txt)
+            else e
             for e in self.prompt.collector
         ]
 
@@ -100,20 +130,14 @@ class SystemPrompt:
             e.key for e in self.prompt.collector if isinstance(e, (IKy, TKy))
         ]
 
-    def _tokenize_txt(self, elem: Any) -> Any:
-        return self.tokenizer(elem.text, add_special_tokens=False)["input_ids"]
+    def get_prefix_suffix(self) -> Tuple[List[int], List[int]]:
+        """Get Prefix and Suffix Tokens.
 
-    def _tokenize_data_by_key(
-        self, elem: List[Dict[str, str]], key: str
-    ) -> List[List[int]]:
-        return self.tokenizer(
-            elem[key],
-            add_special_tokens=False,
-            max_length=self.max_len_keys,
-            truncation=True,
-        )["input_ids"]
+        Get the prefix and suffix tokens for the tokenizer.
 
-    def get_prefix_suffix(self):
+        Returns:
+            Tuple[List[int], List[int]]: Prefix and Suffix tokens.
+        """
         ex = list(
             set(self.tokenizer.vocab.keys()) - set(self.tokenizer.all_special_tokens)
         )[0]
@@ -129,13 +153,21 @@ class SystemPrompt:
 
         return prefix, suffix
 
-    def __str__(self):
-        return str(self.prompt)
-
     def prepare_and_tokenize_dataset(
         self, data: Dict[str, List[Union[str, Any]]]
     ) -> List[List[int]]:
+        """Prepare and Tokenize Dataset.
 
+        Prepare and tokenize the dataset for the model. Tokenize first and then concatenate the tokens.
+        This technique is less reliable than tokenizing the prepared sequence. Results might vary. However,
+        it is more safe as it does not exceed the context length of the model.
+
+        Args:
+            data (Dict[str, List[Union[str, Any]]]): Data to be tokenized.
+
+        Returns:
+            List[List[int]]: Tokenized Data.
+        """
         n: int = len(data[list(data.keys())[0]])
 
         # Prepare prompts in batch
@@ -146,7 +178,14 @@ class SystemPrompt:
 
         # Tokenize data by key # TODO: max lengths
         tknzd_prmpt = [
-            self._tokenize_data_by_key(data, e.key) if isinstance(e, (TKy, IKy)) else e
+            self.tokenizer(
+                data[e.key],
+                add_special_tokens=False,
+                max_length=self.max_len_keys,
+                truncation=True,
+            )["input_ids"]
+            if isinstance(e, (TKy, IKy))
+            else e
             for e in tknzd_prmpt
         ]
 
@@ -171,6 +210,16 @@ class SystemPrompt:
         return tknzd_prmpt
 
     def pad_and_stack(self, data: List[List[int]]) -> Dict[str, tensor]:
+        """Pad and Stack Data.
+
+        Pad data and create the tensor for inference.
+
+        Args:
+            data (List[List[int]]): Tokenized Data.
+
+        Returns:
+            Dict[str, tensor]: Padded and Stacked Data.
+        """
         n: int = max([len(e) for e in data])
         if self.mlm:
             input_ids: tensor = tensor(
@@ -189,24 +238,41 @@ class SystemPrompt:
         return {"input_ids": input_ids, "attention_mask": attention_mask}
 
     def get_tensors(self, data: Dict[str, List[Union[str, Any]]]) -> Dict[str, tensor]:
+        """Get Tensors.
+
+        Wrapper for `prepare_and_tokenize_dataset` and `pad_and_stack`.
+
+        Args:
+            data (Dict[str, List[Union[str, Any]]]): Data to be tokenized.
+
+        Returns:
+            Dict[str, tensor]: Padded and Stacked Data.
+        """
         tknzd_data: List[List[int]] = self.prepare_and_tokenize_dataset(data)
         return self.pad_and_stack(tknzd_data)
 
     def get_tensors_fast(
         self, data: Dict[str, List[Union[str, Any]]]
-    ) -> List[List[int]]:
-        print("LKÖJLÖAK")
+    ) -> Dict[str, tensor]:
+        """Get Tensors Fast.
+
+        The prompts' function for buildling the prompt is used to prepare the data. The data is then tokenized
+        and returned as a list of tokenized data. If the tokenized data is longer than the model's maximum length,
+        a safe but less precised approach is used (see `prepare_and_tokenize_dataset`).
+
+        Args:
+            data (Dict[str, List[Union[str, Any]]]): Data to be tokenized.
+
+        Returns:
+            List[List[int]]: Tokenized Data.
+        """
         prepared_data: Union[List[str, Dict[str, tensor]]] = [
             self.prmpt_f(tuple([elem for elem in e]))
             for e in zip(*[data[val] for val in self.key_list])
         ]
-        print("1")
         prepared_data = self.tokenizer(
             prepared_data, padding="longest", return_tensors="pt"
         )
-        print("2")
-        print(prepared_data["input_ids"].shape[1] > self.tokenizer.model_max_length)
-        print(prepared_data["input_ids"].shape[1], self.tokenizer.model_max_length)
         if prepared_data["input_ids"].shape[1] > self.tokenizer.model_max_length:
             warn(
                 "Data is longer than model's maximum length. Truncating data, this may lead to inaccurate results.",
@@ -215,3 +281,11 @@ class SystemPrompt:
             return self.get_tensors(data)
         else:
             return prepared_data
+
+    def __str__(self):
+        """Represent Object as String.
+
+        Returns:
+            str: String representation of prompt.
+        """
+        return str(self.prompt)

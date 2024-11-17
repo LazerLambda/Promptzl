@@ -3,7 +3,6 @@
 MIT LICENSE
 """
 
-import random
 from functools import reduce
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from warnings import warn
@@ -14,18 +13,14 @@ import polars as pl
 import torch
 from datasets import Dataset, DatasetDict
 from torch import tensor
-from torch.utils.data import DataLoader
-from tqdm import tqdm, trange
+from tqdm import trange
 from transformers import AutoModelForCausalLM, AutoModelForMaskedLM, AutoTokenizer
 from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
-from .prompt import IKy, Prompt, TKy, Txt, Vbz
+from .prompt import Prompt
 from .utils import SystemPrompt
-
-# from .prompt import Key, Prompt, Verbalizer, get_prompt
-# from .utils import DataCollatorPrompt, DataCollatorPromptFast, DataCollatorPromptPad
 
 
 class LLM4ClassificationBase(torch.nn.Module):
@@ -41,7 +36,29 @@ class LLM4ClassificationBase(torch.nn.Module):
         lower_verbalizer: bool = False,
         truncate: bool = True,
     ) -> None:
+        """Initialize Class.
 
+        Initialize class with the model, tokenizer, prompt, device, lower verbalizer and truncate.
+        Check if all input is valid.
+
+        Args:
+            model (PreTrainedModel): The model to be used.
+            tokenizer (PreTrainedTokenizerBase): The tokenizer to be used.
+            prompt (Prompt): The prompt to be used.
+            generate (bool): A flag to determine if the model should be able to generate.
+            device (Optional[str], optional): The device to be used. Defaults to None.
+            lower_verbalizer (bool, optional): A flag to determine if the verbalizer should be lowercased. Defaults to False.
+            truncate (bool, optional): A flag to determine if the prompt should be truncated. Defaults to True.
+
+        Raises:
+            AssertionError: If model is not of type PreTrainedModel.
+            AssertionError: If tokenizer is not of type PreTrainedTokenizerBase.
+            AssertionError: If prompt is not of type Prompt.
+            AssertionError: If generate is not of type bool.
+            AssertionError: If device is not of type str or None.
+            AssertionError: If lower_verbalizer is not of type bool.
+            AssertionError: If truncate is not of type bool.
+        """
         assert isinstance(
             model, PreTrainedModel
         ), "Model must be of type PreTrainedModel"
@@ -71,12 +88,12 @@ class LLM4ClassificationBase(torch.nn.Module):
         if device is None and torch.cuda.is_available():
             self.device: str = "cuda"
         else:
-            self.device: str = self.model.device
+            self.device = self.model.device
 
         try:
             self.model.to(self.device)
         except Exception as exp:
-            self.device: str = self.model.device
+            self.device = self.model.device
             warn(
                 f"Could not move the model to the specified device. The `device` is set to the model's current device.\n\t'->{exp}"
             )
@@ -103,6 +120,19 @@ class LLM4ClassificationBase(torch.nn.Module):
         lower: bool = False,
         last_token: Optional[str] = None,
     ) -> Tuple[List[int], List[List[int]]]:
+        """Get Verbalizer.
+
+        Build verbalizer and add improve it with lowercased words if needed or add the intermediate token.
+        Add ing the previous token (' ' + 'TOKEN' = ' TOKEN') can lead to improved performance.
+
+        Args:
+            verbalizer_raw (List[List[str]]): The raw verbalizer.
+            lower (bool, optional): A flag to determine if the verbalizer should be lowercased. Defaults to False.
+            last_token (Optional[str], optional): The last token to be added. Defaults to None.
+
+        Returns:
+            Tuple[List[int], List[List[int]]]: The verbalizer indices and the grouped indices.
+        """
         combine: Callable[
             [List[List[Any]], List[List[Any]]], List[List[Any]]
         ] = lambda a, b: [e[0] + e[1] for e in list(zip(a, b))]
@@ -204,6 +234,17 @@ class LLM4ClassificationBase(torch.nn.Module):
 
     @staticmethod
     def _calibrate(probs: tensor) -> tensor:
+        """Calibrate Probabilities.
+
+        Address the calibartion issue ([Zhao et al., 2021](https://arxiv.org/abs/2102.09690),
+        [Hu et al., 2022](https://aclanthology.org/2022.acl-long.158/)).
+
+        Args:
+            probs (tensor): The probabilities to be calibrated.
+
+        Returns:
+            tensor: The calibrated probabilities.
+        """
         calibration_probs = torch.mean(probs, dim=0)
         shape = probs.shape
         probs = probs / (calibration_probs + 1e-15)
@@ -259,8 +300,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             outputs = self.model(**batch)
             logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
         logits = logits[:, self.verbalizer_indices]
-        # probs: tensor = logits
-        # probs: tensor = self._class_logits(logits, combine=combine, calibrate=calibrate)
         if combine:
             logits = self._combine_logits(logits, self.grouped_indices)
         # TODO: test this case!
@@ -283,10 +322,28 @@ class LLM4ClassificationBase(torch.nn.Module):
         batch_size: int,
         return_logits: bool = False,
         show_progress_bar: bool = True,
-        return_type="torch",
+        return_type: str = "torch",  # TODO add enum
         calibrate: bool = False,
-        **kwargs,
+        **kwargs: Any,
     ) -> List[tensor]:
+        """Smart Forward.
+
+        Smart batch dataset and predict. Return the results in the requested format.
+
+
+        Args:
+            dataset (Dataset): The dataset to be classified.
+            batch_size (int): The batch size to be used.
+            return_logits (bool): A flag to determine if the logits should be returned.
+            show_progress_bar (bool): A flag to determine if the progress bar should be shown.
+            return_type (str): The return type. Defaults to "torch". Supported types are "list",
+                "torch", "numpy", "pandas" and "polars".
+            calibrate (bool): A flag to determine if the logits should be calibrated.
+            kwargs: Additional arguments for the forward function (the model).
+
+        Returns:
+            List[tensor]: The output logits.
+        """
         length_sorted_idx = np.argsort([-len(e) for e in dataset])
         dataset = dataset.select(length_sorted_idx)
         collector: List[tensor] = []
@@ -298,7 +355,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             desc="Classify Batches...",
             disable=not show_progress_bar,
         ):
-            batch = self.prompt.get_tensors_fast(dataset[i : i + batch_size])
+            batch: Dict[str, tensor] = self.prompt.get_tensors_fast(
+                dataset[i : i + batch_size]
+            )
             with torch.no_grad():
                 output: tensor = self.forward(batch, calibrate=calibrate, **kwargs)
                 output = (
@@ -334,7 +393,24 @@ class LLM4ClassificationBase(torch.nn.Module):
         calibrate: bool = False,
         **kwargs: Any,
     ) -> Any:
+        """Classify Data.
 
+        Classify the data and return the results in the requested format. This method is used to prepare the data
+        according to the provided input format.
+
+        Args:
+            data (Union[Dataset, Any]): The data to be classified.
+            batch_size (int): The batch size to be used. Defaults to 64.
+            show_progress_bar (bool): A flag to determine if the progress bar should be shown. Defaults to False.
+            return_logits (bool): A flag to determine if the logits should be returned. Defaults to False.
+            return_type (str): The return type. Defaults to "torch". Supported types are "list",
+                "torch", "numpy", "pandas" and "polars".
+            calibrate (bool): A flag to determine if the logits should be calibrated. Defaults to False.
+            kwargs: Additional arguments for the forward function (the model).
+
+        Returns:
+            Any: The output logits.
+        """
         assert return_type in [
             "list",
             "torch",
@@ -385,7 +461,18 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         truncate: bool = True,
         **kwargs: Any,
     ) -> None:
+        """Initialize Class.
 
+        Args:
+            model_id (str): Valid model identifier for huggingface.co.
+            prompt (Prompt): A prompt object. Example usage:
+                ```Txt("This text ") + TKy('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
+            device (Optional[str]): The device to be used. Defaults to None.
+            lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
+                Defaults to False.
+            truncate (bool): A flag to determine if the prompt should be truncated. Defaults to True.
+            **kwargs: Additional arguments for initializing the underlying huggingface-model.
+        """
         tokenizer = AutoTokenizer.from_pretrained(
             model_id, clean_up_tokenization_spaces=True, use_fast=True
         )
@@ -420,19 +507,12 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
 
         Args:
             model_id (str): Valid model identifier for huggingface.co.
-            prompt_or_verbalizer (Union[Prompt, Verbalizer, Tuple[str, List[str], Verbalizer]]): An Prompt objectm, a Verbalizer Object or a
-            tuple with a c-string like placeholder pattern, List of keys or a key for the data and a Verbalizer. The verbalizer object
-            is used, when the data is already pre-processed otherwise
-                the pre-processing happens inside the Prompt class. Example:
-                    1. Verbalizer:
-                        ```Verbalizer([['good'], ['bad']])```
-                    2. Prompt:
-                        ```Prompt(Text("Classify the following with 'good' or 'bad'"), Text('text'), Verbalizer([['good'], ['bad']]))``
-                    3. Tuple[str, List[str], Verbalizer]:
-                        ```("Classify the following with 'good' or 'bad': %s", ['text'], Verbalizer([['good'], ['bad']]) )```
-                        In case only one key in the template, a single string can also be provided:
-                        ```("Classify the following with 'good' or 'bad': %s", 'text', Verbalizer([['good'], ['bad']]) )```
+            prompt (Prompt): A prompt object. Example usage:
+                ```Txt("This text ") + TKy('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
+            device (Optional[str]): The device to be used. Defaults to None.
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
+                Defaults to False.
+            truncate (bool): A flag to determine if the prompt should be truncated. Defaults to True.
             **kwargs: Additional arguments for initializing the underlying huggingface-model.
         """
         tokenizer = AutoTokenizer.from_pretrained(
