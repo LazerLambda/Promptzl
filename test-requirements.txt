@@ -1,7 +1,9 @@
+genbadge[all]
 tox
 mypy
 pytest
 pydata-sphinx-theme
+pytest-cov
 black
 flake8
 sphinxcontrib-applehelp==1.0.8
