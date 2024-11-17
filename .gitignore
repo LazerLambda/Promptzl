@@ -75,3 +75,6 @@ checkpoints
 tmp
 .DS_Store
 notebooks/*
+
+# Misc
+old/

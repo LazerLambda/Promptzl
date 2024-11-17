@@ -5,12 +5,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "promptzl"
-version = "0.0.1"
+version = "0.2.0"
 description = "Promptzl - LLMs as Classifiers"
 readme = "README.md"
 authors = [
-    { name = "Philipp Koch", email = "PhillKoch@protonmail.com" },
-    { name = "Martin Ivanov", email = "yxoozo@gmail.com"}
+    { name = "Philipp Koch", email = "PhillKoch@protonmail.com" }
 ]
 license = { file = "LICENSE" }
 keywords = ["llm", "nlp", "transformers", "classifiers", "predictive modeling", "machine learning", "torch", "huggingface"]
@@ -32,6 +31,8 @@ dependencies = [
     "bitsandbytes>=0.43.1",
     "torch>=2.0.0",
     "numpy<2.0.0",
+    "pandas",
+    "polars",
     "tqdm",
 ]
 
