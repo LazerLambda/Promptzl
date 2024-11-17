@@ -30,6 +30,24 @@ def test_multiple_subwords_warning():
         MaskedLM4Classification(model_id_mlm, prompt)
 
 
+def test_polars_pandas_warning_no_dict():
+
+    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    model = promptzl.MaskedLM4Classification(
+        model_id_mlm,
+        prompt=prompt
+    )
+    dataset = Dataset.from_dict({"text": ["sample_data"] * 3})
+    with pytest.warns(UserWarning):
+        output = model.classify(dataset, use_dataset_keys_in_results=True, return_type="polars")
+        assert output.columns == ['bad', 'good']
+
+    with pytest.warns(UserWarning):
+        output = model.classify(dataset, use_dataset_keys_in_results=True, return_type="pandas")
+        assert output.columns.to_list() == ['bad', 'good']
+
+
+
 # import os
 # import sys
 
