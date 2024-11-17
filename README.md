@@ -1,7 +1,8 @@
 # <p style="text-align: center;">Pr🥨mptzl</p>
 
-Promptzl is a simple library for turning LLMs into old-school
-pytorch-based classifiers based on the 🤗-transformers library.
+Promptzl is a simple library for turning LLMs into traditional PyTorch-based classifiers using the 🤗 Transformers library.
+
+Classify large datasets quickly and easily while maintaining full control!
 
 ## Installation
 
