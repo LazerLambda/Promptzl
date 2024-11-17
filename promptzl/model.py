@@ -84,6 +84,9 @@ class LLM4ClassificationBase(torch.nn.Module):
 
         self.prompt: SystemPrompt = SystemPrompt(prompt, tokenizer, mlm=(not generate))
         self.verbalizer_raw: List[List[str]] = self.prompt.verbalizer.verbalizer
+        self.verbalizer_dict: Optional[Dict[Union[int, str], List[str]]] = None
+        if self.prompt.verbalizer.verbalizer_dict is not None:
+            self.verbalizer_dict = self.prompt.verbalizer.verbalizer_dict
 
         if device is None and torch.cuda.is_available():
             self.device: str = "cuda"
@@ -324,6 +327,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         show_progress_bar: bool = True,
         return_type: str = "torch",  # TODO add enum
         calibrate: bool = False,
+        use_dataset_keys_in_results: bool = False,
         **kwargs: Any,
     ) -> List[tensor]:
         """Smart Forward.
@@ -339,6 +343,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
             calibrate (bool): A flag to determine if the logits should be calibrated.
+            use_dataset_keys_in_results (bool): A flag to determine if the dataset keys should be used as
+                column names in the result (Only works if return_type is 'pandas' or 'polars' and a dict is
+                provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`).
             kwargs: Additional arguments for the forward function (the model).
 
         Returns:
@@ -375,22 +382,51 @@ class LLM4ClassificationBase(torch.nn.Module):
         elif return_type == "list":
             return output.tolist()
         elif return_type == "polars":
-            return pl.DataFrame(
-                output.numpy(), schema=[e[0] for e in self.verbalizer_raw]
-            )
+            if use_dataset_keys_in_results and self.verbalizer_dict is not None:
+                return pl.DataFrame(
+                    output.numpy(),
+                    schema=[str(e) for e in self.verbalizer_dict.keys()],
+                )
+            elif use_dataset_keys_in_results and self.verbalizer_dict is None:
+                warn(
+                    "The dataset keys can only be used as column names if a dictionary is provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`.",
+                    category=UserWarning,
+                )
+                return pl.DataFrame(
+                    output.numpy(), schema=[e[0] for e in self.verbalizer_raw]
+                )
+            else:
+                return pl.DataFrame(
+                    output.numpy(), schema=[e[0] for e in self.verbalizer_raw]
+                )
         else:
-            return pd.DataFrame(
-                output.numpy(), columns=[e[0] for e in self.verbalizer_raw]
-            )
+            if use_dataset_keys_in_results and self.verbalizer_dict is not None:
+                return pd.DataFrame(
+                    output.numpy(),
+                    columns=list(self.verbalizer_dict.keys()),
+                )
+            elif use_dataset_keys_in_results and self.verbalizer_dict is None:
+                warn(
+                    "The dataset keys can only be used as column names if a dictionary is provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`.",
+                    category=UserWarning,
+                )
+                return pd.DataFrame(
+                    output.numpy(), columns=[e[0] for e in self.verbalizer_raw]
+                )
+            else:
+                return pd.DataFrame(
+                    output.numpy(), columns=[e[0] for e in self.verbalizer_raw]
+                )
 
     def classify(
         self,
-        data: Union[Dataset, Any],  # TODO IMplement DatasetDict
+        data: Union[Dataset, DatasetDict],
         batch_size: int = 64,
         show_progress_bar: bool = False,
         return_logits: bool = False,
         return_type: str = "torch",  # TODO use enum type
         calibrate: bool = False,
+        use_dataset_keys_in_results: bool = False,
         **kwargs: Any,
     ) -> Any:
         """Classify Data.
@@ -406,6 +442,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
             calibrate (bool): A flag to determine if the logits should be calibrated. Defaults to False.
+            use_dataset_keys_in_results (bool): A flag to determine if the dataset keys should be used as
+                column names in the result (Only works if return_type is 'pandas' or 'polars' and a dict is
+                provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`).
             kwargs: Additional arguments for the forward function (the model).
 
         Returns:
@@ -428,6 +467,7 @@ class LLM4ClassificationBase(torch.nn.Module):
                 show_progress_bar=show_progress_bar,
                 return_type=return_type,
                 calibrate=calibrate,
+                use_dataset_keys_in_results=use_dataset_keys_in_results,
                 **kwargs,
             )
         elif isinstance(data, DatasetDict):
@@ -440,6 +480,7 @@ class LLM4ClassificationBase(torch.nn.Module):
                     show_progress_bar=show_progress_bar,
                     return_type=return_type,
                     calibrate=calibrate,
+                    use_dataset_keys_in_results=use_dataset_keys_in_results,
                     **kwargs,
                 )
                 return_dict[key] = results
@@ -523,7 +564,6 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         )
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
-        # tokenizer.padding_side = "left"
         model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
         super().__init__(
             model,

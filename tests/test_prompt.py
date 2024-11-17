@@ -100,7 +100,17 @@ def test_fn_str_method():
     assert callable(prompt.prompt_fun(tokenizer))
 
 
+def test_vbz_w_dict():
+    prompt = Txt('Test ') + TKy('a') + Txt(" ") + IKy('a') + Txt(" ") + Vbz({0: ['bad'], 1: ['good']})
+    assert prompt.collector[-1].verbalizer_dict == {0: ['bad'], 1: ['good']}
+    assert prompt.collector[-1].verbalizer == [['bad'], ['good']]
 
+    prompt = Txt('Test ') + TKy('a') + Txt(" ") + IKy('a') + Txt(" ") + Vbz([['bad'], ['good']])
+    assert prompt.collector[-1].verbalizer_dict == None
+    assert prompt.collector[-1].verbalizer == [['bad'], ['good']]
+
+    with pytest.raises(ValueError):
+        Txt('Test ') + TKy('a') + Txt(" ") + IKy('a') + Txt(" ") + Vbz(0)
 
 
 # import os

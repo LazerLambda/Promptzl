@@ -3,7 +3,7 @@
 MIT LICENSE
 """
 
-from typing import Any, Callable, List, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
@@ -183,13 +183,26 @@ class IKy(Prompt):
 class Vbz(Prompt):
     """Object for Verbalizer Representation."""
 
-    def __init__(self, verbalizer: List[List[str]]):
+    def __init__(
+        self,
+        verbalizer: Union[
+            Dict[Union[int, str], List[str]],
+            List[List[str]],
+        ],
+    ):
         """Initialize Class.
 
         Args:
             verbalizer (List[List[str]]): List of verbalizers.
         """
-        self.verbalizer: List[List[str]] = verbalizer
+        self.verbalizer_dict: Optional[Dict[Union[int, str], List[str]]] = None
+        if isinstance(verbalizer, dict):
+            self.verbalizer: List[List[str]] = [val for val in verbalizer.values()]
+            self.verbalizer_dict = verbalizer
+        elif isinstance(verbalizer, list):
+            self.verbalizer = verbalizer
+        else:
+            raise ValueError("Verbalizer must be a list of lists or a dictionary.")
         super().__init__([self])
 
     def __str__(self) -> str:

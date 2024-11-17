@@ -106,6 +106,24 @@ def test_w_o_truncation():
     )
     model.classify(dataset)
 
+
+def test_w_vbz_dict():
+
+    prompt = TKy("text") + Txt(". It was ") + Vbz({0: ["bad", "horrible"], 1: ["good"]})
+    model = promptzl.MaskedLM4Classification(
+        model_id_mlm,
+        prompt=prompt
+    )
+    dataset = Dataset.from_dict({"text": sample_data})
+    output = model.classify(dataset, use_dataset_keys_in_results=True, return_type="polars")
+    assert output.columns == ['0', '1']
+
+    output = model.classify(dataset, use_dataset_keys_in_results=True, return_type="pandas")
+    assert output.columns.to_list() == [0, 1]
+    
+
+
+
 # TODO: Test with List[str] and tokenized input
 
 
