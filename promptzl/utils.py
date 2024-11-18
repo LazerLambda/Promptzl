@@ -276,6 +276,7 @@ class SystemPrompt:
                 "Data is longer than model's maximum length. Truncating data, this may lead to inaccurate results.",
                 category=UserWarning,
             )
+            # TODO: Remove truncation option
             return self.get_tensors(data)
         else:
             return prepared_data  # type: ignore[return-value]

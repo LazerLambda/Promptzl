@@ -1,3 +1,14 @@
+<!--- BADGES: START --->
+[![GitHub - License](https://img.shields.io/badge/License-MIT-yellow.svg)][#github-license]
+[![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=promptzl)][#docs-package]
+<!-- [![PyPI - Downloads](https://img.shields.io/pypi/dm/sentence-transformers?logo=pypi&style=flat&color=green)][#pypi-package] -->
+
+[#github-license]: https://github.com/LazerLambda/Promptzl/blob/main/LICENSE.md
+[#docs-package]: https://promptzl.readthedocs.io/en/latest/
+<!--- BADGES: END --->
+
+
+
 # <p style="text-align: center;">Pr🥨mptzl</p>
 
 Promptzl is a simple library for turning LLMs into traditional PyTorch-based classifiers using the 🤗 Transformers library.
