@@ -9,7 +9,7 @@
 project = 'Promptzl'
 copyright = '2024, Philipp Koch'
 author = 'Philipp Koch'
-release = '0.2.0'
+release = '0.2'
 version = '0.2.0'
 
 # -- General configuration ---------------------------------------------------
@@ -36,4 +36,4 @@ html_static_path = ['_static']
 # Autodoc settings
 autoclass_content = 'both'
 
-html_title = "Pr🥨mptzl"
+html_title = "Promptzl"
