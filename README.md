@@ -1,7 +1,7 @@
 <!--- BADGES: START --->
 [![GitHub - License](https://img.shields.io/badge/License-MIT-yellow.svg)][#github-license]
 [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=promptzl)][#docs-package]
-<!-- [![PyPI - Downloads](https://img.shields.io/pypi/dm/sentence-transformers?logo=pypi&style=flat&color=green)][#pypi-package] -->
+![Tests Passing](https://github.com/lazerlambda/promptzl/actions/workflows/python-package.yml/badge.svg)
 
 [#github-license]: https://github.com/LazerLambda/Promptzl/blob/main/LICENSE.md
 [#docs-package]: https://promptzl.readthedocs.io/en/latest/
