@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to the Pr🥨mptzl Documentation
-======================================
+Promptzl Documentation
+======================
 
 Promptzl is a simple library for turning LLMs into old-school
 pytorch-based classifiers based on the 🤗-transformers library.
@@ -13,6 +13,11 @@ pytorch-based classifiers based on the 🤗-transformers library.
    This project is in beta. Please report any issues on the
    `GitHub issue tracker <https://github.com/LazerLambda/Promptzl/issues/new>`_.
 
+Background
+----------
+
+Getting Started
+---------------
 
 Documentation
 -------------
