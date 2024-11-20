@@ -264,6 +264,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         combine: bool = True,
         calibrate: bool = False,
         return_logits: bool = False,
+        temperature: float = 1.0,
         **kwargs: Any,
     ) -> Union[tensor, Tuple[tensor, Any]]:  # TODO: Find type
         """Forward Function.
@@ -314,7 +315,7 @@ class LLM4ClassificationBase(torch.nn.Module):
                 return logits, outputs
             else:
                 return logits
-        probs: tensor = torch.nn.functional.softmax(logits, dim=1)
+        probs: tensor = torch.nn.functional.softmax(logits, dim=1) if temperature == 1.0 else torch.nn.functional.softmax(logits / temperature, dim=1)
         if calibrate:
             probs = self._calibrate(probs)
         if return_model_output:
@@ -488,7 +489,9 @@ class LLM4ClassificationBase(torch.nn.Module):
                 )
                 return_dict[key] = results
             return return_dict
-
+        else:   
+            # TODO: test this case
+            raise ValueError("Data must be of type Dataset or DatasetDict.")
 
 class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Masked-Language-Modeling-Based Classification.
