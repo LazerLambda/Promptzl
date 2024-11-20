@@ -14,7 +14,7 @@ from datasets import Dataset
 from torch import tensor
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
-from .prompt import Img, Prompt, Key, Txt, Vbz
+from .prompt import Img, Key, Prompt, Txt, Vbz
 
 
 class SystemPrompt:

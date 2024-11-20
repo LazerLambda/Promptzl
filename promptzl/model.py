@@ -15,7 +15,8 @@ from datasets import Dataset, DatasetDict
 from torch import tensor
 from tqdm import trange
 from transformers import AutoModelForCausalLM, AutoModelForMaskedLM, AutoTokenizer
-from transformers.generation.utils import GenerateDecoderOnlyOutput
+
+# from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
@@ -281,17 +282,20 @@ class LLM4ClassificationBase(torch.nn.Module):
         """
         batch = {k: v.to(self.device) for k, v in batch.items()}
         logits: Optional[tensor] = None
+
+        outputs: Any = self.model(**batch)  # TODO: Find type
         if self._can_generate:
-            outputs: GenerateDecoderOnlyOutput = self.model.generate(
-                **batch,
-                output_scores=True,
-                return_dict_in_generate=True,
-                max_new_tokens=1,  # TODO temperature
-                # top_k=5,
-                do_sample=False,
-                **kwargs,
-            )
-            logits = outputs.scores[0].detach().cpu()
+            # outputs: GenerateDecoderOnlyOutput = self.model.generate(
+            #     **batch,
+            #     output_scores=True,
+            #     return_dict_in_generate=True,
+            #     max_new_tokens=1,  # TODO temperature
+            #     # top_k=5,
+            #     do_sample=False,
+            #     **kwargs,
+            # )
+            # logits = outputs.scores[0].detach().cpu()
+            logits = outputs.logits[:, -1, :].detach().cpu()
         else:
             # TODO: No error when no mask token is found
             mask_index_batch, mask_index_tok = torch.where(
@@ -300,7 +304,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             assert (
                 mask_index_tok.shape[0] == batch["input_ids"].shape[0]
             ), "Mask token not found in input!"
-            outputs = self.model(**batch)
             logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
         logits = logits[:, self.verbalizer_indices]
         if combine:
