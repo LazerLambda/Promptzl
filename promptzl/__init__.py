@@ -8,4 +8,4 @@ from .model import (
     LLM4ClassificationBase,
     MaskedLM4Classification,
 )
-from .prompt import IKy, Prompt, TKy, Txt, Vbz
+from .prompt import Img, Prompt, Key, Txt, Vbz

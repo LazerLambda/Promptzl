@@ -33,7 +33,7 @@ model_id_mlm = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 
 def test_simple_causal_class_prompt():
 
-    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
 
     model = promptzl.CausalLM4Classification(
         model_id_gen,
@@ -63,7 +63,7 @@ def test_simple_causal_class_prompt():
 
 def test_simple_mlm_class_prompt():
 
-    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
 
     model = promptzl.MaskedLM4Classification(
         model_id_mlm,
@@ -90,7 +90,7 @@ def test_simple_mlm_class_prompt():
     model.classify(dataset)
 
 def test_w_o_truncation():
-    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
     dataset = Dataset.from_dict({"text": sample_data})
 
     model = promptzl.CausalLM4Classification(
@@ -109,7 +109,7 @@ def test_w_o_truncation():
 
 def test_w_vbz_dict():
 
-    prompt = TKy("text") + Txt(". It was ") + Vbz({0: ["bad", "horrible"], 1: ["good"]})
+    prompt = Key("text") + Txt(". It was ") + Vbz({0: ["bad", "horrible"], 1: ["good"]})
     model = promptzl.MaskedLM4Classification(
         model_id_mlm,
         prompt=prompt

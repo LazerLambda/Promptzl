@@ -14,7 +14,7 @@ from datasets import Dataset
 from torch import tensor
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
-from .prompt import IKy, Prompt, TKy, Txt, Vbz
+from .prompt import Img, Prompt, Key, Txt, Vbz
 
 
 class SystemPrompt:
@@ -64,9 +64,9 @@ class SystemPrompt:
         else:
             self.verbalizer: Vbz = verb_filter[0]
 
-        if len([e for e in self.prompt.collector if isinstance(e, (TKy, IKy))]) < 1:
+        if len([e for e in self.prompt.collector if isinstance(e, (Key, Img))]) < 1:
             raise ValueError(
-                f"No key found in prompt. Please provide a `TKy` key!\n\t'-> {str(prompt)}"
+                f"No key found in prompt. Please provide a `Key` key!\n\t'-> {str(prompt)}"
             )
 
         self.intermediate_token = None
@@ -98,10 +98,10 @@ class SystemPrompt:
 
         self.dict_ds: Dict[str, Dataset] = {
             k: None
-            for k in [e.key for e in self.prompt.collector if isinstance(e, (IKy, TKy))]
+            for k in [e.key for e in self.prompt.collector if isinstance(e, (Img, Key))]
         }
 
-        self.template_prmpt: List[Union[List[int], TKy, IKy, Vbz]] = [
+        self.template_prmpt: List[Union[List[int], Key, Img, Vbz]] = [
             self.tokenizer(e.text, add_special_tokens=False)["input_ids"]
             if isinstance(e, Txt)
             else e
@@ -109,7 +109,7 @@ class SystemPrompt:
         ]
 
         only_keys: int = len(
-            [None for e in self.prompt.collector if isinstance(e, (IKy, TKy))]
+            [None for e in self.prompt.collector if isinstance(e, (Img, Key))]
         )
         used_tokens: int = int(
             self.tokenizer.model_max_length
@@ -127,7 +127,7 @@ class SystemPrompt:
 
         self.prmpt_f = self.prompt.prompt_fun(self.tokenizer)
         self.key_list = [
-            e.key for e in self.prompt.collector if isinstance(e, (IKy, TKy))
+            e.key for e in self.prompt.collector if isinstance(e, (Img, Key))
         ]
 
     def get_prefix_suffix(self) -> Tuple[List[int], List[int]]:
@@ -171,8 +171,8 @@ class SystemPrompt:
         n: int = len(data[list(data.keys())[0]])
 
         # Prepare prompts in batch
-        tknzd_prmpt: List[Union[List[List[int]], TKy, IKy, Vbz]] = [
-            [e] * n if not isinstance(e, (Vbz, IKy, TKy)) else e
+        tknzd_prmpt: List[Union[List[List[int]], Key, Img, Vbz]] = [
+            [e] * n if not isinstance(e, (Vbz, Img, Key)) else e
             for e in self.template_prmpt
         ]
 
@@ -184,7 +184,7 @@ class SystemPrompt:
                 max_length=self.max_len_keys,
                 truncation=True,
             )["input_ids"]
-            if isinstance(e, (TKy, IKy))
+            if isinstance(e, (Key, Img))
             else e
             for e in tknzd_prmpt
         ]

@@ -507,7 +507,7 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         Args:
             model_id (str): Valid model identifier for huggingface.co.
             prompt (Prompt): A prompt object. Example usage:
-                ```Txt("This text ") + TKy('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
+                ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
             device (Optional[str]): The device to be used. Defaults to None.
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
                 Defaults to False.
@@ -549,7 +549,7 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         Args:
             model_id (str): Valid model identifier for huggingface.co.
             prompt (Prompt): A prompt object. Example usage:
-                ```Txt("This text ") + TKy('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
+                ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
             device (Optional[str]): The device to be used. Defaults to None.
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
                 Defaults to False.

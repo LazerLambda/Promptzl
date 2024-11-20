@@ -17,7 +17,7 @@ model_id_mlm = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 
 
 def test_tokenizer_wo_mask_mlm():
-    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
     model = AutoModelForMaskedLM.from_pretrained(model_id_mlm)
     tokenizer = AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True)
     tokenizer.mask_token_id = None
@@ -25,14 +25,14 @@ def test_tokenizer_wo_mask_mlm():
         LLM4ClassificationBase(model=model, tokenizer=tokenizer, prompt=prompt, generate=False)
 
 def test_multiple_subwords_warning():
-    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad worse", "horrible"], ["good"]])
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad worse", "horrible"], ["good"]])
     with pytest.warns():
         MaskedLM4Classification(model_id_mlm, prompt)
 
 
 def test_polars_pandas_warning_no_dict():
 
-    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
     model = promptzl.MaskedLM4Classification(
         model_id_mlm,
         prompt=prompt

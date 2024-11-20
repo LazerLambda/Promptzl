@@ -106,7 +106,7 @@ class Txt(Prompt):
         return self.__str__()
 
 
-class TKy(Prompt):
+class Key(Prompt):
     """Placeholder (Object) for Key Representation."""
 
     def __init__(self, key: str = "text"):
@@ -143,7 +143,7 @@ class TKy(Prompt):
         return self.__str__()
 
 
-class IKy(Prompt):
+class Img(Prompt):
     """Placeholder (Object) for Image Key Representation."""
 
     def __init__(self, key: str):

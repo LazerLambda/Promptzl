@@ -11,7 +11,7 @@ Using promptzl is simple. Here's a basic example of how to use it to classify te
     dataset = load_dataset("SetFit/ag_news")
 
     verbalizer = Vbz({1: ["World"], 2: ["Sports"], 3: ["Business"], 4: ["Tech"]})
-    prompt = Txt("[Category:") + verbalizer + Txt("] ") + TKy()
+    prompt = Txt("[Category:") + verbalizer + Txt("] ") + Key()
 
     model = MaskedLM4Classification("roberta-large", prompt, trust_remote_code=True)
     output = model.classify(dataset['test'], show_progress_bar=True)

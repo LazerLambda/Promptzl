@@ -34,7 +34,7 @@ model_id_mlm = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 def test_batch_padding_mlm():
     tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
     as_should = tokenizer([e + str(tokenizer.mask_token) for e in sample_data], padding=True, truncation="longest_first", return_tensors="pt")
-    prompt = TKy("text") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Vbz([["bad", "horrible"], ["good"]])
     systemprompt = SystemPrompt(prompt, tokenizer)
     output = systemprompt.get_tensors({'text': sample_data})
     assert torch.equal(output['input_ids'], as_should['input_ids'])
@@ -44,28 +44,28 @@ def test_batch_padding_gen():
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     as_should = tokenizer(sample_data, padding=True, truncation="longest_first", return_tensors="pt")
-    prompt = TKy("text") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Vbz([["bad", "horrible"], ["good"]])
     systemprompt = SystemPrompt(prompt, tokenizer, mlm=False)
     output = systemprompt.get_tensors({'text': sample_data})
     assert torch.equal(output['input_ids'], as_should['input_ids'])
 
 def test_exceeding_length_mlm():
     tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
-    prompt = TKy("text") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Vbz([["bad", "horrible"], ["good"]])
     systemprompt = SystemPrompt(prompt, tokenizer)
     with pytest.warns(UserWarning):
         output = systemprompt.get_tensors_fast({'text': ["a " * 10000 + "a"] *4})
     assert output['input_ids'].shape[0] == 4
     assert output['input_ids'].shape[1] <= tokenizer.model_max_length
 
-    prompt = TKy("text_a") + Vbz([["bad", "horrible"], ["good"]]) + TKy("text_b")
+    prompt = Key("text_a") + Vbz([["bad", "horrible"], ["good"]]) + Key("text_b")
     systemprompt = SystemPrompt(prompt, tokenizer)
     with pytest.warns(UserWarning):
         output = systemprompt.get_tensors_fast({"text_a": ["a " * 10000 + "a"] * 4, "text_b": ["b " * 10000 + "b"] * 4})
     assert output['input_ids'].shape[0] == 4
     assert output['input_ids'].shape[1] <= tokenizer.model_max_length
 
-    prompt = TKy("text_a") + Vbz([["bad", "horrible"], ["good"]]) + TKy("text_b") + TKy("text_c")
+    prompt = Key("text_a") + Vbz([["bad", "horrible"], ["good"]]) + Key("text_b") + Key("text_c")
     systemprompt = SystemPrompt(prompt, tokenizer)
     with pytest.warns(UserWarning):
         output = systemprompt.get_tensors_fast({
@@ -79,21 +79,21 @@ def test_exceeding_length_gen():
     tokenizer = AutoTokenizer.from_pretrained(model_id_gen, padding_side="left")
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
-    prompt = TKy("text") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Vbz([["bad", "horrible"], ["good"]])
     systemprompt = SystemPrompt(prompt, tokenizer, mlm=False)
     with pytest.warns(UserWarning):
         output = systemprompt.get_tensors_fast({'text': ["a " * 10000 + "a"] *4})
     assert output['input_ids'].shape[0] == 4
     assert output['input_ids'].shape[1] <= tokenizer.model_max_length
 
-    prompt = TKy("text_a") + Vbz([["bad", "horrible"], ["good"]]) + TKy("text_b")
+    prompt = Key("text_a") + Vbz([["bad", "horrible"], ["good"]]) + Key("text_b")
     systemprompt = SystemPrompt(prompt, tokenizer, mlm=False)
     with pytest.warns(UserWarning):
         output = systemprompt.get_tensors_fast({"text_a": ["a " * 10000 + "a"] * 4, "text_b": ["b " * 10000 + "b"] * 4})
     assert output['input_ids'].shape[0] == 4
     assert output['input_ids'].shape[1] <= tokenizer.model_max_length
 
-    prompt = TKy("text_a") + Vbz([["bad", "horrible"], ["good"]]) + TKy("text_b") + TKy("text_c")
+    prompt = Key("text_a") + Vbz([["bad", "horrible"], ["good"]]) + Key("text_b") + Key("text_c")
     systemprompt = SystemPrompt(prompt, tokenizer, mlm=False)
     with pytest.warns(UserWarning):
         output = systemprompt.get_tensors_fast({

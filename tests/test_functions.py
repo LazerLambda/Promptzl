@@ -33,7 +33,7 @@ sample_data = [
 
 def test_combine_function():
 
-    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
 
     test = CausalLM4Classification("sshleifer/tiny-gpt2", prompt)
     grouped_indices = [[0, 1], [2]]
@@ -52,7 +52,7 @@ def test_calibrate():
     assert torch.allclose(answer, LLM4ClassificationBase._calibrate(ex))
 
 def test_get_verbalizer():
-    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
     test = CausalLM4Classification("sshleifer/tiny-gpt2", prompt)
     vbz_idx, grp_idx = test._get_verbalizer([["Bad", "Horrible"], ["Good"]], lower=True)
     assert grp_idx == [[0, 1, 2, 3], [4, 5]]
@@ -71,7 +71,7 @@ def test_get_verbalizer():
     assert len(grp_idx[0]) == 1 and len(grp_idx[1]) == 1
 
 def test_forward_function():
-    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
     test = CausalLM4Classification(model_id_gen, prompt)
     batch_size=2
     for i in range(0, len(sample_data), batch_size):
@@ -85,7 +85,7 @@ def test_forward_function():
         _, _ = test.forward(batch, return_logits=True, return_model_output=True)
         _, _ = test.forward(batch, return_logits=True)
 
-    prompt = TKy("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
     test = MaskedLM4Classification(model_id_mlm, prompt)
     batch_size=2
     for i in range(0, len(sample_data), batch_size):

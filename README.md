@@ -30,7 +30,7 @@ In just a few lines of code, you can transform a LLM of choice into an old-schoo
     dataset = load_dataset("SetFit/ag_news")
 
     verbalizer = Vbz({1: ["World"], 2: ["Sports"], 3: ["Business"], 4: ["Tech"]})
-    prompt = Txt("[Category:") + verbalizer + Txt("] ") + TKy()
+    prompt = Txt("[Category:") + verbalizer + Txt("] ") + Key()
 
     model = MaskedLM4Classification("roberta-large", prompt, trust_remote_code=True)
     output = model.classify(dataset['test'])

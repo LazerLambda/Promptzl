@@ -37,7 +37,7 @@ def test_init():
     if torch.cuda.is_available():
         device = "cuda"
 
-    prompt = Txt("This is a test ") + TKy("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+    prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
 
     model = AutoModelForCausalLM.from_pretrained(model_id_gen)
     tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
@@ -51,7 +51,7 @@ def test_init():
 
     with pytest.raises(Exception):
         model = AutoModelForCausalLM.from_pretrained(model_id_gen)
-        prompt = Txt("This is a test ") + TKy("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+        prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
         promptzl.LLM4ClassificationBase(
             model=model,
             tokenizer=1,
@@ -61,7 +61,7 @@ def test_init():
 
     with pytest.raises(Exception):
         tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
-        prompt = Txt("This is a test ") + TKy("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+        prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
         promptzl.LLM4ClassificationBase(
             model=None,
             tokenizer=tokenizer,
@@ -80,7 +80,7 @@ def test_init():
         )
 
     with pytest.raises(Exception):
-        prompt = Txt("This is a test ") + TKy("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+        prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
         model = AutoModelForCausalLM.from_pretrained(model_id_gen)
         tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
         promptzl.LLM4ClassificationBase(
@@ -91,7 +91,7 @@ def test_init():
         )
 
     with pytest.raises(Exception):
-        prompt = Txt("This is a test ") + TKy("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+        prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
         model = AutoModelForCausalLM.from_pretrained(model_id_gen)
         tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
         promptzl.LLM4ClassificationBase(
@@ -103,7 +103,7 @@ def test_init():
         )
 
     with pytest.raises(Exception):
-        prompt = Txt("This is a test ") + TKy("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+        prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
         model = AutoModelForCausalLM.from_pretrained(model_id_gen)
         tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
         promptzl.LLM4ClassificationBase(
@@ -136,7 +136,7 @@ def init_promptzl(model_id, generate):
         else:
             model = AutoModelForCausalLM.from_pretrained(model_id)
 
-    prompt = Txt("This is a test ") + TKy("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+    prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
     test = promptzl.LLM4ClassificationBase(
         model,
         tokenizer,
