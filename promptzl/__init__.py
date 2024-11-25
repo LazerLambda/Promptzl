@@ -3,7 +3,7 @@
 MIT LICENSE
 """
 
-from .classes import (
+from .modules import (
     CausalLM4Classification,
     LLM4ClassificationBase,
     MaskedLM4Classification,

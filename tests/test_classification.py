@@ -71,7 +71,6 @@ def test_simple_mlm_class_prompt():
     )
     dataset = Dataset.from_dict({"text": sample_data})
     model.classify(dataset)
-    model.classify(dataset, calibrate=True)
     otpt = model.classify(dataset)
     assert int(torch.sum(otpt).item()) == len(dataset)
     model.classify(dataset, batch_size=2)

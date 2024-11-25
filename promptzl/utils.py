@@ -277,6 +277,7 @@ class SystemPrompt:
                 category=UserWarning,
             )
             # TODO: Remove truncation option
+            # TODO: Tidy up this
             return self.get_tensors(data)
         else:
             return prepared_data  # type: ignore[return-value]

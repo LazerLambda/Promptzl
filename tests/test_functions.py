@@ -77,13 +77,14 @@ def test_forward_function():
     for i in range(0, len(sample_data), batch_size):
         batch = test.prompt.get_tensors({'text': sample_data[i:i+batch_size]})
         output = test.forward(batch)
+        output = torch.nn.functional.softmax(output, dim=-1)
         assert torch.sum(output).round().item() == float(batch_size)
         output, model_output = test.forward(batch, return_model_output=True)
+        output = torch.nn.functional.softmax(output, dim=-1)
         assert isinstance(model_output, ModelOutput)
         assert torch.sum(output).round().item() == float(batch_size)
 
-        _, _ = test.forward(batch, return_logits=True, return_model_output=True)
-        _, _ = test.forward(batch, return_logits=True)
+        _, _ = test.forward(batch, return_model_output=True)
 
     prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
     test = MaskedLM4Classification(model_id_mlm, prompt)
@@ -91,10 +92,10 @@ def test_forward_function():
     for i in range(0, len(sample_data), batch_size):
         batch = test.prompt.get_tensors({'text': sample_data[i:i+batch_size]})
         output = test.forward(batch)
+        output = torch.nn.functional.softmax(output, dim=-1)
         assert torch.sum(output).round().item() == float(batch_size)
         _, model_output = test.forward(batch, return_model_output=True)
         assert isinstance(model_output, ModelOutput)
         assert torch.sum(output).round().item() == float(batch_size)
 
-        _, _ = test.forward(batch, return_logits=True, return_model_output=True)
-        _, _ = test.forward(batch, return_logits=True)
+        _, _ = test.forward(batch, return_model_output=True)

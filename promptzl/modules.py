@@ -36,6 +36,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         device: Optional[str] = None,
         lower_verbalizer: bool = False,
         truncate: bool = True,
+        enhance_verbalizer: bool = False,
     ) -> None:
         """Initialize Class.
 
@@ -108,10 +109,13 @@ class LLM4ClassificationBase(torch.nn.Module):
                 self.verbalizer_raw,
                 lower=lower_verbalizer,
                 last_token=self.prompt.intermediate_token,
+                enhance_verbalizer=enhance_verbalizer,
             )
         else:
             self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
-                self.verbalizer_raw, lower=lower_verbalizer
+                self.verbalizer_raw,
+                lower=lower_verbalizer,
+                enhance_verbalizer=enhance_verbalizer,
             )
         self.calibration_probs: Optional[tensor] = None
 
@@ -123,6 +127,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         verbalizer_raw: List[List[str]],
         lower: bool = False,
         last_token: Optional[str] = None,
+        enhance_verbalizer: bool = False,
     ) -> Tuple[List[int], List[List[int]]]:
         """Get Verbalizer.
 
@@ -165,7 +170,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         ]
 
         # TODO: rename to prev_token
-        if last_token is not None:
+        if last_token is not None and enhance_verbalizer:
             last_token_ids: List[int] = self.tokenizer.encode(
                 last_token, add_special_tokens=False
             )
@@ -262,9 +267,6 @@ class LLM4ClassificationBase(torch.nn.Module):
         batch: Dict[str, tensor],
         return_model_output: bool = False,
         combine: bool = True,
-        calibrate: bool = False,
-        return_logits: bool = False,
-        temperature: float = 1.0,
         **kwargs: Any,
     ) -> Union[tensor, Tuple[tensor, Any]]:  # TODO: Find type
         """Forward Function.
@@ -296,7 +298,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             #     **kwargs,
             # )
             # logits = outputs.scores[0].detach().cpu()
-            logits = outputs.logits[:, -1, :].detach().cpu()
+            logits = outputs.logits[:, -1, self.verbalizer_indices].detach().cpu()
         else:
             # TODO: No error when no mask token is found
             mask_index_batch, mask_index_tok = torch.where(
@@ -306,26 +308,13 @@ class LLM4ClassificationBase(torch.nn.Module):
                 mask_index_tok.shape[0] == batch["input_ids"].shape[0]
             ), "Mask token not found in input!"
             logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
-        logits = logits[:, self.verbalizer_indices]
+            logits = logits[:, self.verbalizer_indices]
         if combine:
             logits = self._combine_logits(logits, self.grouped_indices)
-        # TODO: test this case!
-        if return_logits:
-            if return_model_output:
-                return logits, outputs
-            else:
-                return logits
-        probs: tensor = (
-            torch.nn.functional.softmax(logits, dim=1)
-            if temperature == 1.0
-            else torch.nn.functional.softmax(logits / temperature, dim=1)
-        )
-        if calibrate:
-            probs = self._calibrate(probs)
         if return_model_output:
-            return probs, outputs
+            return logits, outputs
         else:
-            return probs
+            return logits
 
     def _smart_forward(
         self,
@@ -336,6 +325,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         return_type: str = "torch",  # TODO add enum
         calibrate: bool = False,
         use_dataset_keys_in_results: bool = False,
+        temperature: float = 1.0,
         **kwargs: Any,
     ) -> List[tensor]:
         """Smart Forward.
@@ -354,6 +344,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             use_dataset_keys_in_results (bool): A flag to determine if the dataset keys should be used as
                 column names in the result (Only works if return_type is 'pandas' or 'polars' and a dict is
                 provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`).
+            temperature (float): The temperature to be used. Defaults to 1.0.
             kwargs: Additional arguments for the forward function (the model).
 
         Returns:
@@ -373,13 +364,17 @@ class LLM4ClassificationBase(torch.nn.Module):
             batch: Dict[str, tensor] = self.prompt.get_tensors_fast(
                 dataset[i : i + batch_size]
             )
+            # TODO: provide option to set model into eval mode
+            # TODO: Move detach here from forward method
             with torch.no_grad():
-                output: tensor = self.forward(batch, calibrate=calibrate, **kwargs)
-                output = (
-                    torch.nn.functional.softmax(output, dim=-1)
-                    if not return_logits
-                    else output
-                )
+                output: tensor = self.forward(batch, **kwargs)
+                if not return_logits:
+                    if temperature != 1.0:
+                        output = torch.nn.functional.softmax(
+                            output / temperature, dim=-1
+                        )
+                    else:
+                        output = torch.nn.functional.softmax(output, dim=-1)
                 collector.extend(output)
 
         output = torch.stack([collector[idx] for idx in np.argsort(length_sorted_idx)])
@@ -435,6 +430,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         return_type: str = "torch",  # TODO use enum type
         calibrate: bool = False,
         use_dataset_keys_in_results: bool = False,
+        temperature: float = 1.0,
         **kwargs: Any,
     ) -> Any:
         """Classify Data.
@@ -453,6 +449,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             use_dataset_keys_in_results (bool): A flag to determine if the dataset keys should be used as
                 column names in the result (Only works if return_type is 'pandas' or 'polars' and a dict is
                 provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`).
+            temperature (float): The temperature to be used. Defaults to 1.0.
             kwargs: Additional arguments for the forward function (the model).
 
         Returns:
@@ -476,6 +473,7 @@ class LLM4ClassificationBase(torch.nn.Module):
                 return_type=return_type,
                 calibrate=calibrate,
                 use_dataset_keys_in_results=use_dataset_keys_in_results,
+                temperature=temperature,
                 **kwargs,
             )
         elif isinstance(data, DatasetDict):
@@ -489,6 +487,7 @@ class LLM4ClassificationBase(torch.nn.Module):
                     return_type=return_type,
                     calibrate=calibrate,
                     use_dataset_keys_in_results=use_dataset_keys_in_results,
+                    temperature=temperature,
                     **kwargs,
                 )
                 return_dict[key] = results
@@ -511,7 +510,9 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         device: Optional[str] = None,
         lower_verbalizer: bool = False,
         truncate: bool = True,
-        **kwargs: Any,
+        enhance_verbalizer: bool = False,
+        model_args: Optional[Dict[str, Any]] = None,
+        tok_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize Class.
 
@@ -526,9 +527,14 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             **kwargs: Additional arguments for initializing the underlying huggingface-model.
         """
         tokenizer = AutoTokenizer.from_pretrained(
-            model_id, clean_up_tokenization_spaces=True, use_fast=True
+            model_id,
+            clean_up_tokenization_spaces=True,
+            use_fast=True,
+            **tok_args if tok_args is not None else {},
         )
-        model = AutoModelForMaskedLM.from_pretrained(model_id, **kwargs)
+        model = AutoModelForMaskedLM.from_pretrained(
+            model_id, **model_args if model_args is not None else {}
+        )
         super().__init__(
             model,
             tokenizer,
@@ -537,7 +543,47 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             device=device,
             lower_verbalizer=lower_verbalizer,
             truncate=truncate,
+            enhance_verbalizer=enhance_verbalizer,
         )
+
+    def forward(
+        self,
+        batch: Dict[str, tensor],
+        return_model_output: bool = False,
+        combine: bool = True,
+        **kwargs: Any,
+    ) -> Union[tensor, Tuple[tensor, Any]]:  # TODO: Find type
+        """Forward Function.
+
+        Perform the forward pass of the model and return the logits.
+
+        Args:
+            batch (Dict[str, tensor]): The input batch.
+            return_model_output (bool): A flag to determine if the model output should be returned.
+            kwargs: Additional arguments for the model.
+
+        Returns:
+            Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
+        """
+        batch = {k: v.to(self.device) for k, v in batch.items()}
+        logits: Optional[tensor] = None
+
+        outputs: Any = self.model(**batch, **kwargs)  # TODO: Find type
+        # TODO: No error when no mask token is found
+        mask_index_batch, mask_index_tok = torch.where(
+            batch["input_ids"] == self.tokenizer.mask_token_id
+        )
+        assert (
+            mask_index_tok.shape[0] == batch["input_ids"].shape[0]
+        ), "Mask token not found in input!"
+        logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
+        logits = logits[:, self.verbalizer_indices]
+        if combine:
+            logits = self._combine_logits(logits, self.grouped_indices)
+        if return_model_output:
+            return logits, outputs
+        else:
+            return logits
 
 
 class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
@@ -553,7 +599,9 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         device: Optional[str] = None,
         lower_verbalizer: bool = False,
         truncate: bool = True,
-        **kwargs: Any,
+        enhance_verbalizer: bool = False,
+        model_args: Optional[Dict[str, Any]] = None,
+        tok_args: Optional[Dict[str, Any]] = None,
     ) -> None:
         """Initialize Class.
 
@@ -572,10 +620,13 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             clean_up_tokenization_spaces=True,
             use_fast=True,
             padding_side="left",
+            **tok_args if tok_args is not None else {},
         )
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
-        model = AutoModelForCausalLM.from_pretrained(model_id, **kwargs)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id, **model_args if model_args is not None else {}
+        )
         super().__init__(
             model,
             tokenizer,
@@ -584,4 +635,37 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             device=device,
             lower_verbalizer=lower_verbalizer,
             truncate=truncate,
+            enhance_verbalizer=enhance_verbalizer,
         )
+
+    def forward(
+        self,
+        batch: Dict[str, tensor],
+        return_model_output: bool = False,
+        combine: bool = True,
+        **kwargs: Any,
+    ) -> Union[tensor, Tuple[tensor, Any]]:  # TODO: Find type
+        """Forward Function.
+
+        Perform the forward pass of the model and return the logits.
+
+        Args:
+            batch (Dict[str, tensor]): The input batch.
+            kwargs: Additional arguments for the model.
+
+        Returns:
+            Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
+        """
+        batch = {k: v.to(self.device) for k, v in batch.items()}
+        logits: Optional[tensor] = None
+
+        outputs: Any = self.model(**batch, **kwargs)  # TODO: Find type
+        logits = outputs.logits[:, -1, self.verbalizer_indices].detach().cpu()
+
+        if combine:
+            logits = self._combine_logits(logits, self.grouped_indices)
+        # TODO: test this case!
+        if return_model_output:
+            return logits, outputs
+        else:
+            return logits

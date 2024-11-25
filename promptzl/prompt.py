@@ -66,6 +66,7 @@ class Prompt:
         The function Return a string formatting function '%s' that can be
         used to build the prompt. Each '%s' corresponds to a key in the dataset.
         """
+        # TODO: Mention how important single tokens are
         return lambda e: self.__fn_str__(tokenizer) % e
 
 
@@ -223,7 +224,11 @@ class Vbz(Prompt):
         Args:
             tokenizer (PreTrainedTokenizerBase): Tokenizer to mask.
         """
-        return f"{tokenizer.mask_token}"
+        # TODO: Test this (for causal and mlm)
+        if tokenizer.mask_token is None:
+            return ""
+        else:
+            return f"{tokenizer.mask_token}"
 
     def __repr__(self) -> str:
         """Represent Object as String.
