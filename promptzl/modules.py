@@ -271,50 +271,19 @@ class LLM4ClassificationBase(torch.nn.Module):
     ) -> Union[tensor, Tuple[tensor, Any]]:  # TODO: Find type
         """Forward Function.
 
-        Perform the forward pass of the model.
+        Perform the forward pass of the model and return the logits.
 
         Args:
             batch (Dict[str, tensor]): The input batch.
-            return_model_output (bool): A flag to determine if the model output should be returned.
-            combine (bool): A flag to determine if the probabilities for each label word should be combined.
-            calibrate (bool): Boolean determining whether or not logits will be calibrated.
             kwargs: Additional arguments for the model.
+
+        Raises:
+            NotImplementedError: If the forward function is not implemented in the subclass.
 
         Returns:
             Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
-        batch = {k: v.to(self.device) for k, v in batch.items()}
-        logits: Optional[tensor] = None
-
-        outputs: Any = self.model(**batch)  # TODO: Find type
-        if self._can_generate:
-            # outputs: GenerateDecoderOnlyOutput = self.model.generate(
-            #     **batch,
-            #     output_scores=True,
-            #     return_dict_in_generate=True,
-            #     max_new_tokens=1,  # TODO temperature
-            #     # top_k=5,
-            #     do_sample=False,
-            #     **kwargs,
-            # )
-            # logits = outputs.scores[0].detach().cpu()
-            logits = outputs.logits[:, -1, self.verbalizer_indices].detach().cpu()
-        else:
-            # TODO: No error when no mask token is found
-            mask_index_batch, mask_index_tok = torch.where(
-                batch["input_ids"] == self.tokenizer.mask_token_id
-            )
-            assert (
-                mask_index_tok.shape[0] == batch["input_ids"].shape[0]
-            ), "Mask token not found in input!"
-            logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
-            logits = logits[:, self.verbalizer_indices]
-        if combine:
-            logits = self._combine_logits(logits, self.grouped_indices)
-        if return_model_output:
-            return logits, outputs
-        else:
-            return logits
+        raise NotImplementedError("Forward function must be implemented in subclass.")
 
     def _smart_forward(
         self,
