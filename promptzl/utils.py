@@ -7,14 +7,14 @@ MIT LICENSE
 
 import operator
 from functools import reduce
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Tuple, Union
 from warnings import warn
 
 from datasets import Dataset
 from torch import tensor
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
-from .prompt import Img, Key, Prompt, Txt, Vbz
+from .prompt import FVP, Img, Key, Prompt, Txt, Vbz
 
 
 class SystemPrompt:
@@ -56,18 +56,18 @@ class SystemPrompt:
         if not self.mlm:
             assert isinstance(prompt.collector[-1], Vbz)
 
-        verb_filter: List[Vbz] = [
-            e for e in self.prompt.collector if isinstance(e, Vbz)
-        ]
-        if len(verb_filter) != 1:
-            raise ValueError(f"No verbalizer found in prompt:\n\t'-> {str(prompt)}")
-        else:
-            self.verbalizer: Vbz = verb_filter[0]
+        self.fvp: bool = False
+        # Check for FVP because it does not support truncation
+        if isinstance(prompt, FVP):
+            self.fvp = True
 
-        if len([e for e in self.prompt.collector if isinstance(e, (Key, Img))]) < 1:
-            raise ValueError(
-                f"No key found in prompt. Please provide a `Key` key!\n\t'-> {str(prompt)}"
-            )
+        self.verbalizer: Vbz = self.prompt._get_verbalizer()
+
+        self.prompt._check_valid_keys()
+        # if len([e for e in self.prompt.collector if isinstance(e, (Key, Img))]) < 1:
+        #     raise ValueError(
+        #         f"No key found in prompt. Please provide a `Key` key!\n\t'-> {str(prompt)}"
+        #     )
 
         self.intermediate_token = None
         if mlm:
@@ -124,7 +124,7 @@ class SystemPrompt:
                 int(used_tokens // only_keys) if only_keys != 0 else used_tokens
             )
 
-        self.prmpt_f = self.prompt.prompt_fun(self.tokenizer)
+        self.prmpt_f: Callable[[Any], str] = self.prompt.prompt_fun(self.tokenizer)
         self.key_list = [
             e.key for e in self.prompt.collector if isinstance(e, (Img, Key))
         ]
@@ -271,6 +271,13 @@ class SystemPrompt:
             prepared_data, padding="longest", return_tensors="pt"
         )
         if prepared_data["input_ids"].shape[1] > self.tokenizer.model_max_length:  # type: ignore[call-overload]
+            if self.fvp:
+                raise ValueError(
+                    (
+                        "Model input longer than maximum length!\n\t'->FVP does not support truncation."
+                        "Please shorten the text beforehand or use `Txt` and `Key` classes instead."
+                    )
+                )
             warn(
                 "Data is longer than model's maximum length. Truncating data, this may lead to inaccurate results.",
                 category=UserWarning,

@@ -31,6 +31,10 @@ class Prompt:
         Returns:
             Prompt: Combined prompt.
         """
+        if isinstance(other, FVP):
+            raise ValueError("FVP cannot be added to a prompt.")
+        if True in [isinstance(e, FVP) for e in self.collector]:
+            raise ValueError("FVP cannot be added to a prompt.")
         self.collector.append(other)
         return Prompt(self.collector)
 
@@ -60,13 +64,29 @@ class Prompt:
 
     def prompt_fun(
         self, tokenizer: PreTrainedTokenizerBase
-    ) -> Callable[[Tuple[str]], str]:
+    ) -> Union[Callable[[Tuple[str]], str], Callable[[Dict[str, str]], str]]:
         """Return a function that can be used to build the prompt.
 
         The function Return a string formatting function '%s' that can be
         used to build the prompt. Each '%s' corresponds to a key in the dataset.
         """
         return lambda e: self.__fn_str__(tokenizer) % e
+
+    def _get_verbalizer(self) -> "Vbz":
+        print(self.collector)
+        verb_filter: List[Vbz] = [e for e in self.collector if isinstance(e, Vbz)]
+        if len(verb_filter) != 1:
+            raise ValueError(
+                f"No verbalizer found in prompt:\n\t'-> {str(self.__str__())}"
+            )
+        else:
+            return verb_filter[0]
+        
+    def _check_valid_keys(self) -> None:
+        if len([e for e in self.collector if isinstance(e, (Key, Img))]) < 1:
+            raise ValueError(
+                f"No key found in prompt. Please provide a `Key` key!\n\t'-> {str(self.__str__())}"
+            )
 
 
 class Txt(Prompt):
@@ -235,3 +255,62 @@ class Vbz(Prompt):
             str: String representation of prompt.
         """
         return self.__str__()
+
+
+class FVP(Prompt):
+    """Function Verbalizer Pair (FVP) Class."""
+
+    def __init__(self, prompt_fun: Callable[[Dict[str, str]], str], verbalizer: Vbz):
+        """Initialize Class.
+
+        Args:
+            prompt_fun (Callable[[Dict[str, str]], str]): Function to build prompt.
+            verbalizer (Vbz): Verbalizer.
+        """
+        print([verbalizer])
+        self.fvp_fn = prompt_fun
+        super().__init__([self, verbalizer])
+
+    def __add__(self, *args: Any) -> Prompt:
+        """Add Prompt Parts (Not Supported for FVP).
+
+        Args:
+            *args: Arguments (not required).
+
+        Raises:
+            ValueError: FVP cannot be added to a prompt.
+        """
+        raise ValueError("FVP cannot be added to a prompt.")
+
+    def __str__(self) -> str:
+        """Represent Object as String."""
+        return "<FVP>"
+
+    def __fn_str__(self, *args: Any) -> str:
+        """Return String Representation for Prompt-Building-Function.
+
+        Args:
+            *args: Arguments (not required).
+
+        Raises:
+            NotImplementedError: `__fn_str__` not implemented for FVP.
+        """
+        raise NotImplementedError("`__fn_str__` not implemented for FVP.")
+
+    def __repr__(self) -> str:
+        """Represent Object as String."""
+        return self.__str__()
+
+    def prompt_fun(self, *args: Any) -> Callable[[Dict[str, str]], str]:
+        """Return a function that can be used to build the prompt.
+
+        The function returns a prompt generating function in which the arguments
+        must be a dict with keys corresponding to the keys in the data.
+
+        Returns:
+            Callable[[Dict[str, str]], str]: Prompt generating function.
+        """
+        return self.fvp_fn
+
+    def _check_valid_keys(self) -> None:
+        pass
