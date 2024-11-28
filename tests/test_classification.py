@@ -44,6 +44,8 @@ def test_simple_causal_class_prompt():
     otpt = model.classify(dataset)
     assert int(torch.sum(otpt).item()) == len(dataset)
     model.classify(dataset, batch_size=2)
+    model.classify(dataset, batch_size=2, temperature=0.5)
+    model.classify(dataset, batch_size=2, calibrate=True)
     model.classify(dataset, batch_size=2, show_progress_bar=True)
     model.classify(dataset, return_type="list")
     model.classify(dataset, return_type="pandas")
@@ -74,6 +76,8 @@ def test_simple_mlm_class_prompt():
     otpt = model.classify(dataset)
     assert int(torch.sum(otpt).item()) == len(dataset)
     model.classify(dataset, batch_size=2)
+    model.classify(dataset, batch_size=2, temperature=0.5)
+    model.classify(dataset, batch_size=2, calibrate=True)
     model.classify(dataset, batch_size=2, show_progress_bar=True)
     model.classify(dataset, return_type="list")
     model.classify(dataset, return_type="pandas")
@@ -119,119 +123,3 @@ def test_w_vbz_dict():
 
     output = model.classify(dataset, use_dataset_keys_in_results=True, return_type="pandas")
     assert output.columns.to_list() == [0, 1]
-    
-
-
-
-# TODO: Test with List[str] and tokenized input
-
-
-
-
-
-    # def test_simple_mlm_class_prompt(self):
-    #     with pytest.raises(AssertionError):
-    #         promptzl.MaskedLM4Classification(
-    #             "nreimers/BERT-Tiny_L-2_H-128_A-2",
-    #             prompt_or_verbalizer=promptzl.Prompt(
-    #                 promptzl.Key("text"), promptzl.Text(". It was")
-    #             ),
-    #         )
-
-    #     1
-
-    # def test_simple_mlm_class_prompt_w_multiple(self):
-
-    #     model = promptzl.MaskedLM4Classification(
-    #         "nreimers/BERT-Tiny_L-2_H-128_A-2",
-    #         prompt_or_verbalizer=promptzl.Prompt(
-    #             promptzl.Key("text_a"),
-    #             promptzl.Text(". It was"),
-    #             promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
-    #             promptzl.Key("text_b"),
-    #         ),
-    #     )
-    #     dataset = Dataset.from_dict(
-    #         {"text_a": self.sample_data, "text_b": self.sample_data[::-1]}
-    #     )
-    #     otpt = model.classify(dataset)
-    #     assert int(torch.sum(otpt).item()) == len(dataset)
-
-    # def test_simple_causal_class_prompt_w_multiple(self):
-
-    #     model = promptzl.CausalLM4Classification(
-    #         "nreimers/BERT-Tiny_L-2_H-128_A-2",
-    #         prompt_or_verbalizer=promptzl.Prompt(
-    #             promptzl.Key("text_a"),
-    #             promptzl.Text(". It was"),
-    #             promptzl.Key("text_b"),
-    #             promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
-    #         ),
-    #     )
-    #     dataset = Dataset.from_dict(
-    #         {"text_a": self.sample_data, "text_b": self.sample_data[::-1]}
-    #     )
-    #     otpt = model.classify(dataset)
-    #     assert int(torch.sum(otpt).item()) == len(dataset)
-
-    # def test_sequence_length_restriction_mlm(self):
-    #     model = promptzl.MaskedLM4Classification(
-    #         "nreimers/BERT-Tiny_L-2_H-128_A-2",
-    #         prompt_or_verbalizer=promptzl.Prompt(
-    #             promptzl.Key("text_a"),
-    #             promptzl.Text(". It was"),
-    #             promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
-    #             promptzl.Key("text_b"),
-    #         ),
-    #     )
-    #     dataset = Dataset.from_dict(
-    #         {"text_a": ["a " * 1000 + "a"] * 3, "text_b": ["b " * 1000 + "b"] * 3}
-    #     )
-    #     model.classify(dataset, data_collator="safe")
-
-    # def test_missing_mask_long_sequence_mlm(self):
-    #     with pytest.raises(AssertionError):
-    #         model = promptzl.MaskedLM4Classification(
-    #             "nreimers/BERT-Tiny_L-2_H-128_A-2",
-    #             prompt_or_verbalizer=promptzl.Prompt(
-    #                 promptzl.Key("text_a"),
-    #                 promptzl.Text(". It was"),
-    #                 promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
-    #                 promptzl.Key("text_b"),
-    #             ),
-    #         )
-    #         dataset = Dataset.from_dict(
-    #             {"text_a": ["a " * 1000 + "a"] * 3, "text_b": ["b " * 1000 + "b"] * 3}
-    #         )
-    #         model.classify(dataset, data_collator="fast")
-
-    # def test_missing_mask_long_sequence_causal(self):
-    #     with pytest.raises(AssertionError):
-    #         model = promptzl.CausalLM4Classification(
-    #             "sshleifer/tiny-gpt2",
-    #             prompt_or_verbalizer=promptzl.Prompt(
-    #                 promptzl.Key("text_a"),
-    #                 promptzl.Text(". It was"),
-    #                 promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
-    #                 promptzl.Key("text_b"),
-    #             ),
-    #         )
-    #         dataset = Dataset.from_dict(
-    #             {"text_a": ["a " * 1000 + "a"] * 3, "text_b": ["b " * 1000 + "b"] * 3}
-    #         )
-    #         model.classify(dataset, data_collator="fast")
-
-    # def test_sequence_length_restriction_causal(self):
-    #     model = promptzl.CausalLM4Classification(
-    #         "sshleifer/tiny-gpt2",
-    #         prompt_or_verbalizer=promptzl.Prompt(
-    #             promptzl.Key("text_a"),
-    #             promptzl.Text(". It was"),
-    #             promptzl.Key("text_b"),
-    #             promptzl.Verbalizer([["bad", "horrible"], ["good"]]),
-    #         ),
-    #     )
-    #     dataset = Dataset.from_dict(
-    #         {"text_a": ["a " * 1000 + "a"] * 3, "text_b": ["b " * 1000 + "b"] * 3}
-    #     )
-    #     model.classify(dataset, data_collator="fast")
