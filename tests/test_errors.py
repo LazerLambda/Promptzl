@@ -46,89 +46,38 @@ def test_polars_pandas_warning_no_dict():
         output = model.classify(dataset, use_dataset_keys_in_results=True, return_type="pandas")
         assert output.columns.to_list() == ['bad', 'good']
 
+def test_forward_base_error():
+    prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+    model = AutoModelForCausalLM.from_pretrained(model_id_gen)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
+    test = LLM4ClassificationBase(model=model, tokenizer=tokenizer, prompt=prompt, generate=True)
+    with pytest.raises(NotImplementedError):
+        test.forward({'test': torch.tensor([1, 2, 3])})
 
+def test_temp_greater_zero_error():
+    prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+    model = promptzl.MaskedLM4Classification(
+        model_id_mlm,
+        prompt=prompt
+    )
+    dataset = Dataset.from_dict({"text": ["sample_data"] * 3})
+    with pytest.raises(AssertionError):
+        model.classify(dataset, temperature=0)
 
-# import os
-# import sys
+def test_wrong_type_classify_error():
+    prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+    model = promptzl.MaskedLM4Classification(
+        model_id_mlm,
+        prompt=prompt
+    )
+    with pytest.raises(ValueError):
+        model.classify(["This will be allowed in a later version :)"])
 
-# import pytest
-# import torch
-# from datasets import Dataset
-# from transformers import AutoModelForMaskedLM, AutoTokenizer
-
-# # Add the parent directory to the sys.path
-# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-# # Now we can import the promptzel package
-# import promptzl
-
-
-# class TestError:
-
-#     sample_data = [
-#         "The pizza was horribe and the staff rude. Won't recommend.",
-#         "The pasta was undercooked and the service was slow. Not going back.",
-#         "The salad was wilted and the waiter was dismissive. Avoid at all costs."
-#     ]
-
-#     def test_simple_causal_class_prompt(self):
-
-#         tokenizer = AutoTokenizer.from_pretrained(
-#             "nreimers/BERT-Tiny_L-2_H-128_A-2", clean_up_tokenization_spaces=True
-#         )
-#         tokenizer.mask_token_id = None
-#         model = AutoModelForMaskedLM.from_pretrained("nreimers/BERT-Tiny_L-2_H-128_A-2")
-
-#         with pytest.raises(ValueError):
-#             test = promptzl.LLM4ClassificationBase(
-#                 model,
-#                 tokenizer,
-#                 prompt_or_verbalizer=promptzl.Verbalizer(
-#                     [["bad"], ["good"]]
-#                 ),
-#                 generate=False,
-#             )
-
-#     def test_simple_causal_class_prompt(self):
-
-#         tokenizer = AutoTokenizer.from_pretrained(
-#             "nreimers/BERT-Tiny_L-2_H-128_A-2", clean_up_tokenization_spaces=True
-#         )
-#         tokenizer.mask_token_id = None
-#         model = AutoModelForMaskedLM.from_pretrained("nreimers/BERT-Tiny_L-2_H-128_A-2")
-
-#         with pytest.raises(ValueError):
-#             promptzl.LLM4ClassificationBase(
-#                 model,
-#                 tokenizer,
-#                 prompt_or_verbalizer=promptzl.Verbalizer(
-#                     [["bad"], ["good"]]
-#                 ),
-#                 generate=False,
-#             )
-
-#     def test_type_prompt_or_verbalizer_error(self):
-#         with pytest.raises(TypeError):
-#             promptzl.CausalLM4Classification(
-#                 "sshleifer/tiny-gpt2",
-#                 prompt_or_verbalizer="Test"
-#             )
-
-#     def test_length_function_error(self):
-#         with pytest.raises(NotImplementedError):
-#             model = promptzl.CausalLM4Classification(
-#                 "sshleifer/tiny-gpt2",
-#                 prompt_or_verbalizer=promptzl.Verbalizer([["bad"], ["good"]]),
-#             )
-#             model._text_length("Test")
-
-#     def test_data_collator_error(self):
-#         with pytest.raises(TypeError):
-#             model = promptzl.MaskedLM4Classification(
-#                 "nreimers/BERT-Tiny_L-2_H-128_A-2",
-#                 prompt_or_verbalizer="Test"
-#             )
-#             dataset = Dataset.from_dict(
-#                 {"text_a": ["a " * 1000 + "a"] * 3, "text_b": ["b " * 1000 + "b"] * 3}
-#             )
-#             model.classify(dataset, data_collator="test")
+def test_vbz_causal_error():
+    prompt = Txt("This is a test ") + Vbz([["bad"], ["good", "wonderful", "great"]]) + Key("text")
+    with pytest.raises(AssertionError):
+        promptzl.CausalLM4Classification(
+            model_id_gen,
+            prompt=prompt
+        )
+        

@@ -86,14 +86,14 @@ def test_exceeding_length_gen():
     assert output['input_ids'].shape[0] == 4
     assert output['input_ids'].shape[1] <= tokenizer.model_max_length
 
-    prompt = Key("text_a") + Vbz([["bad", "horrible"], ["good"]]) + Key("text_b")
+    prompt = Key("text_a") + Key("text_b") + Vbz([["bad", "horrible"], ["good"]])
     systemprompt = SystemPrompt(prompt, tokenizer, mlm=False)
     with pytest.warns(UserWarning):
         output = systemprompt.get_tensors_fast({"text_a": ["a " * 10000 + "a"] * 4, "text_b": ["b " * 10000 + "b"] * 4})
     assert output['input_ids'].shape[0] == 4
     assert output['input_ids'].shape[1] <= tokenizer.model_max_length
 
-    prompt = Key("text_a") + Vbz([["bad", "horrible"], ["good"]]) + Key("text_b") + Key("text_c")
+    prompt = Key("text_a") + Key("text_b") + Key("text_c") + Vbz([["bad", "horrible"], ["good"]])
     systemprompt = SystemPrompt(prompt, tokenizer, mlm=False)
     with pytest.warns(UserWarning):
         output = systemprompt.get_tensors_fast({

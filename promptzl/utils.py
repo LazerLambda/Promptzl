@@ -53,8 +53,8 @@ class SystemPrompt:
         ), "`tokenizer` must be of type PreTrainedTokenizer."
         assert isinstance(mlm, bool), "`mlm` must be of type bool."
 
-        # TODO: Check if prompt includes key
-        # TODO: Check if vbz is at the end for causal
+        if not self.mlm:
+            assert isinstance(prompt.collector[-1], Vbz)
 
         verb_filter: List[Vbz] = [
             e for e in self.prompt.collector if isinstance(e, Vbz)
@@ -78,7 +78,6 @@ class SystemPrompt:
                     "Tokenizer does not have a mask token. Please provide a tokenizer with a mask token."
                 )
 
-        # TODO: TEST THIS and check if subsequent token is also important.
         for i in range(0, len(self.prompt.collector) - 1):
             if isinstance(self.prompt.collector[i], (Txt)) and isinstance(
                 self.prompt.collector[i + 1], Vbz
@@ -176,7 +175,7 @@ class SystemPrompt:
             for e in self.template_prmpt
         ]
 
-        # Tokenize data by key # TODO: max lengths
+        # Tokenize data by key
         tknzd_prmpt = [
             self.tokenizer(
                 data[e.key],
@@ -189,7 +188,7 @@ class SystemPrompt:
             for e in tknzd_prmpt
         ]
 
-        # Add Mask if necessary TODO: different case for autoregressive decoding
+        # Add Mask if necessary
         if self.mlm:
             tknzd_prmpt = [
                 [[self.tokenizer.mask_token_id]] * n if isinstance(e, Vbz) else e
@@ -276,8 +275,6 @@ class SystemPrompt:
                 "Data is longer than model's maximum length. Truncating data, this may lead to inaccurate results.",
                 category=UserWarning,
             )
-            # TODO: Remove truncation option
-            # TODO: Tidy up this
             return self.get_tensors(data)
         else:
             return prepared_data  # type: ignore[return-value]
