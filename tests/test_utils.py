@@ -102,3 +102,12 @@ def test_exceeding_length_gen():
             "text_c": ["c " * 10000 + "c"] * 4})
     assert output['input_ids'].shape[0] == 4
     assert output['input_ids'].shape[1] <= tokenizer.model_max_length
+
+
+def test_prompt_str_fn():
+    prompt = Key() + Txt(" HELLO WORLD ") + Vbz([["bad", "horrible"], ["good"]])
+    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
+    assert prompt.__fn_str__(tokenizer) == f"%s HELLO WORLD {tokenizer.mask_token}"
+
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen)
+    assert prompt.__fn_str__(tokenizer) == f"%s HELLO WORLD "

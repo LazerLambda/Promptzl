@@ -97,15 +97,17 @@ class LLM4ClassificationBase(torch.nn.Module):
                 category=UserWarning,
             )
 
-        # TODO Add last token for generation
-        if self.causal:
-            self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
-                self.verbalizer_raw, lower=lower_verbalizer
-            )
-        else:
-            self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
-                self.verbalizer_raw, lower=lower_verbalizer
-            )
+        self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
+            self.verbalizer_raw, lower=lower_verbalizer
+        )
+        # if self.causal:
+        #     self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
+        #         self.verbalizer_raw, lower=lower_verbalizer
+        #     )
+        # else:
+        #     self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
+        #         self.verbalizer_raw, lower=lower_verbalizer
+        #     )
         self.calibration_probs: Optional[tensor] = None
 
         if self.causal:
@@ -239,13 +241,13 @@ class LLM4ClassificationBase(torch.nn.Module):
         probs = probs.reshape(*shape)
         return probs
 
-    def forward(  # TODO: Check pythonic way
+    def forward(
         self,
         batch: Dict[str, tensor],
         return_model_output: bool = False,
         combine: bool = True,
         **kwargs: Any,
-    ) -> Union[tensor, Tuple[tensor, Any]]:  # TODO: Find type
+    ) -> Union[tensor, Tuple[tensor, ModelOutput]]:
         """Forward Function.
 
         Perform the forward pass of the model and return the logits.
@@ -300,6 +302,8 @@ class LLM4ClassificationBase(torch.nn.Module):
         dataset = dataset.select(length_sorted_idx)
         collector: List[tensor] = []
 
+        self.model.eval()
+
         for i in trange(
             0,
             len(dataset),
@@ -310,7 +314,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             batch: Dict[str, tensor] = self.prompt.get_tensors_fast(
                 dataset[i : i + batch_size]
             )
-            # TODO: provide option to set model into eval mode
             # TODO: Move detach here from forward method
             with torch.no_grad():
                 output: tensor = self.forward(batch, **kwargs)
@@ -322,6 +325,8 @@ class LLM4ClassificationBase(torch.nn.Module):
                     else:
                         output = torch.nn.functional.softmax(output, dim=-1)
                 collector.extend(output)
+
+        self.model.train()
 
         output = torch.stack([collector[idx] for idx in np.argsort(length_sorted_idx)])
         if calibrate:
@@ -385,6 +390,7 @@ class LLM4ClassificationBase(torch.nn.Module):
 
         Classify the data and return the results in the requested format. This method is used to prepare the data
         according to the provided input format.
+        Before inference, model is set into eval() mode and later reset to train() mode.
 
         Args:
             data (Union[Dataset, Any]): The data to be classified.
@@ -414,7 +420,6 @@ class LLM4ClassificationBase(torch.nn.Module):
         temperature = float(temperature)
         assert temperature > 0.0, "Temperature must be greater than 0."
 
-        self.model.eval()
         if isinstance(data, Dataset):
             return self._smart_forward(
                 data,
@@ -444,7 +449,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                 return_dict[key] = results
             return return_dict
         else:
-            # TODO: test this case
             raise ValueError("Data must be of type Dataset or DatasetDict.")
 
 
@@ -501,7 +505,7 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         return_model_output: bool = False,
         combine: bool = True,
         **kwargs: Any,
-    ) -> Union[tensor, Tuple[tensor, Any]]:  # TODO: Find type
+    ) -> Union[tensor, Tuple[tensor, ModelOutput]]:
         """Forward Function.
 
         Perform the forward pass of the model and return the logits.
