@@ -33,8 +33,6 @@ class Prompt:
         """
         if isinstance(other, FVP):
             raise ValueError("FVP cannot be added to a prompt.")
-        if True in [isinstance(e, FVP) for e in self.collector]:
-            raise ValueError("FVP cannot be added to a prompt.")
         self.collector.append(other)
         return Prompt(self.collector)
 
@@ -62,7 +60,7 @@ class Prompt:
         """
         return self.__str__()
 
-    def prompt_fun(
+    def _prompt_fun(
         self, tokenizer: PreTrainedTokenizerBase
     ) -> Union[Callable[[Tuple[str]], str], Callable[[Dict[str, str]], str]]:
         """Return a function that can be used to build the prompt.
@@ -73,7 +71,6 @@ class Prompt:
         return lambda e: self.__fn_str__(tokenizer) % e
 
     def _get_verbalizer(self) -> "Vbz":
-        print(self.collector)
         verb_filter: List[Vbz] = [e for e in self.collector if isinstance(e, Vbz)]
         if len(verb_filter) != 1:
             raise ValueError(
@@ -81,7 +78,7 @@ class Prompt:
             )
         else:
             return verb_filter[0]
-        
+
     def _check_valid_keys(self) -> None:
         if len([e for e in self.collector if isinstance(e, (Key, Img))]) < 1:
             raise ValueError(
@@ -260,15 +257,16 @@ class Vbz(Prompt):
 class FVP(Prompt):
     """Function Verbalizer Pair (FVP) Class."""
 
-    def __init__(self, prompt_fun: Callable[[Dict[str, str]], str], verbalizer: Vbz):
+    def __init__(
+        self, _prompt_function: Callable[[Dict[str, str]], str], verbalizer: Vbz
+    ):
         """Initialize Class.
 
         Args:
-            prompt_fun (Callable[[Dict[str, str]], str]): Function to build prompt.
+            _prompt_function (Callable[[Dict[str, str]], str]): Function to build prompt.
             verbalizer (Vbz): Verbalizer.
         """
-        print([verbalizer])
-        self.fvp_fn = prompt_fun
+        self.fvp_fn = _prompt_function
         super().__init__([self, verbalizer])
 
     def __add__(self, *args: Any) -> Prompt:
@@ -301,7 +299,7 @@ class FVP(Prompt):
         """Represent Object as String."""
         return self.__str__()
 
-    def prompt_fun(self, *args: Any) -> Callable[[Dict[str, str]], str]:
+    def _prompt_fun(self, *args: Any) -> Callable[[Dict[str, str]], str]:
         """Return a function that can be used to build the prompt.
 
         The function returns a prompt generating function in which the arguments

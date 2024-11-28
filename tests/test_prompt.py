@@ -97,7 +97,7 @@ def test_fn_str_method():
     tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
     assert isinstance(prompt.__fn_str__(tokenizer), str)
 
-    assert callable(prompt.prompt_fun(tokenizer))
+    assert callable(prompt._prompt_fun(tokenizer))
 
 
 def test_vbz_w_dict():
@@ -111,3 +111,10 @@ def test_vbz_w_dict():
 
     with pytest.raises(ValueError):
         Txt('Test ') + Key('a') + Txt(" ") + Img('a') + Txt(" ") + Vbz(0)
+
+
+def test_fpv():
+    prompt = FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+    assert prompt._prompt_fun()({'text': 'test'}) == "test It was "
+    assert str(prompt) == "<FVP>"
+    assert prompt.__repr__() == "<FVP>"

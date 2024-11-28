@@ -64,10 +64,6 @@ class SystemPrompt:
         self.verbalizer: Vbz = self.prompt._get_verbalizer()
 
         self.prompt._check_valid_keys()
-        # if len([e for e in self.prompt.collector if isinstance(e, (Key, Img))]) < 1:
-        #     raise ValueError(
-        #         f"No key found in prompt. Please provide a `Key` key!\n\t'-> {str(prompt)}"
-        #     )
 
         self.intermediate_token = None
         if mlm:
@@ -124,7 +120,7 @@ class SystemPrompt:
                 int(used_tokens // only_keys) if only_keys != 0 else used_tokens
             )
 
-        self.prmpt_f: Callable[[Any], str] = self.prompt.prompt_fun(self.tokenizer)
+        self.prmpt_f: Callable[[Any], str] = self.prompt._prompt_fun(self.tokenizer)
         self.key_list = [
             e.key for e in self.prompt.collector if isinstance(e, (Img, Key))
         ]
@@ -263,10 +259,16 @@ class SystemPrompt:
         Returns:
             List[List[int]]: Tokenized Data.
         """
-        prepared_data: Union[List[str], Dict[str, tensor]] = [
-            self.prmpt_f(tuple([elem for elem in e]))
-            for e in zip(*[data[val] for val in self.key_list])
-        ]
+        if self.fvp:
+            prepared_data: Union[List[str], Dict[str, tensor]] = [
+                self.prmpt_f(dict(zip(data.keys(), e)))
+                for e in list(zip(*data.values()))
+            ]
+        else:
+            prepared_data = [
+                self.prmpt_f(tuple([elem for elem in e]))
+                for e in zip(*[data[val] for val in self.key_list])
+            ]
         prepared_data = self.tokenizer(
             prepared_data, padding="longest", return_tensors="pt"
         )
