@@ -15,8 +15,6 @@ from datasets import Dataset, DatasetDict
 from torch import tensor
 from tqdm import trange
 from transformers import AutoModelForCausalLM, AutoModelForMaskedLM, AutoTokenizer
-
-# from transformers.generation.utils import GenerateDecoderOnlyOutput
 from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
@@ -82,13 +80,9 @@ class LLM4ClassificationBase(torch.nn.Module):
         self.tokenizer: PreTrainedTokenizerBase = tokenizer
         self.model: PreTrainedModel = model
 
-        self._can_generate: bool = generate
+        self.causal: bool = generate
 
-        self.prompt: SystemPrompt = SystemPrompt(prompt, tokenizer, mlm=(not generate))
-        self.verbalizer_raw: List[List[str]] = self.prompt.verbalizer.verbalizer
-        self.verbalizer_dict: Optional[Dict[Union[int, str], List[str]]] = None
-        if self.prompt.verbalizer.verbalizer_dict is not None:
-            self.verbalizer_dict = self.prompt.verbalizer.verbalizer_dict
+        self.set_prompt(prompt)
 
         if device is None and torch.cuda.is_available():
             self.device: str = "cuda"
@@ -104,7 +98,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             )
 
         # TODO Add last token for generation
-        if self._can_generate:
+        if self.causal:
             self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
                 self.verbalizer_raw,
                 lower=lower_verbalizer,
@@ -119,8 +113,25 @@ class LLM4ClassificationBase(torch.nn.Module):
             )
         self.calibration_probs: Optional[tensor] = None
 
-        if self._can_generate:
+        if self.causal:
             self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
+
+    def set_prompt(self, prompt: Prompt) -> None:
+        """Set Prompt.
+
+        Sets the prompt for the class. Can be used for initialization or updating the object.
+
+        Args:
+            prompt (Prompt): The prompt to be set.
+        """
+        # TODO: Unify generate flag
+        self.prompt: SystemPrompt = SystemPrompt(
+            prompt, self.tokenizer, mlm=(not self.causal)
+        )
+        self.verbalizer_raw: List[List[str]] = self.prompt.verbalizer.verbalizer
+        self.verbalizer_dict: Optional[Dict[Union[int, str], List[str]]] = None
+        if self.prompt.verbalizer.verbalizer_dict is not None:
+            self.verbalizer_dict = self.prompt.verbalizer.verbalizer_dict
 
     def _get_verbalizer(
         self,
@@ -156,7 +167,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             [self.tokenizer.encode(e, add_special_tokens=False) for e in label_words]
             for label_words in verbalizer_raw
         ]
-        if not self._can_generate:
+        if not self.causal:
             if True in [
                 True in [len(v) > 1 for v in e] for e in verbalizer_tokenized_raw
             ]:
@@ -242,7 +253,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         )
 
     @staticmethod
-    def _calibrate(probs: tensor) -> tensor:
+    def calibrate(probs: tensor) -> tensor:
         """Calibrate Probabilities.
 
         Address the calibartion issue ([Zhao et al., 2021](https://arxiv.org/abs/2102.09690),
@@ -262,7 +273,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         probs = probs.reshape(*shape)
         return probs
 
-    def forward(
+    def forward(  # TODO: Check pythonic way
         self,
         batch: Dict[str, tensor],
         return_model_output: bool = False,
@@ -347,6 +358,9 @@ class LLM4ClassificationBase(torch.nn.Module):
                 collector.extend(output)
 
         output = torch.stack([collector[idx] for idx in np.argsort(length_sorted_idx)])
+        # TODO: Test calibration here
+        if calibrate:
+            output = self.calibrate(output)
         if return_type == "torch":
             return output
         elif return_type == "numpy":
