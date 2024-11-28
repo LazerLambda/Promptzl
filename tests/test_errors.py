@@ -80,4 +80,25 @@ def test_vbz_causal_error():
             model_id_gen,
             prompt=prompt
         )
-        
+
+def test_fvp_error():
+    prompt = FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+    with pytest.raises(NotImplementedError):
+        prompt.__fn_str__(AutoTokenizer.from_pretrained(model_id_mlm))
+    
+    with pytest.raises(ValueError):
+        FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]])) + Txt("asdf")
+
+    with pytest.raises(ValueError):
+        Txt("asdf") + FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+
+def test_fvp_input_lenght_error():
+    prompt = FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+    model = promptzl.CausalLM4Classification(
+        model_id_gen,
+        prompt=prompt
+    )
+
+    dataset = Dataset.from_dict({"text": ["a " * 10000 + "a"]})
+    with pytest.raises(ValueError):
+        model.classify(dataset)
