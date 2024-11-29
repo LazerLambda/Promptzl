@@ -1,7 +1,7 @@
 LM Classifiers
 ======================
 
-.. automodule:: modules
+.. automodule:: promptzl.modules
    :members:
    :undoc-members:
    :show-inheritance:

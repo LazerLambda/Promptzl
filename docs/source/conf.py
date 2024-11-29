@@ -14,7 +14,7 @@ print(os.listdir(os.path.abspath(".")))
 print(os.path.abspath("."))
 print(os.path.abspath('../../.'))
 print(os.listdir(os.path.abspath('../../promptzl')))
-sys.path.insert(0, os.path.abspath('../../promptzl'))
+sys.path.insert(0, os.path.abspath('../../.'))
 
 project = 'Promptzl'
 copyright = '2024, Philipp Koch'
@@ -45,5 +45,10 @@ html_static_path = ['_static']
 
 # Autodoc settings
 autoclass_content = 'both'
+
+# Mock imports for modules that are not available during the build process
+autodoc_mock_imports = [
+    'numpy', 'pandas', 'polars', 'torch', 'datasets', 'transformers', 'tqdm'
+]
 
 html_title = "Pr🥨mptzl"
