@@ -10,8 +10,8 @@ import os
 import sys
 
 # sys.path.insert(0, os.path.abspath("."))
-print(os.path.abspath('../promptzl'))
-sys.path.insert(0, os.path.abspath('../promptzl'))
+print(os.path.abspath('../.'))
+sys.path.insert(0, os.path.abspath('../../..'))
 
 project = 'Promptzl'
 copyright = '2024, Philipp Koch'
