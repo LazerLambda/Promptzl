@@ -6,8 +6,9 @@ MIT LICENSE
 """
 
 import operator
+from dataclasses import dataclass
 from functools import reduce
-from typing import Any, Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from warnings import warn
 
 from datasets import Dataset
@@ -18,7 +19,7 @@ from .prompt import FVP, Img, Key, Prompt, Txt, Vbz
 
 
 class SystemPrompt:
-    """Class for Internal Prmopt Handling."""
+    """Class for Internal Prompt Handling."""
 
     def __init__(
         self,
@@ -295,3 +296,16 @@ class SystemPrompt:
             str: String representation of prompt.
         """
         return str(self.prompt)
+
+
+@dataclass
+class LLM4ClassificationOutput:
+    """Class for Organizing Output of LLM4Classification.
+
+    Attributes:
+        predictions (Optional[Any]): Predictions (i.e. predicted label for each instance).
+        distribution (Optional[Any]): Distribution of predictions (i.e. probabilities for each label).
+    """
+
+    predictions: Optional[Any] = None
+    distribution: Optional[Any] = None

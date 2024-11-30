@@ -26,6 +26,7 @@ Documentation
 
    prompt
    lm_classifiers
+   utils
 
 Tutorials
 ---------

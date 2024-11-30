@@ -41,8 +41,8 @@ def test_simple_causal_class_prompt():
     )
     dataset = Dataset.from_dict({"text": sample_data})
     model.classify(dataset)
-    otpt = model.classify(dataset, predict_labels=True)
-    assert int(torch.sum(otpt).item()) == len(dataset)
+    otpt = model.classify(dataset)
+    assert int(torch.sum(otpt.distribution).item()) == len(dataset)
     model.classify(dataset, batch_size=2)
     model.classify(dataset, batch_size=2, temperature=0.5)
     model.classify(dataset, batch_size=2, calibrate=True)
@@ -59,9 +59,6 @@ def test_simple_causal_class_prompt():
 
     model.prompt.truncate = False
     model.classify(dataset)
-    # model.classify(sample_data)
-    # model.classify(sample_data, calibrate=True, calibrate_samples=100)
-    # model.classify(sample_data, calibrate=True, calibrate_samples=2)
 
 def test_simple_mlm_class_prompt():
 
@@ -73,8 +70,8 @@ def test_simple_mlm_class_prompt():
     )
     dataset = Dataset.from_dict({"text": sample_data})
     model.classify(dataset)
-    otpt = model.classify(dataset, predict_labels=False)
-    assert int(torch.sum(otpt).item()) == len(dataset)
+    otpt = model.classify(dataset)
+    assert int(torch.sum(otpt.distribution).item()) == len(dataset)
     model.classify(dataset, batch_size=2)
     model.classify(dataset, batch_size=2, temperature=0.5)
     model.classify(dataset, batch_size=2, calibrate=True)
@@ -139,27 +136,8 @@ def test_w_vbz_dict():
         prompt=prompt
     )
     dataset = Dataset.from_dict({"text": sample_data})
-    output = model.classify(dataset, use_dict_keys=True, return_type="polars", predict_labels=False)
-    assert output.columns == ['0', '1']
+    output = model.classify(dataset, return_type="polars")
+    assert output.distribution.columns == ['0', '1']
 
-    output = model.classify(dataset, use_dict_keys=True, return_type="polars")
-    assert output.columns == ['Prediction']
-
-    output = model.classify(dataset, use_dict_keys=True, return_type="pandas", predict_labels=False)
-    assert output.columns.to_list() == [0, 1]
-
-    output = model.classify(dataset, use_dict_keys=True, return_type="pandas")
-    assert output.columns.to_list() == ['Prediction']
-
-def test_pred_classes_directly():
-    prompt = Key("text") + Txt(". It was ") + Vbz({0: ["bad", "horrible"], 1: ["good"]})
-    model = promptzl.MaskedLM4Classification(
-        model_id_mlm,
-        prompt=prompt
-    )
-    dataset = Dataset.from_dict({"text": sample_data})
-    model.classify(dataset, batch_size=2, predict_labels=True)
-    model.classify(dataset, return_type="list", predict_labels=True)
-    model.classify(dataset, return_type="pandas", predict_labels=True)
-    model.classify(dataset, return_type="numpy", predict_labels=True)
-    model.classify(dataset, return_type="polars", predict_labels=True)
+    output = model.classify(dataset, return_type="pandas")
+    assert output.distribution.columns.to_list() == ['0', '1']

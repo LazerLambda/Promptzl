@@ -10,19 +10,12 @@ Using promptzl is simple. Here's a basic example of how to use it to classify te
 
     dataset = load_dataset("SetFit/ag_news")
 
-    verbalizer = Vbz({1: ["World"], 2: ["Sports"], 3: ["Business"], 4: ["Tech"]})
+    verbalizer = Vbz({0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})
     prompt = Txt("[Category:") + verbalizer + Txt("] ") + Key()
 
-    model = MaskedLM4Classification("roberta-large", prompt, trust_remote_code=True)
-    output = model.classify(dataset['test'], show_progress_bar=True)
-
-
-Now the output can be evaluated. For example, to calculate the accuracy of the model:
-.. code-block:: python
-
-    import torch
-    labels = dataset['test']['label']
-    sum([int(truth == pred) for truth, pred in zip(labels, torch.argmax(output, -1))]) / len(labels)
+    model = MaskedLM4Classification("roberta-large", prompt)
+    output = model.classify(dataset['test'], show_progress_bar=True).predictions
+    sum([int(prd == lbl) for prd, lbl in zip(output, dataset['test']['label'])]) / len(output)
     0.7986842105263158
 
 This is a simple example, but promptzl can be used for more complex tasks as well.

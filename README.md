@@ -33,7 +33,7 @@ In just a few lines of code, you can transform a LLM of choice into an old-schoo
     prompt = Txt("[Category:") + verbalizer + Txt("] ") + Key()
 
     model = MaskedLM4Classification("roberta-large", prompt)
-    output = model.classify(dataset['test'], show_progress_bar=True)
+    output = model.classify(dataset['test'], show_progress_bar=True).predictions
     sum([int(prd == lbl) for prd, lbl in zip(output, dataset['test']['label'])]) / len(output)
 ```
 
