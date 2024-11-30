@@ -38,9 +38,9 @@ model_id_mlm = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 def test_init():
     prompt = Txt("Hello World! ") + Key('test') + Vbz([['good'], ['bad']])
     tokenizer = AutoTokenizer.from_pretrained(model_id_gen)
-    SystemPrompt(prompt, tokenizer, mlm=False)
-    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
     SystemPrompt(prompt, tokenizer)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
+    SystemPrompt(prompt, tokenizer, generate=False)
 
     with pytest.raises(Exception):
         SystemPrompt(None, tokenizer)
@@ -52,7 +52,7 @@ def test_init():
         SystemPrompt(prompt, tokenizer, truncate=-1)
 
     with pytest.raises(Exception):
-        SystemPrompt(prompt, tokenizer, mlm=-1)
+        SystemPrompt(prompt, tokenizer, generate=-1)
     
     with pytest.raises(Exception):
         prompt = Txt("Hello World! ") + Vbz([['good'], ['bad']])
@@ -74,10 +74,10 @@ def test_str_method():
     prompt = Txt('Test ') + Key('a') + Txt(" ") + Img('a') + Txt(" ") + Vbz([['bad'], ['good']])
     assert str(prompt) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
 
-    systemprompt = SystemPrompt(prompt, AutoTokenizer.from_pretrained(model_id_mlm))
+    systemprompt = SystemPrompt(prompt, AutoTokenizer.from_pretrained(model_id_mlm), generate=False)
     assert str(systemprompt) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
 
-    systemprompt = SystemPrompt(prompt, AutoTokenizer.from_pretrained(model_id_gen), mlm=False)
+    systemprompt = SystemPrompt(prompt, AutoTokenizer.from_pretrained(model_id_gen))
     assert str(systemprompt) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
 
 def test_repr_method():
