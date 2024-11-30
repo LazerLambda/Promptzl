@@ -1,8 +1,3 @@
-"""Promptzl, 2024.
-
-MIT LICENSE
-"""
-
 from functools import reduce
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from warnings import warn

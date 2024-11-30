@@ -1,10 +1,3 @@
-"""Utils for Prompt Generation.
-
-Promptzl, 2024
-
-MIT LICENSE
-"""
-
 import operator
 from dataclasses import dataclass
 from functools import reduce

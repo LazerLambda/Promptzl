@@ -1,8 +1,3 @@
-"""Promptzl, 2024.
-
-MIT LICENSE
-"""
-
 from .modules import (
     CausalLM4Classification,
     LLM4ClassificationBase,

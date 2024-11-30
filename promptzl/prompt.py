@@ -1,8 +1,3 @@
-"""Promptzl, 2024.
-
-MIT LICENSE
-"""
-
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
