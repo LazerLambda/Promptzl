@@ -1,6 +1,9 @@
 import os
 import sys
 
+import numpy as np
+import pandas as pd
+import polars as pl
 import pytest
 import torch
 from datasets import Dataset
@@ -38,10 +41,10 @@ def test_combine_function():
     test = CausalLM4Classification("sshleifer/tiny-gpt2", prompt)
     grouped_indices = [[0, 1], [2]]
 
-    combined = LLM4ClassificationBase._combine_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
+    combined = LLM4ClassificationBase.combine_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
     assert torch.all(combined == tensor([[2., 7.], [3., 8.]]))
 
-    combined = LLM4ClassificationBase._combine_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
+    combined = LLM4ClassificationBase.combine_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
     assert torch.all(combined == tensor([[2., 7.], [3., 8.]]))
 
 def test_set_prompt_function():
@@ -92,11 +95,11 @@ def test_forward_function():
     batch_size=2
     for i in range(0, len(sample_data), batch_size):
         batch = test.prompt.get_tensors({'text': sample_data[i:i+batch_size]})
-        output = test.forward(batch)
+        output = test.forward(batch).detach().cpu()
         output = torch.nn.functional.softmax(output, dim=-1)
         assert torch.sum(output).round().item() == float(batch_size)
         output, model_output = test.forward(batch, return_model_output=True)
-        output = torch.nn.functional.softmax(output, dim=-1)
+        output = torch.nn.functional.softmax(output.detach().cpu(), dim=-1)
         assert isinstance(model_output, ModelOutput)
         assert torch.sum(output).round().item() == float(batch_size)
 
@@ -107,11 +110,56 @@ def test_forward_function():
     batch_size=2
     for i in range(0, len(sample_data), batch_size):
         batch = test.prompt.get_tensors({'text': sample_data[i:i+batch_size]})
-        output = test.forward(batch)
+        output = test.forward(batch).detach().cpu()
         output = torch.nn.functional.softmax(output, dim=-1)
         assert torch.sum(output).round().item() == float(batch_size)
         _, model_output = test.forward(batch, return_model_output=True)
         assert isinstance(model_output, ModelOutput)
-        assert torch.sum(output).round().item() == float(batch_size)
+        assert torch.sum(output.detach().cpu()).round().item() == float(batch_size)
 
         _, _ = test.forward(batch, return_model_output=True)
+
+
+def test_calibrate_output():
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+
+    model = CausalLM4Classification(
+        model_id_gen,
+        prompt=prompt
+    )
+    dataset = Dataset.from_dict({"text": sample_data[0:4]})
+
+    otp = model.classify(dataset, return_type="torch")
+    pred_cali = model.calibrate(otp.distribution)
+    otp_ = model.calibrate_output(otp)
+    assert isinstance(otp_.predictions, torch.Tensor)
+    assert torch.allclose(otp_.distribution, pred_cali)
+    assert isinstance(otp_.distribution, torch.Tensor)
+
+    otp = model.classify(dataset, return_type="list")
+    pred_cali = model.calibrate(torch.tensor(otp.distribution))
+    otp_ = model.calibrate_output(otp)
+    assert isinstance(otp_.predictions, list)
+    assert torch.allclose(torch.tensor(otp_.distribution), pred_cali)
+    assert isinstance(otp_.distribution, list)
+
+    otp = model.classify(dataset, return_type="pandas")
+    pred_cali = model.calibrate(torch.tensor(otp.distribution.values))
+    otp_ = model.calibrate_output(otp)
+    assert isinstance(otp_.predictions, pd.DataFrame)
+    assert torch.allclose(torch.tensor(otp_.distribution.values), pred_cali)
+    assert isinstance(otp_.distribution, pd.DataFrame)
+
+    otp = model.classify(dataset, return_type="numpy")
+    pred_cali = model.calibrate(torch.from_numpy(otp.distribution))
+    otp_ = model.calibrate_output(otp)
+    assert isinstance(otp_.predictions, np.ndarray)
+    assert torch.allclose(torch.from_numpy(otp_.distribution), pred_cali)
+    assert isinstance(otp_.distribution, np.ndarray)
+
+    otp = model.classify(dataset, return_type="polars")
+    pred_cali = model.calibrate(torch.from_numpy(otp.distribution.to_numpy().copy()))
+    otp_ = model.calibrate_output(otp)
+    assert isinstance(otp_.predictions, pl.DataFrame)
+    assert torch.allclose(torch.from_numpy(otp_.distribution.to_numpy().copy()), pred_cali)
+    assert isinstance(otp_.distribution, pl.DataFrame)

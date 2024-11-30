@@ -7,7 +7,7 @@ import pandas as pd
 import polars as pl
 import torch
 from datasets import Dataset, DatasetDict
-from torch import tensor
+from torch import Tensor, tensor
 from tqdm import trange
 from transformers import AutoModelForCausalLM, AutoModelForMaskedLM, AutoTokenizer
 from transformers.generation.utils import ModelOutput
@@ -25,7 +25,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         self,
         model: PreTrainedModel,
         tokenizer: PreTrainedTokenizerBase,
-        prompt: Prompt,  # TODO: Allow also only verbalizer
+        prompt: Prompt,
         generate: bool,
         device: Optional[str] = None,
         lower_verbalizer: bool = False,
@@ -39,7 +39,11 @@ class LLM4ClassificationBase(torch.nn.Module):
         Args:
             model (PreTrainedModel): The model to be used.
             tokenizer (PreTrainedTokenizerBase): The tokenizer to be used.
-            prompt (Prompt): The prompt to be used.
+            prompt (Prompt): The prompt to be used. Example usage:
+                ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
+                or
+                ```FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))```
+                WARNING: Using FVP can result in indexing errors as automatic truncation is not applied.
             generate (bool): A flag to determine if the model should be able to generate.
             device (Optional[str], optional): The device to be used. Defaults to None.
             lower_verbalizer (bool, optional): A flag to determine if the verbalizer should be lowercased. Defaults to False.
@@ -96,7 +100,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             self.verbalizer_raw, lower=lower_verbalizer
         )
 
-        self.calibration_probs: Optional[tensor] = None
+        self.calibration_probs: Optional[Tensor] = None
 
         if self.causal:
             self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
@@ -109,9 +113,8 @@ class LLM4ClassificationBase(torch.nn.Module):
         Args:
             prompt (Prompt): The prompt to be set.
         """
-        # TODO: Unify generate flag
         self.prompt: SystemPrompt = SystemPrompt(
-            prompt, self.tokenizer, mlm=(not self.causal)
+            prompt, self.tokenizer, generate=self.causal
         )
         self.verbalizer_raw: List[List[str]] = self.prompt.verbalizer.verbalizer
         self.verbalizer_dict: Optional[Dict[Union[int, str], List[str]]] = None
@@ -190,10 +193,11 @@ class LLM4ClassificationBase(torch.nn.Module):
         return verbalizer_indices, grouped_indices
 
     @staticmethod
-    def _combine_logits(logits: tensor, grouped_indices: List[List[int]]) -> tensor:
+    def combine_logits(logits: Tensor, grouped_indices: List[List[int]]) -> Tensor:
         """Combine Logits.
 
-        Combine the logits for different class labels.
+        Combine the logits for different class labels by taking the arithmetic mean of the logits
+        for each class label.
 
         Args:
             logits (tensor): The logits to be combined.
@@ -208,8 +212,24 @@ class LLM4ClassificationBase(torch.nn.Module):
             ]
         )
 
+    def _predicted_indices_to_labels(self, predicted: Tensor) -> Tensor:
+        """Predicted Indices to Labels.
+
+        Convert the predicted indices to labels if the verbalizer dictionary is available.
+
+        Args:
+            predicted (tensor): The predicted indices.
+
+        Returns:
+            tensor: The predicted labels.
+        """
+        if self.verbalizer_dict is not None:
+            verb_kes_list: List[Union[int, str]] = list(self.verbalizer_dict.keys())
+            predicted = tensor([verb_kes_list[idx.item()] for idx in predicted])
+        return predicted
+
     @staticmethod
-    def calibrate(probs: tensor) -> tensor:
+    def calibrate(probs: Tensor) -> Tensor:
         """Calibrate Probabilities.
 
         Address the calibartion issue ([Zhao et al., 2021](https://arxiv.org/abs/2102.09690),
@@ -221,27 +241,65 @@ class LLM4ClassificationBase(torch.nn.Module):
         Returns:
             tensor: The calibrated probabilities.
         """
-        calibration_probs = torch.mean(probs, dim=0)
-        shape = probs.shape
-        probs = probs / (calibration_probs + 1e-15)
-        norm = probs.reshape(shape[0], -1).sum(dim=-1, keepdim=True)
-        probs = probs.reshape(shape[0], -1) / norm
-        probs = probs.reshape(*shape)
-        return probs
+        probs = probs / (torch.mean(probs, dim=0) + 1e-50)
+        return probs / probs.sum(dim=-1, keepdim=True)
+
+    def calibrate_output(
+        self, output: LLM4ClassificationOutput
+    ) -> LLM4ClassificationOutput:
+        """Calibrate Output.
+
+        Calibrate the obtained output. Method takes the `LLM4ClassificationOutput` object and calibrates the
+        distribution. The predictions are also updated to the calibrated distribution. The type of the output
+        is kept the same as the input.
+
+        Args:
+            output (LLM4ClassificationOutput): The output logits.
+
+        Returns:
+            LLM4ClassificationOutput: The calibrated output logits.
+        """
+        return_type: str = "torch"
+        distribution: Union[
+            Tensor, np.ndarray, pd.DataFrame, pl.DataFrame, List[List[float]]
+        ] = output.distribution
+        if isinstance(distribution, torch.Tensor):
+            pass
+        elif isinstance(distribution, np.ndarray):
+            return_type = "numpy"
+            distribution = torch.from_numpy(distribution)
+        elif isinstance(distribution, pd.DataFrame):
+            return_type = "pandas"
+            distribution = torch.from_numpy(distribution.values)
+        elif isinstance(distribution, pl.DataFrame):
+            return_type = "polars"
+            distribution = torch.from_numpy(distribution.to_numpy().copy())
+        elif isinstance(distribution, list):
+            return_type = "list"
+            distribution = tensor(distribution)
+
+        distribution = self.calibrate(distribution)
+        predictions: tensor = torch.argmax(distribution, dim=-1)
+        predictions = self._predicted_indices_to_labels(predictions)
+
+        return LLM4ClassificationOutput(
+            self._prepare_output(predictions, return_type, True),
+            self._prepare_output(distribution, return_type, False),
+        )
 
     def forward(
         self,
-        batch: Dict[str, tensor],
+        batch: Dict[str, Tensor],
         return_model_output: bool = False,
-        combine: bool = True,
         **kwargs: Any,
-    ) -> Union[tensor, Tuple[tensor, ModelOutput]]:
+    ) -> Union[Tensor, Tuple[Tensor, ModelOutput]]:
         """Forward Function.
 
         Perform the forward pass of the model and return the logits.
 
         Args:
             batch (Dict[str, tensor]): The input batch.
+            return_model_output (bool): A flag to determine if the model output should be returned.
             kwargs: Additional arguments for the model.
 
         Raises:
@@ -250,13 +308,12 @@ class LLM4ClassificationBase(torch.nn.Module):
         Returns:
             Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
-        # TODO: remove model output from **kwargs, add warning
         raise NotImplementedError("Forward function must be implemented in subclass.")
 
     def _prepare_output(
-        self, output: tensor, return_type: str, predict_labels: bool
+        self, output: Tensor, return_type: str, predict_labels: bool
     ) -> Union[
-        tensor, np.ndarray, List[Union[str, float, int]], pd.DataFrame, pl.DataFrame
+        Tensor, np.ndarray, List[Union[str, float, int]], pd.DataFrame, pl.DataFrame
     ]:
         """Prepare Output for Desired Return Type.
 
@@ -312,10 +369,8 @@ class LLM4ClassificationBase(torch.nn.Module):
         batch_size: int,
         return_logits: bool,
         show_progress_bar: bool,
-        return_type: str,  # TODO add enum
-        return_distribution: bool,
+        return_type: str,
         calibrate: bool,
-        # use_dict_keys: bool,
         temperature: float,
         **kwargs: Any,
     ) -> LLM4ClassificationOutput:
@@ -333,9 +388,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                 "torch", "numpy", "pandas" and "polars".
             predict_labels (bool): A flag to determine if the labels (argmax) should be returned.
             calibrate (bool): A flag to determine if the logits should be calibrated.
-            use_dict_keys (bool): A flag to determine if the dataset keys should be used as
-                column names in the result (Only works if return_type is 'pandas' or 'polars' and a dict is
-                provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`).
             temperature (float): The temperature to be used. Defaults to 1.0.
             kwargs: Additional arguments for the forward function (the model).
 
@@ -344,7 +396,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         """
         length_sorted_idx = np.argsort([-len(e) for e in dataset])
         dataset = dataset.select(length_sorted_idx)
-        collector: List[tensor] = []
+        collector: List[Tensor] = []
 
         self.model.eval()
 
@@ -355,12 +407,13 @@ class LLM4ClassificationBase(torch.nn.Module):
             desc="Classify Batches...",
             disable=not show_progress_bar,
         ):
-            batch: Dict[str, tensor] = self.prompt.get_tensors_fast(
+            batch: Dict[str, Tensor] = self.prompt.get_tensors_fast(
                 dataset[i : i + batch_size]
             )
-            # TODO: Move detach here from forward method
             with torch.no_grad():
-                output: tensor = self.forward(batch, **kwargs)
+                output: Tensor = self.forward(batch, **kwargs)
+                output = output.detach().cpu()
+                output = self.combine_logits(output, self.grouped_indices)
                 if not return_logits:
                     if temperature != 1.0:
                         output = torch.nn.functional.softmax(
@@ -377,9 +430,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             output = self.calibrate(output)
 
         predicted = torch.argmax(output, dim=-1)
-        if self.verbalizer_dict is not None:
-            verb_kes_list: List[Union[int, str]] = list(self.verbalizer_dict.keys())
-            predicted = torch.tensor([verb_kes_list[idx.item()] for idx in predicted])
+        predicted = self._predicted_indices_to_labels(predicted)
 
         return LLM4ClassificationOutput(
             self._prepare_output(predicted, return_type, True),
@@ -392,10 +443,8 @@ class LLM4ClassificationBase(torch.nn.Module):
         batch_size: int = 64,
         show_progress_bar: bool = False,
         return_logits: bool = False,
-        return_type: str = "torch",  # TODO use enum type
-        return_distribution: bool = True,
+        return_type: str = "torch",
         calibrate: bool = False,
-        # use_dict_keys: bool = False,
         temperature: float = 1.0,
         **kwargs: Any,
     ) -> Union[LLM4ClassificationOutput, Dict[str, LLM4ClassificationOutput]]:
@@ -412,18 +461,13 @@ class LLM4ClassificationBase(torch.nn.Module):
             return_logits (bool): A flag to determine if the logits should be returned. Defaults to False.
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
-            predict_labels (bool): A flag to determine if the labels (argmax) should be returned.
             calibrate (bool): A flag to determine if the logits should be calibrated. Defaults to False.
-            use_dict_keys (bool): A flag to determine if the dataset keys should be used as
-                column names in the result (Only works if return_type is 'pandas' or 'polars' and a dict is
-                provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`).
             temperature (float): The temperature to be used. Defaults to 1.0.
             kwargs: Additional arguments for the forward function (the model).
 
         Returns:
             Any: The output logits.
         """
-        # TODO: enum
         assert return_type in [
             "list",
             "torch",
@@ -441,7 +485,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                 return_logits,
                 show_progress_bar=show_progress_bar,
                 return_type=return_type,
-                return_distribution=return_distribution,
                 calibrate=calibrate,
                 temperature=temperature,
                 **kwargs,
@@ -455,7 +498,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                     return_logits,
                     show_progress_bar=show_progress_bar,
                     return_type=return_type,
-                    return_distribution=return_distribution,
                     calibrate=calibrate,
                     temperature=temperature,
                     **kwargs,
@@ -488,10 +530,15 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             model_id (str): Valid model identifier for huggingface.co.
             prompt (Prompt): A prompt object. Example usage:
                 ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
+                or
+                ```FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))```
+                WARNING: Using FVP can result in indexing errors as automatic truncation is not applied.
             device (Optional[str]): The device to be used. Defaults to None.
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
                 Defaults to False.
             truncate (bool): A flag to determine if the prompt should be truncated. Defaults to True.
+            model_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
+            tok_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
             **kwargs: Additional arguments for initializing the underlying huggingface-model.
         """
         tokenizer = AutoTokenizer.from_pretrained(
@@ -517,9 +564,8 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         self,
         batch: Dict[str, tensor],
         return_model_output: bool = False,
-        combine: bool = True,
         **kwargs: Any,
-    ) -> Union[tensor, Tuple[tensor, ModelOutput]]:
+    ) -> Union[Tensor, Tuple[Tensor, ModelOutput]]:
         """Forward Function.
 
         Perform the forward pass of the model and return the logits.
@@ -533,20 +579,18 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
         batch = {k: v.to(self.device) for k, v in batch.items()}
-        logits: Optional[tensor] = None
+        logits: Optional[Tensor] = None
 
-        outputs: ModelOutput = self.model(**batch, **kwargs)  # TODO: Find type
-        # TODO: No error when no mask token is found
+        outputs: ModelOutput = self.model(**batch, **kwargs)
         mask_index_batch, mask_index_tok = torch.where(
             batch["input_ids"] == self.tokenizer.mask_token_id
         )
         assert (
             mask_index_tok.shape[0] == batch["input_ids"].shape[0]
         ), "Mask token not found in input!"
-        logits = outputs.logits[mask_index_batch, mask_index_tok].detach().cpu()
+        logits = outputs.logits[mask_index_batch, mask_index_tok]
         logits = logits[:, self.verbalizer_indices]
-        if combine:
-            logits = self._combine_logits(logits, self.grouped_indices)
+
         if return_model_output:
             return logits, outputs
         else:
@@ -575,11 +619,15 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             model_id (str): Valid model identifier for huggingface.co.
             prompt (Prompt): A prompt object. Example usage:
                 ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
+                or
+                ```FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))```
+                WARNING: Using FVP can result in indexing errors as automatic truncation is not applied.
             device (Optional[str]): The device to be used. Defaults to None.
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
                 Defaults to False.
             truncate (bool): A flag to determine if the prompt should be truncated. Defaults to True.
-            **kwargs: Additional arguments for initializing the underlying huggingface-model.
+            model_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
+            tok_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
         """
         tokenizer = AutoTokenizer.from_pretrained(
             model_id,
@@ -605,30 +653,28 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
 
     def forward(
         self,
-        batch: Dict[str, tensor],
+        batch: Dict[str, Tensor],
         return_model_output: bool = False,
-        combine: bool = True,
         **kwargs: Any,
-    ) -> Union[tensor, Tuple[tensor, Any]]:  # TODO: Find type
+    ) -> Union[Tensor, Tuple[Tensor, ModelOutput]]:
         """Forward Function.
 
         Perform the forward pass of the model and return the logits.
 
         Args:
             batch (Dict[str, tensor]): The input batch.
+            return_model_output (bool): A flag to determine if the model output should be returned.
             kwargs: Additional arguments for the model.
 
         Returns:
             Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
         batch = {k: v.to(self.device) for k, v in batch.items()}
-        logits: Optional[tensor] = None
+        logits: Optional[Tensor] = None
 
-        outputs: ModelOutput = self.model(**batch, **kwargs)  # TODO: Find type
-        logits = outputs.logits[:, -1, self.verbalizer_indices].detach().cpu()
+        outputs: ModelOutput = self.model(**batch, **kwargs)
+        logits = outputs.logits[:, -1, self.verbalizer_indices]
 
-        if combine:
-            logits = self._combine_logits(logits, self.grouped_indices)
         if return_model_output:
             return logits, outputs
         else:

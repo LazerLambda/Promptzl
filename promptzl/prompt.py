@@ -69,7 +69,7 @@ class Prompt:
         verb_filter: List[Vbz] = [e for e in self.collector if isinstance(e, Vbz)]
         if len(verb_filter) != 1:
             raise ValueError(
-                f"No verbalizer found in prompt:\n\t'-> {str(self.__str__())}"
+                f"Prompt must entail one verbalizer!\n\t'-> {str(self.__str__())}"
             )
         else:
             return verb_filter[0]
