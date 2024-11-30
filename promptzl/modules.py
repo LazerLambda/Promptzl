@@ -100,14 +100,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
             self.verbalizer_raw, lower=lower_verbalizer
         )
-        # if self.causal:
-        #     self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
-        #         self.verbalizer_raw, lower=lower_verbalizer
-        #     )
-        # else:
-        #     self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
-        #         self.verbalizer_raw, lower=lower_verbalizer
-        #     )
+
         self.calibration_probs: Optional[tensor] = None
 
         if self.causal:
@@ -268,12 +261,13 @@ class LLM4ClassificationBase(torch.nn.Module):
         self,
         dataset: Dataset,
         batch_size: int,
-        return_logits: bool = False,
-        show_progress_bar: bool = True,
-        return_type: str = "torch",  # TODO add enum
-        calibrate: bool = False,
-        use_dataset_keys_in_results: bool = False,
-        temperature: float = 1.0,
+        return_logits: bool,
+        show_progress_bar: bool,
+        return_type: str,  # TODO add enum
+        predict_labels: bool,
+        calibrate: bool,
+        use_dict_keys: bool,
+        temperature: float,
         **kwargs: Any,
     ) -> List[tensor]:
         """Smart Forward.
@@ -288,8 +282,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             show_progress_bar (bool): A flag to determine if the progress bar should be shown.
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
+            predict_labels (bool): A flag to determine if the labels (argmax) should be returned.
             calibrate (bool): A flag to determine if the logits should be calibrated.
-            use_dataset_keys_in_results (bool): A flag to determine if the dataset keys should be used as
+            use_dict_keys (bool): A flag to determine if the dataset keys should be used as
                 column names in the result (Only works if return_type is 'pandas' or 'polars' and a dict is
                 provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`).
             temperature (float): The temperature to be used. Defaults to 1.0.
@@ -331,6 +326,30 @@ class LLM4ClassificationBase(torch.nn.Module):
         output = torch.stack([collector[idx] for idx in np.argsort(length_sorted_idx)])
         if calibrate:
             output = self.calibrate(output)
+
+        if self.verbalizer_dict is None and predict_labels:
+            predict_labels = False
+
+        if use_dict_keys and self.verbalizer_dict is None:
+            warn(
+                (
+                    "The output columns can only be named customly if a dictionary is provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`. Using default output."
+                ),
+                category=UserWarning,
+            )
+            predict_labels = False
+
+        if predict_labels and self.verbalizer_dict is None:
+            warn("The labels can only be used in the output if a dictionary is provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`. Using default output.", category=UserWarning)
+            predict_labels = False
+
+        if predict_labels:
+            output = torch.argmax(output, dim=-1)
+            verb_kes_list: List[Union[int, str]] = list(self.verbalizer_dict.keys())
+            output = torch.tensor(
+                [verb_kes_list[idx.item()] for idx in output]
+            )
+
         if return_type == "torch":
             return output
         elif return_type == "numpy":
@@ -338,40 +357,24 @@ class LLM4ClassificationBase(torch.nn.Module):
         elif return_type == "list":
             return output.tolist()
         elif return_type == "polars":
-            if use_dataset_keys_in_results and self.verbalizer_dict is not None:
+            if use_dict_keys and self.verbalizer_dict is not None:
                 return pl.DataFrame(
                     output.numpy(),
-                    schema=[str(e) for e in self.verbalizer_dict.keys()],
-                )
-            elif use_dataset_keys_in_results and self.verbalizer_dict is None:
-                warn(
-                    "The dataset keys can only be used as column names if a dictionary is provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`.",
-                    category=UserWarning,
-                )
-                return pl.DataFrame(
-                    output.numpy(), schema=[e[0] for e in self.verbalizer_raw]
+                    schema=["Prediction"] if predict_labels else [str(e) for e in self.verbalizer_dict.keys()],
                 )
             else:
                 return pl.DataFrame(
-                    output.numpy(), schema=[e[0] for e in self.verbalizer_raw]
+                    output.numpy(), schema=["Prediction"] if predict_labels else [e[0] for e in self.verbalizer_raw]
                 )
         else:
-            if use_dataset_keys_in_results and self.verbalizer_dict is not None:
+            if use_dict_keys and self.verbalizer_dict is not None:
                 return pd.DataFrame(
                     output.numpy(),
-                    columns=list(self.verbalizer_dict.keys()),
-                )
-            elif use_dataset_keys_in_results and self.verbalizer_dict is None:
-                warn(
-                    "The dataset keys can only be used as column names if a dictionary is provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`.",
-                    category=UserWarning,
-                )
-                return pd.DataFrame(
-                    output.numpy(), columns=[e[0] for e in self.verbalizer_raw]
+                    columns=["Prediction"] if predict_labels else list(self.verbalizer_dict.keys()),
                 )
             else:
                 return pd.DataFrame(
-                    output.numpy(), columns=[e[0] for e in self.verbalizer_raw]
+                    output.numpy(), columns=["Prediction"] if predict_labels else [e[0] for e in self.verbalizer_raw]
                 )
 
     def classify(
@@ -381,8 +384,9 @@ class LLM4ClassificationBase(torch.nn.Module):
         show_progress_bar: bool = False,
         return_logits: bool = False,
         return_type: str = "torch",  # TODO use enum type
+        predict_labels: bool = True,
         calibrate: bool = False,
-        use_dataset_keys_in_results: bool = False,
+        use_dict_keys: bool = False,
         temperature: float = 1.0,
         **kwargs: Any,
     ) -> Any:
@@ -399,8 +403,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             return_logits (bool): A flag to determine if the logits should be returned. Defaults to False.
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
+            predict_labels (bool): A flag to determine if the labels (argmax) should be returned.
             calibrate (bool): A flag to determine if the logits should be calibrated. Defaults to False.
-            use_dataset_keys_in_results (bool): A flag to determine if the dataset keys should be used as
+            use_dict_keys (bool): A flag to determine if the dataset keys should be used as
                 column names in the result (Only works if return_type is 'pandas' or 'polars' and a dict is
                 provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`).
             temperature (float): The temperature to be used. Defaults to 1.0.
@@ -427,8 +432,9 @@ class LLM4ClassificationBase(torch.nn.Module):
                 return_logits,
                 show_progress_bar=show_progress_bar,
                 return_type=return_type,
+                predict_labels=predict_labels,
                 calibrate=calibrate,
-                use_dataset_keys_in_results=use_dataset_keys_in_results,
+                use_dict_keys=use_dict_keys,
                 temperature=temperature,
                 **kwargs,
             )
@@ -441,8 +447,9 @@ class LLM4ClassificationBase(torch.nn.Module):
                     return_logits,
                     show_progress_bar=show_progress_bar,
                     return_type=return_type,
+                    predict_labels=predict_labels,
                     calibrate=calibrate,
-                    use_dataset_keys_in_results=use_dataset_keys_in_results,
+                    use_dict_keys=use_dict_keys,
                     temperature=temperature,
                     **kwargs,
                 )

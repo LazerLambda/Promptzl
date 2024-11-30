@@ -29,6 +29,17 @@ def test_multiple_subwords_warning():
     with pytest.warns():
         MaskedLM4Classification(model_id_mlm, prompt)
 
+# TODO: Change to return_distribution
+
+# def test_predict_labels_no_dict_warning():
+#     prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+#     model = promptzl.MaskedLM4Classification(
+#         model_id_mlm,
+#         prompt=prompt
+#     )
+#     dataset = Dataset.from_dict({"text": ["sample_data"] * 3})
+#     with pytest.warns(UserWarning):
+#         model.classify(dataset, batch_size=2, predict_labels=True)
 
 def test_polars_pandas_warning_no_dict():
 
@@ -39,11 +50,11 @@ def test_polars_pandas_warning_no_dict():
     )
     dataset = Dataset.from_dict({"text": ["sample_data"] * 3})
     with pytest.warns(UserWarning):
-        output = model.classify(dataset, use_dataset_keys_in_results=True, return_type="polars")
+        output = model.classify(dataset, use_dict_keys=True, return_type="polars")
         assert output.columns == ['bad', 'good']
 
     with pytest.warns(UserWarning):
-        output = model.classify(dataset, use_dataset_keys_in_results=True, return_type="pandas")
+        output = model.classify(dataset, use_dict_keys=True, return_type="pandas")
         assert output.columns.to_list() == ['bad', 'good']
 
 def test_forward_base_error():

@@ -29,14 +29,16 @@ In just a few lines of code, you can transform a LLM of choice into an old-schoo
 
     dataset = load_dataset("SetFit/ag_news")
 
-    verbalizer = Vbz({1: ["World"], 2: ["Sports"], 3: ["Business"], 4: ["Tech"]})
+    verbalizer = Vbz({0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})
     prompt = Txt("[Category:") + verbalizer + Txt("] ") + Key()
 
-    model = MaskedLM4Classification("roberta-large", prompt, trust_remote_code=True)
-    output = model.classify(dataset['test'])
+    model = MaskedLM4Classification("roberta-large", prompt)
+    output = model.classify(dataset['test'], show_progress_bar=True)
+    sum([int(prd == lbl) for prd, lbl in zip(output, dataset['test']['label'])]) / len(output)
 ```
 
 ## Installation (Dev)
 
 `pip install -e .`
+
 `pip install -r test-requirements.txt`

@@ -41,7 +41,7 @@ def test_simple_causal_class_prompt():
     )
     dataset = Dataset.from_dict({"text": sample_data})
     model.classify(dataset)
-    otpt = model.classify(dataset)
+    otpt = model.classify(dataset, predict_labels=True)
     assert int(torch.sum(otpt).item()) == len(dataset)
     model.classify(dataset, batch_size=2)
     model.classify(dataset, batch_size=2, temperature=0.5)
@@ -73,7 +73,7 @@ def test_simple_mlm_class_prompt():
     )
     dataset = Dataset.from_dict({"text": sample_data})
     model.classify(dataset)
-    otpt = model.classify(dataset)
+    otpt = model.classify(dataset, predict_labels=False)
     assert int(torch.sum(otpt).item()) == len(dataset)
     model.classify(dataset, batch_size=2)
     model.classify(dataset, batch_size=2, temperature=0.5)
@@ -139,8 +139,27 @@ def test_w_vbz_dict():
         prompt=prompt
     )
     dataset = Dataset.from_dict({"text": sample_data})
-    output = model.classify(dataset, use_dataset_keys_in_results=True, return_type="polars")
+    output = model.classify(dataset, use_dict_keys=True, return_type="polars", predict_labels=False)
     assert output.columns == ['0', '1']
 
-    output = model.classify(dataset, use_dataset_keys_in_results=True, return_type="pandas")
+    output = model.classify(dataset, use_dict_keys=True, return_type="polars")
+    assert output.columns == ['Prediction']
+
+    output = model.classify(dataset, use_dict_keys=True, return_type="pandas", predict_labels=False)
     assert output.columns.to_list() == [0, 1]
+
+    output = model.classify(dataset, use_dict_keys=True, return_type="pandas")
+    assert output.columns.to_list() == ['Prediction']
+
+def test_pred_classes_directly():
+    prompt = Key("text") + Txt(". It was ") + Vbz({0: ["bad", "horrible"], 1: ["good"]})
+    model = promptzl.MaskedLM4Classification(
+        model_id_mlm,
+        prompt=prompt
+    )
+    dataset = Dataset.from_dict({"text": sample_data})
+    model.classify(dataset, batch_size=2, predict_labels=True)
+    model.classify(dataset, return_type="list", predict_labels=True)
+    model.classify(dataset, return_type="pandas", predict_labels=True)
+    model.classify(dataset, return_type="numpy", predict_labels=True)
+    model.classify(dataset, return_type="polars", predict_labels=True)
