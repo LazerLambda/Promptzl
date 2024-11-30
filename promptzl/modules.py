@@ -20,7 +20,7 @@ from transformers.modeling_utils import PreTrainedModel
 from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 from .prompt import Prompt
-from .utils import SystemPrompt
+from .utils import LLM4ClassificationOutput, SystemPrompt
 
 
 class LLM4ClassificationBase(torch.nn.Module):
@@ -100,14 +100,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
             self.verbalizer_raw, lower=lower_verbalizer
         )
-        # if self.causal:
-        #     self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
-        #         self.verbalizer_raw, lower=lower_verbalizer
-        #     )
-        # else:
-        #     self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
-        #         self.verbalizer_raw, lower=lower_verbalizer
-        #     )
+
         self.calibration_probs: Optional[tensor] = None
 
         if self.causal:
@@ -262,20 +255,75 @@ class LLM4ClassificationBase(torch.nn.Module):
         Returns:
             Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
+        # TODO: remove model output from **kwargs, add warning
         raise NotImplementedError("Forward function must be implemented in subclass.")
+
+    def _prepare_output(
+        self, output: tensor, return_type: str, predict_labels: bool
+    ) -> Union[
+        tensor, np.ndarray, List[Union[str, float, int]], pd.DataFrame, pl.DataFrame
+    ]:
+        """Prepare Output for Desired Return Type.
+
+        Args:
+            output (tensor): The output to be prepared. Can be the predicted tensor or the distribution tensor.
+            return_type (str): The return type (Supported types are "list", "torch", "numpy", "pandas" and "polars").
+            predict_labels (bool): A flag to determine the output tensor is already the tensor with the predicted labels
+                or the distribution tensor.
+
+        Returns:
+            Union[tensor, np.ndarray, List[Union[str, float, int]], pd.DataFrame, pl.DataFrame]: The prepared output.
+        """
+        if return_type == "torch":
+            return output
+        elif return_type == "numpy":
+            return output.numpy()
+        elif return_type == "list":
+            return output.tolist()
+        elif return_type == "polars":
+            if self.verbalizer_dict is not None:
+                return pl.DataFrame(
+                    output.numpy(),
+                    schema=["Prediction"]
+                    if predict_labels
+                    else [str(e) for e in self.verbalizer_dict.keys()],
+                )
+            else:
+                return pl.DataFrame(
+                    output.numpy(),
+                    schema=["Prediction"]
+                    if predict_labels
+                    else [e[0] for e in self.verbalizer_raw],
+                )
+        else:
+            if self.verbalizer_dict is not None:
+                return pd.DataFrame(
+                    output.numpy(),
+                    columns=["Prediction"]
+                    if predict_labels
+                    else [str(e) for e in self.verbalizer_dict.keys()],
+                )
+            else:
+                return pd.DataFrame(
+                    output.numpy(),
+                    columns=["Prediction"]
+                    if predict_labels
+                    else [e[0] for e in self.verbalizer_raw],
+                )
 
     def _smart_forward(
         self,
         dataset: Dataset,
         batch_size: int,
-        return_logits: bool = False,
-        show_progress_bar: bool = True,
-        return_type: str = "torch",  # TODO add enum
-        calibrate: bool = False,
-        use_dataset_keys_in_results: bool = False,
-        temperature: float = 1.0,
+        return_logits: bool,
+        show_progress_bar: bool,
+        return_type: str,  # TODO add enum
+        return_distribution: bool,
+        calibrate: bool,
+        # use_dict_keys: bool,
+        temperature: float,
         **kwargs: Any,
-    ) -> List[tensor]:
+    ) -> LLM4ClassificationOutput:
         """Smart Forward.
 
         Smart batch dataset and predict. Return the results in the requested format.
@@ -288,8 +336,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             show_progress_bar (bool): A flag to determine if the progress bar should be shown.
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
+            predict_labels (bool): A flag to determine if the labels (argmax) should be returned.
             calibrate (bool): A flag to determine if the logits should be calibrated.
-            use_dataset_keys_in_results (bool): A flag to determine if the dataset keys should be used as
+            use_dict_keys (bool): A flag to determine if the dataset keys should be used as
                 column names in the result (Only works if return_type is 'pandas' or 'polars' and a dict is
                 provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`).
             temperature (float): The temperature to be used. Defaults to 1.0.
@@ -331,48 +380,16 @@ class LLM4ClassificationBase(torch.nn.Module):
         output = torch.stack([collector[idx] for idx in np.argsort(length_sorted_idx)])
         if calibrate:
             output = self.calibrate(output)
-        if return_type == "torch":
-            return output
-        elif return_type == "numpy":
-            return output.numpy()
-        elif return_type == "list":
-            return output.tolist()
-        elif return_type == "polars":
-            if use_dataset_keys_in_results and self.verbalizer_dict is not None:
-                return pl.DataFrame(
-                    output.numpy(),
-                    schema=[str(e) for e in self.verbalizer_dict.keys()],
-                )
-            elif use_dataset_keys_in_results and self.verbalizer_dict is None:
-                warn(
-                    "The dataset keys can only be used as column names if a dictionary is provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`.",
-                    category=UserWarning,
-                )
-                return pl.DataFrame(
-                    output.numpy(), schema=[e[0] for e in self.verbalizer_raw]
-                )
-            else:
-                return pl.DataFrame(
-                    output.numpy(), schema=[e[0] for e in self.verbalizer_raw]
-                )
-        else:
-            if use_dataset_keys_in_results and self.verbalizer_dict is not None:
-                return pd.DataFrame(
-                    output.numpy(),
-                    columns=list(self.verbalizer_dict.keys()),
-                )
-            elif use_dataset_keys_in_results and self.verbalizer_dict is None:
-                warn(
-                    "The dataset keys can only be used as column names if a dictionary is provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`.",
-                    category=UserWarning,
-                )
-                return pd.DataFrame(
-                    output.numpy(), columns=[e[0] for e in self.verbalizer_raw]
-                )
-            else:
-                return pd.DataFrame(
-                    output.numpy(), columns=[e[0] for e in self.verbalizer_raw]
-                )
+
+        predicted = torch.argmax(output, dim=-1)
+        if self.verbalizer_dict is not None:
+            verb_kes_list: List[Union[int, str]] = list(self.verbalizer_dict.keys())
+            predicted = torch.tensor([verb_kes_list[idx.item()] for idx in predicted])
+
+        return LLM4ClassificationOutput(
+            self._prepare_output(predicted, return_type, True),
+            self._prepare_output(output, return_type, False),
+        )
 
     def classify(
         self,
@@ -381,11 +398,12 @@ class LLM4ClassificationBase(torch.nn.Module):
         show_progress_bar: bool = False,
         return_logits: bool = False,
         return_type: str = "torch",  # TODO use enum type
+        return_distribution: bool = True,
         calibrate: bool = False,
-        use_dataset_keys_in_results: bool = False,
+        # use_dict_keys: bool = False,
         temperature: float = 1.0,
         **kwargs: Any,
-    ) -> Any:
+    ) -> Union[LLM4ClassificationOutput, Dict[str, LLM4ClassificationOutput]]:
         """Classify Data.
 
         Classify the data and return the results in the requested format. This method is used to prepare the data
@@ -399,8 +417,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             return_logits (bool): A flag to determine if the logits should be returned. Defaults to False.
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
+            predict_labels (bool): A flag to determine if the labels (argmax) should be returned.
             calibrate (bool): A flag to determine if the logits should be calibrated. Defaults to False.
-            use_dataset_keys_in_results (bool): A flag to determine if the dataset keys should be used as
+            use_dict_keys (bool): A flag to determine if the dataset keys should be used as
                 column names in the result (Only works if return_type is 'pandas' or 'polars' and a dict is
                 provided in the Verbalizer e.g. `Vbz({0: ['bad'], 1: ['good']})`).
             temperature (float): The temperature to be used. Defaults to 1.0.
@@ -427,22 +446,22 @@ class LLM4ClassificationBase(torch.nn.Module):
                 return_logits,
                 show_progress_bar=show_progress_bar,
                 return_type=return_type,
+                return_distribution=return_distribution,
                 calibrate=calibrate,
-                use_dataset_keys_in_results=use_dataset_keys_in_results,
                 temperature=temperature,
                 **kwargs,
             )
         elif isinstance(data, DatasetDict):
-            return_dict: Dict[str, List[tensor]] = {}
+            return_dict: Dict[str, LLM4ClassificationOutput] = {}
             for key in data.keys():
-                results: tensor = self._smart_forward(
+                results: LLM4ClassificationOutput = self._smart_forward(
                     data[key],
                     batch_size,
                     return_logits,
                     show_progress_bar=show_progress_bar,
                     return_type=return_type,
+                    return_distribution=return_distribution,
                     calibrate=calibrate,
-                    use_dataset_keys_in_results=use_dataset_keys_in_results,
                     temperature=temperature,
                     **kwargs,
                 )
