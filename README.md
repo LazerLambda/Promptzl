@@ -1,5 +1,5 @@
 <!--- BADGES: START --->
-[![GitHub - License](https://img.shields.io/badge/License-MIT-yellow.svg)][#github-license]
+[![GitHub - License](https://img.shields.io/badge/License-Apache-yellow.svg)][#github-license]
 [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=promptzl)][#docs-package]
 ![Tests Passing](https://github.com/lazerlambda/promptzl/actions/workflows/python-package.yml/badge.svg)
 
