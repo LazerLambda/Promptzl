@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "promptzl"
-version = "0.9.0"
+version = "0.9.1"
 description = "Promptzl - LLMs as Classifiers"
 readme = "README.md"
 authors = [
@@ -17,7 +17,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: Apache 2.0",
+    "License :: OSI Approved :: Apache-2.0",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
 ]
