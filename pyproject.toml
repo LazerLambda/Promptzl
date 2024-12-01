@@ -14,10 +14,12 @@ authors = [
 license = { file = "LICENSE" }
 keywords = ["llm", "nlp", "transformers", "classifiers", "predictive modeling", "machine learning", "torch", "huggingface"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Information Technology",
+    "Intended Audience :: Legal Industry",
+    "Intended Audience :: Financial and Insurance Industry",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
