@@ -16,6 +16,7 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 
 from .prompt import Prompt
 from .utils import LLM4ClassificationOutput, SystemPrompt
+from .utils import calibrate as calibrate_fn
 
 
 class LLM4ClassificationBase(torch.nn.Module):
@@ -228,22 +229,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             predicted = tensor([verb_kes_list[idx.item()] for idx in predicted])
         return predicted
 
-    @staticmethod
-    def calibrate(probs: Tensor) -> Tensor:
-        """Calibrate Probabilities.
-
-        Address the calibartion issue ([Zhao et al., 2021](https://arxiv.org/abs/2102.09690),
-        [Hu et al., 2022](https://aclanthology.org/2022.acl-long.158/)).
-
-        Args:
-            probs (tensor): The probabilities to be calibrated.
-
-        Returns:
-            tensor: The calibrated probabilities.
-        """
-        probs = probs / (torch.mean(probs, dim=0) + 1e-50)
-        return probs / probs.sum(dim=-1, keepdim=True)
-
     def calibrate_output(
         self, output: LLM4ClassificationOutput
     ) -> LLM4ClassificationOutput:
@@ -278,7 +263,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             return_type = "list"
             distribution = tensor(distribution)
 
-        distribution = self.calibrate(distribution)
+        distribution = calibrate_fn(distribution)
         predictions: tensor = torch.argmax(distribution, dim=-1)
         predictions = self._predicted_indices_to_labels(predictions)
 
@@ -425,9 +410,12 @@ class LLM4ClassificationBase(torch.nn.Module):
 
         self.model.train()
 
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         output = torch.stack([collector[idx] for idx in np.argsort(length_sorted_idx)])
         if calibrate:
-            output = self.calibrate(output)
+            output = calibrate_fn(output)
 
         predicted = torch.argmax(output, dim=-1)
         predicted = self._predicted_indices_to_labels(predicted)

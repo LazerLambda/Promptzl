@@ -68,7 +68,7 @@ def test_calibrate():
     answer = tensor([[0.2500, 0.7500],
         [0.5000, 0.5000],
         [0.7500, 0.2500]])
-    assert torch.allclose(answer, LLM4ClassificationBase.calibrate(ex))
+    assert torch.allclose(answer, calibrate(ex))
 
 def test_get_verbalizer():
     prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
@@ -130,35 +130,35 @@ def test_calibrate_output():
     dataset = Dataset.from_dict({"text": sample_data[0:4]})
 
     otp = model.classify(dataset, return_type="torch")
-    pred_cali = model.calibrate(otp.distribution)
+    pred_cali = calibrate(otp.distribution)
     otp_ = model.calibrate_output(otp)
     assert isinstance(otp_.predictions, torch.Tensor)
     assert torch.allclose(otp_.distribution, pred_cali)
     assert isinstance(otp_.distribution, torch.Tensor)
 
     otp = model.classify(dataset, return_type="list")
-    pred_cali = model.calibrate(torch.tensor(otp.distribution))
+    pred_cali = calibrate(torch.tensor(otp.distribution))
     otp_ = model.calibrate_output(otp)
     assert isinstance(otp_.predictions, list)
     assert torch.allclose(torch.tensor(otp_.distribution), pred_cali)
     assert isinstance(otp_.distribution, list)
 
     otp = model.classify(dataset, return_type="pandas")
-    pred_cali = model.calibrate(torch.tensor(otp.distribution.values))
+    pred_cali = calibrate(torch.tensor(otp.distribution.values))
     otp_ = model.calibrate_output(otp)
     assert isinstance(otp_.predictions, pd.DataFrame)
     assert torch.allclose(torch.tensor(otp_.distribution.values), pred_cali)
     assert isinstance(otp_.distribution, pd.DataFrame)
 
     otp = model.classify(dataset, return_type="numpy")
-    pred_cali = model.calibrate(torch.from_numpy(otp.distribution))
+    pred_cali = calibrate(torch.from_numpy(otp.distribution))
     otp_ = model.calibrate_output(otp)
     assert isinstance(otp_.predictions, np.ndarray)
     assert torch.allclose(torch.from_numpy(otp_.distribution), pred_cali)
     assert isinstance(otp_.distribution, np.ndarray)
 
     otp = model.classify(dataset, return_type="polars")
-    pred_cali = model.calibrate(torch.from_numpy(otp.distribution.to_numpy().copy()))
+    pred_cali = calibrate(torch.from_numpy(otp.distribution.to_numpy().copy()))
     otp_ = model.calibrate_output(otp)
     assert isinstance(otp_.predictions, pl.DataFrame)
     assert torch.allclose(torch.from_numpy(otp_.distribution.to_numpy().copy()), pred_cali)

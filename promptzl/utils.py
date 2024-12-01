@@ -7,6 +7,7 @@ from warnings import warn
 import numpy as np
 import pandas as pd
 import polars as pl
+import torch
 from datasets import Dataset
 from torch import Tensor, tensor
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
@@ -309,3 +310,19 @@ class LLM4ClassificationOutput:
     distribution: Optional[
         Union[Tensor, pd.DataFrame, pl.DataFrame, List[List[float]], np.ndarray]
     ] = None
+
+
+def calibrate(probs: Tensor) -> Tensor:
+    """Calibrate Probabilities.
+
+    Address the calibartion issue ([Zhao et al., 2021](https://arxiv.org/abs/2102.09690),
+    [Hu et al., 2022](https://aclanthology.org/2022.acl-long.158/)).
+
+    Args:
+        probs (tensor): The probabilities to be calibrated.
+
+    Returns:
+        tensor: The calibrated probabilities.
+    """
+    probs = probs / (torch.mean(probs, dim=0) + 1e-50)
+    return probs / probs.sum(dim=-1, keepdim=True)
