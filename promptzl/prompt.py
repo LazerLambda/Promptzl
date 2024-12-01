@@ -6,11 +6,14 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 class Prompt:
     """Base Function for Prompt.
 
-    Provides magic __add__ method to combine prompt parts.
+    Provides magic __add__ method to combine prompt parts, __fn_str__ method
+    for the functional representation in the also included method _prompt_fun.
+    _prompt_fun returns a function that can be used to build the final prompt
+    before the tokenization.
     """
 
     def __init__(self, collector: list):
-        """Initialiize Class.
+        """Base Class for User-Facing Prompt.
 
         Args:
             collector (list): List of prompt parts.
@@ -85,7 +88,11 @@ class Txt(Prompt):
     """Object for Text Representation."""
 
     def __init__(self, text: str = " "):
-        """Initialize Class.
+        """**Text Representation in Prompt**
+
+        This class allows including custom text in the prompt.
+        I.e. :code:`Txt("Hello ") + Vbz([['World'], ['Mars]]) + Txt('!')` will prepend "Hello World!"
+        and append "!" to the prompt.
 
         Args:
             text (str, optional): Text. Defaults to " ".
@@ -122,7 +129,14 @@ class Key(Prompt):
     """Placeholder (Object) for Key Representation."""
 
     def __init__(self, key: str = "text"):
-        """Initialize Class.
+        """**Data-Placeholder to Corresponding Key**
+
+        This class allows including a key in the prompt that will be replaced by the
+        corresponding value in the dataset. I.e. :code:`Key("text") + Txt(" is ") + Vbz([['good', 'bad']])`
+        will replace the key "text" with the corresponding value in the dataset and append " is " and the verbalizer.
+
+        If the dataset consists of :code:`{"text": ["Restaurant X", "Restaurant Y"]}`, the text the model will
+        see is :code:`"Restaurant X is "` and :code:`"Restaurant Y is "`.
 
         Args:
             key (str, optional): Key. Defaults to "text".
@@ -197,15 +211,35 @@ class Vbz(Prompt):
 
     def __init__(
         self,
-        verbalizer: Union[
-            Dict[Union[int, str], List[str]],
-            List[List[str]],
-        ],
+        verbalizer: Optional[Dict[Union[int, str], List[str]]],
     ):
-        """Initialize Class.
+        """**Verbalizer Representation in Prompt**
+
+        The verbalizer object is the most crucial part of this approach as it defines where the masked token
+        is located in the MLM setting and defines the words where the tokens in the vocabulary are extracted.
+        Hence a valid prompt must include one verbalizer. For causal models, the verbalizer **must** be at the end
+        of the prompt while the verbalizer can be at **any position** in the prompt when using masked models.
+
+        The corresponding words for each class (can be multiple), must be provided in the form of a list of lists
+        or a dictionary where the key is the class label (ideally refering to the representation in the dataset)
+        and the value is a list of words corresponding to the semantic of the class.
+
+        Valid verbalizers:
+
+        .. code-block:: python
+
+            Key() + Txt("Is this good?") + Vbz([["good", "bad"], ["ugly"]])
+            Key() + Txt("Is this good?") + Vbz({0: ["good", "bad"], 1: ["ugly"]})
+
+        The above examples are valid for causal and masked models. The following example is only valid for masked models:
+
+        .. code-block:: python
+
+            Key("headline") + Txt("[Category:]")  + Vbz([["Politics", "Nature", "Technology"], ["ugly"]]) + Txt("]") + Key("body")
+
 
         Args:
-            verbalizer (List[List[str]]): List of verbalizers.
+            verbalizer (Optional[Dict[Union[int, str], List[str]]]): List of verbalizers.
         """
         self.verbalizer_dict: Optional[Dict[Union[int, str], List[str]]] = None
         if isinstance(verbalizer, dict):

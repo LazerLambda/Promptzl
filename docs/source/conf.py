@@ -39,7 +39,7 @@ html_static_path = ['_static']
 
 
 # Autodoc settings
-autoclass_content = 'both'
+autoclass_content = 'init'
 
 # Mock imports for modules that are not available during the build process
 autodoc_mock_imports = [

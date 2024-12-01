@@ -313,10 +313,18 @@ class LLM4ClassificationOutput:
 
 
 def calibrate(probs: Tensor) -> Tensor:
-    """Calibrate Probabilities.
+    """**Calibrates Probabilities**
 
-    Address the calibartion issue ([Zhao et al., 2021](https://arxiv.org/abs/2102.09690),
-    [Hu et al., 2022](https://aclanthology.org/2022.acl-long.158/)).
+    Addresses the calibartion issue (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_,
+    `Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_). In MLM-based models, some tokens
+    are more likely to be generated than others. This can lead to biased probabilities. To address this,
+    the probabilities are calibrated in the following way.
+
+    The mean of the probabilities for each class is computed and then used as the divisor for the
+    probabilities of each class. The probabilities are then normalized by the sum of the probabilities
+    to form a valid probability distribution.
+
+    This technique can lead to improved performance in some cases.
 
     Args:
         probs (tensor): The probabilities to be calibrated.
