@@ -37,8 +37,9 @@ dependencies = [
 packages = ["promptzl"]
 
 [project.urls]
-homepage = "https://github.com/LazerLambda/Promptzl"
-"Source Code" = "https://github.com/LazerLambda/Promptzl"
+homepage = "https://promptzl.readthedocs.io/en/latest/"
+Repository = "https://github.com/LazerLambda/Promptzl"
+Issues = "https://github.com/LazerLambda/Promptzl/issues"
 
 [tool.setuptools.dynamic]
 optional-dependencies.test = { file = ["test-requirements.txt"] }
