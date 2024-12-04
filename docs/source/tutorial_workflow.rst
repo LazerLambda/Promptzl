@@ -27,6 +27,7 @@ the sequence.
 
    :code:`"Hello World! Promptzl is a [NEXT-TOKEN]"`
 
+Hence, it is necessary to construct the prompts differently for the two model families. The prompt is crucial for the performance of the model.
 The aim of this library is to extract the classifcation solely on this prediction, thus the quality of the prompt is of great importance.
 
 

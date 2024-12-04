@@ -530,7 +530,10 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         model_args: Optional[Dict[str, Any]] = None,
         tok_args: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Initialize Class.
+        """**Masked-Language-Modeling-Based Classification**
+
+        :code:`MaskedLM4Classification` works with all models that can be loaded through 
+        the call :code:`AutoModelForMaskedLM.from_pretrained(model_id)` with valid model_ids from huggingface.co.
 
         Args:
             model_id (str): Valid model identifier for huggingface.co.
@@ -627,7 +630,10 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         model_args: Optional[Dict[str, Any]] = None,
         tok_args: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Initialize Class.
+        """**Causal-Language-Modeling-Based Classification**
+
+        :code:`CausalLM4Classification` works with all models that can be loaded through 
+        the call :code:`AutoModelForCausalLM.from_pretrained(model_id)` with valid model_ids from huggingface.co.
 
         Args:
             model_id (str): Valid model identifier for huggingface.co.

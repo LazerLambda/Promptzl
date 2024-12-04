@@ -9,9 +9,17 @@ Promptzl Documentation
 Promptzl is a simple library for turning state-of-the-art LLMs into old-school
 pytorch-based, zero-shot classifiers based on the 🤗-transformers library.
 
-While large generative models are often used and exhibit strong performance, they can be opaque and slow.
-Promptzl works in batch mode, returns a softmax distribution, and is 100% transparent. All `causal <https://huggingface.co/models?pipeline_tag=text-generation>`_ 
-and `masked <https://huggingface.co/models?pipeline_tag=fill-mask>`_ language models from the Hugging Face Hub are available in Promptzl.
+ - ⚡ Fast and easy to use
+ - 💪 Zero-shot classification
+ - 🤖 `Causal <https://huggingface.co/models?pipeline_tag=text-generation>`_ and `masked <https://huggingface.co/models?pipeline_tag=fill-mask>`_ LMs from the Hugging Face Hub are available
+ - 📦 Promptzl works with batches
+ - 🔎 All models are transparent on your device
+ - 📈 Properties of old-school classifiers included
+ - 🚀 No need for proprietary APIs
+
+.. While large generative models are often used and exhibit strong performance, they can be opaque and slow.
+.. Promptzl works in batch mode, returns a softmax distribution, and is 100% transparent. All `causal <https://huggingface.co/models?pipeline_tag=text-generation>`_ 
+.. and `masked <https://huggingface.co/models?pipeline_tag=fill-mask>`_ language models from the Hugging Face Hub are available in Promptzl.
 
 .. note::
    This project is in beta. Please report any issues on the
@@ -24,13 +32,13 @@ Install promptzl via pip:
 
 .. code-block:: bash
 
-   pip install promptzl
+   pip install -U promptzl
 
 or through the GitHub repository:
 
 .. code-block:: bash
 
-   pip install git+https://github.com/lazerlambda/promptzl.git
+   pip install -U git+https://github.com/lazerlambda/promptzl.git
 
 
 How does it Work?

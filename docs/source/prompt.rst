@@ -4,7 +4,7 @@ Prompt Classes
 The prompt classes are used to construct the prompt in a easy way by simply concatenating the objects through the `+` operator.
 There are two main approaches to initialize the Classifier object: 
 
-Using the *Prompt-Element-Objects*
+Using *Prompt-Element-Objects*
 ----------------------------------
 
  - :class:`~promptzl.Txt` for text representation, i.e. :code:`Txt("I give you the following text: ")`
@@ -20,7 +20,7 @@ Using the *Prompt-Element-Objects*
       the data at the position of the keys is truncated so that the other parts of the prompt still remain within the context window.
       This is especially important for masked language models, as the masked token **must** be in text.
  
-Using the *Function-Verbalizer-Pair Class* (FVP)
+Using *Function-Verbalizer-Pair Class* (FVP)
 ------------------------------------------------
 
  - :class:`~promptzl.FVP` for the function-verbalizer-pair, i.e. :code:`FVP(lambda x: f"{x['text']}\n", {0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})`

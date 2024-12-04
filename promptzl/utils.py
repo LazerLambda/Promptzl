@@ -326,6 +326,10 @@ def calibrate(probs: Tensor) -> Tensor:
 
     This technique can lead to improved performance in some cases.
 
+    .. note::
+        The calibration is always performed on the given probabilities, which works well in the case of many examples.
+        For consecutevly calibration, it is may be helpfull to store the mean of the probabilities and use it as the divisor.
+
     Args:
         probs (tensor): The probabilities to be calibrated.
 
