@@ -212,6 +212,9 @@ class Vbz(Prompt):
             self.verbalizer: List[List[str]] = [val for val in verbalizer.values()]
             self.verbalizer_dict = verbalizer
         elif isinstance(verbalizer, list):
+            assert all(isinstance(val, list) for val in verbalizer) and all(
+                isinstance(val, str) for labels in verbalizer for val in labels
+            ), "Verbalizer must be a list of lists of strings or a dictionary."
             self.verbalizer = verbalizer
         else:
             raise ValueError("Verbalizer must be a list of lists or a dictionary.")

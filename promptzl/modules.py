@@ -495,6 +495,24 @@ class LLM4ClassificationBase(torch.nn.Module):
         else:
             raise ValueError("Data must be of type Dataset or DatasetDict.")
 
+    def __repr__(self) -> str:
+        """String Representation."""
+        prompt_str = self.prompt.__str__()
+        if "\n" in prompt_str:
+            prompt_str = '\n    "' + "\n     ".join(prompt_str.split("\n")) + '"'
+        else:
+            prompt_str = f'"{prompt_str}"'
+        return (
+            f"Hub-ID            : {self.model.name_or_path}\n\n"
+            f"Prompt            : {prompt_str}\n\n"
+            f"Verbalizer        : {self.verbalizer_raw}\n\n"
+            f"Verbalizer-Indices: {self.verbalizer_indices}\n\n"
+        ) + super().__repr__()
+
+    def __str__(self) -> str:
+        """String Representation."""
+        return repr(self)
+
 
 class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Masked-Language-Modeling-Based Classification.
@@ -584,6 +602,14 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         else:
             return logits
 
+    def __repr__(self) -> str:
+        """String Representation."""
+        return "Type              : MaskedLM4Classification\n\n" + super().__repr__()
+
+    def __str__(self) -> str:
+        """String Representation."""
+        return repr(self)
+
 
 class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Causal-Language-Modeling-Based Classification.
@@ -667,3 +693,11 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             return logits, outputs
         else:
             return logits
+
+    def __repr__(self) -> str:
+        """String Representation."""
+        return "Type              : MaskedLM4Classification\n\n" + super().__repr__()
+
+    def __str__(self) -> str:
+        """String Representation."""
+        return repr(self)

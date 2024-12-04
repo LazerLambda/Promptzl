@@ -15,6 +15,14 @@ from promptzl import *
 model_id_gen = "sshleifer/tiny-gpt2"
 model_id_mlm = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 
+def test_vbz_init_errors():
+    
+    with pytest.raises(AssertionError):
+        Vbz([["bad"], "good", "wonderful", "great"])
+    
+    with pytest.raises(AssertionError):
+        Vbz([[2],[ "good", "wonderful", "great"]])
+
 
 def test_tokenizer_wo_mask_mlm():
     prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
@@ -76,7 +84,7 @@ def test_not_one_verbalizer_error():
 def test_fvp_error():
     prompt = FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
     with pytest.raises(NotImplementedError):
-        prompt.__fn_str__(AutoTokenizer.from_pretrained(model_id_mlm))
+        prompt.__fn_str__(AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True))
     
     with pytest.raises(ValueError):
         FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]])) + Txt("asdf")
