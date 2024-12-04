@@ -37,9 +37,9 @@ model_id_mlm = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 
 def test_init():
     prompt = Txt("Hello World! ") + Key('test') + Vbz([['good'], ['bad']])
-    tokenizer = AutoTokenizer.from_pretrained(model_id_gen)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
     SystemPrompt(prompt, tokenizer)
-    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True)
     SystemPrompt(prompt, tokenizer, generate=False)
 
     with pytest.raises(Exception):
@@ -74,10 +74,10 @@ def test_str_method():
     prompt = Txt('Test ') + Key('a') + Txt(" ") + Img('a') + Txt(" ") + Vbz([['bad'], ['good']])
     assert str(prompt) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
 
-    systemprompt = SystemPrompt(prompt, AutoTokenizer.from_pretrained(model_id_mlm), generate=False)
+    systemprompt = SystemPrompt(prompt, AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True), generate=False)
     assert str(systemprompt) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
 
-    systemprompt = SystemPrompt(prompt, AutoTokenizer.from_pretrained(model_id_gen))
+    systemprompt = SystemPrompt(prompt, AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True))
     assert str(systemprompt) == "Test <a> [a] <Vbz: [[\"bad\",...], [\"good\",...]]>"
 
 def test_repr_method():
@@ -89,12 +89,12 @@ def test_repr_method():
 
 
 def test_fn_str_method():
-    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, padding_side="left")
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, padding_side="left", clean_up_tokenization_spaces=True)
     prompt = Txt('Test ') + Key('a') + Txt(" ") + Img('a') + Txt(" ") + Vbz([['bad'], ['good']])
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
-    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True)
     assert isinstance(prompt.__fn_str__(tokenizer), str)
 
     assert callable(prompt._prompt_fun(tokenizer))

@@ -107,7 +107,7 @@ def test_w_o_truncation():
     model.classify(dataset)
 
 def test_w_fvp():
-    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True)
     mask_token = tokenizer.mask_token
     prompt = FVP(lambda e: f"{e['text']} It was [MASK]", Vbz([["bad", "horrible"], ["good"]])) 
     dataset = Dataset.from_dict({"text": sample_data})
@@ -119,7 +119,7 @@ def test_w_fvp():
     )
     model.classify(dataset)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_id_gen)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
     prompt = FVP(lambda e: f"{e['text']}. It was ",Vbz([["bad", "horrible"], ["good"]])) 
     model = promptzl.CausalLM4Classification(
         model_id_gen,

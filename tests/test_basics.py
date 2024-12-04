@@ -144,3 +144,28 @@ def init_promptzl(model_id, generate):
         generate=generate,
     )
     return test, device
+
+
+def test_str_module():
+    model = MaskedLM4Classification(model_id_mlm, prompt=Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]]))
+    assert isinstance(str(model), str)
+    assert isinstance(repr(model), str)
+
+    model = MaskedLM4Classification(model_id_mlm, prompt=Txt("This is a\ntest ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]]))
+    assert isinstance(str(model), str)
+    assert isinstance(repr(model), str)
+
+    model = CausalLM4Classification(model_id_gen, prompt=Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]]))
+    assert isinstance(str(model), str)
+    assert isinstance(repr(model), str)
+
+    model = CausalLM4Classification(model_id_gen, prompt=Txt("This is a\ntest ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]]))
+    assert isinstance(str(model), str)
+    assert isinstance(repr(model), str)
+
+    model = AutoModelForCausalLM.from_pretrained(model_id_gen)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
+    prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
+    tmp = LLM4ClassificationBase(model=model, tokenizer=tokenizer, prompt=prompt, generate=True)
+    assert isinstance(str(tmp), str)
+    assert isinstance(repr(tmp), str)

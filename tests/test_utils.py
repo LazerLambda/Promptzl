@@ -32,7 +32,7 @@ model_id_gen = "sshleifer/tiny-gpt2"
 model_id_mlm = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 
 def test_batch_padding_mlm():
-    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True)
     as_should = tokenizer([e + str(tokenizer.mask_token) for e in sample_data], padding=True, truncation="longest_first", return_tensors="pt")
     prompt = Key("text") + Vbz([["bad", "horrible"], ["good"]])
     systemprompt = SystemPrompt(prompt, tokenizer, generate=False)
@@ -40,7 +40,7 @@ def test_batch_padding_mlm():
     assert torch.equal(output['input_ids'], as_should['input_ids'])
 
 def test_batch_padding_gen():
-    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, padding_side="left")
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, padding_side="left", clean_up_tokenization_spaces=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     as_should = tokenizer(sample_data, padding=True, truncation="longest_first", return_tensors="pt")
@@ -50,7 +50,7 @@ def test_batch_padding_gen():
     assert torch.equal(output['input_ids'], as_should['input_ids'])
 
 def test_exceeding_length_mlm():
-    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True)
     prompt = Key("text") + Vbz([["bad", "horrible"], ["good"]])
     systemprompt = SystemPrompt(prompt, tokenizer, generate=False)
     with pytest.warns(UserWarning):
@@ -76,7 +76,7 @@ def test_exceeding_length_mlm():
     assert output['input_ids'].shape[1] <= tokenizer.model_max_length
 
 def test_exceeding_length_gen():
-    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, padding_side="left")
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, padding_side="left", clean_up_tokenization_spaces=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     prompt = Key("text") + Vbz([["bad", "horrible"], ["good"]])
@@ -106,8 +106,8 @@ def test_exceeding_length_gen():
 
 def test_prompt_str_fn():
     prompt = Key() + Txt(" HELLO WORLD ") + Vbz([["bad", "horrible"], ["good"]])
-    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True)
     assert prompt.__fn_str__(tokenizer) == f"%s HELLO WORLD {tokenizer.mask_token}"
 
-    tokenizer = AutoTokenizer.from_pretrained(model_id_gen)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
     assert prompt.__fn_str__(tokenizer) == f"%s HELLO WORLD "
