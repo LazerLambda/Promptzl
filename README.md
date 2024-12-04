@@ -9,7 +9,7 @@
 
 
 
-# <p style="text-align: center;">Pr🥨mptzl v0.9.1 (Beta)</p>
+# <p style="text-align: center;">Pr🥨mptzl v0.9.2 (Beta)</p>
 
 Promptzl is a simple library for turning LLMs into traditional PyTorch-based classifiers using the 🤗 Transformers library.
 
