@@ -119,7 +119,7 @@ def test_w_fvp():
     )
     model.classify(dataset)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_id_gen)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
     prompt = FVP(lambda e: f"{e['text']}. It was ",Vbz([["bad", "horrible"], ["good"]])) 
     model = promptzl.CausalLM4Classification(
         model_id_gen,

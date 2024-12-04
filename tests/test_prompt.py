@@ -37,9 +37,9 @@ model_id_mlm = "nreimers/BERT-Tiny_L-2_H-128_A-2"
 
 def test_init():
     prompt = Txt("Hello World! ") + Key('test') + Vbz([['good'], ['bad']])
-    tokenizer = AutoTokenizer.from_pretrained(model_id_gen)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
     SystemPrompt(prompt, tokenizer)
-    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm)
+    tokenizer = AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True)
     SystemPrompt(prompt, tokenizer, generate=False)
 
     with pytest.raises(Exception):
