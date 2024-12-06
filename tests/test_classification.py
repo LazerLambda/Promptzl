@@ -141,3 +141,16 @@ def test_w_vbz_dict():
 
     output = model.classify(dataset, return_type="pandas")
     assert output.distribution.columns.to_list() == ['0', '1']
+
+
+def test_w_vbz_string_dict():
+
+    prompt = Key("text") + Txt(". It was ") + Vbz({"0": ["bad", "horrible"], "1": ["good"]})
+    model = promptzl.MaskedLM4Classification(
+        model_id_mlm,
+        prompt=prompt
+    )
+    dataset = Dataset.from_dict({"text": sample_data})
+    with pytest.warns(UserWarning):
+        model.classify(dataset, return_type="torch")
+
