@@ -82,7 +82,7 @@ class LLM4ClassificationBase(torch.nn.Module):
 
         self.causal: bool = generate
 
-        self.set_prompt(prompt)
+        self.set_prompt(prompt, lower_verbalizer=lower_verbalizer)
 
         if device is None and torch.cuda.is_available():
             self.device: str = "cuda"
@@ -97,22 +97,19 @@ class LLM4ClassificationBase(torch.nn.Module):
                 category=UserWarning,
             )
 
-        self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
-            self.verbalizer_raw, lower=lower_verbalizer
-        )
-
         self.calibration_probs: Optional[Tensor] = None
 
         if self.causal:
             self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
 
-    def set_prompt(self, prompt: Prompt) -> None:
+    def set_prompt(self, prompt: Prompt, lower_verbalizer: bool = False) -> None:
         """Set Prompt.
 
         Sets the prompt for the class. Can be used for initialization or updating the object.
 
         Args:
             prompt (Prompt): The prompt to be set.
+            lower_verbalizer (bool, optional): A flag to determine if the verbalizer should be lowercased. Defaults to False.
         """
         self.prompt: SystemPrompt = SystemPrompt(
             prompt, self.tokenizer, generate=self.causal
@@ -121,6 +118,10 @@ class LLM4ClassificationBase(torch.nn.Module):
         self.verbalizer_dict: Optional[Dict[Union[int, str], List[str]]] = None
         if self.prompt.verbalizer.verbalizer_dict is not None:
             self.verbalizer_dict = self.prompt.verbalizer.verbalizer_dict
+
+        self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
+            self.verbalizer_raw, lower=lower_verbalizer
+        )
 
     def _get_verbalizer(
         self,

@@ -57,11 +57,22 @@ def test_set_prompt_function():
     test.set_prompt(prompt)
     assert test.verbalizer_raw == [["bad"], ["good"]]
 
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad"], ["good"], ['neutral']])
+    test.set_prompt(prompt)
+    assert test.verbalizer_raw == [["bad"], ["good"], ['neutral']]
+
+
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
     test = MaskedLM4Classification("nreimers/BERT-Tiny_L-2_H-128_A-2", prompt)
-    assert test.verbalizer_raw == [["bad"], ["good"]]
+    assert test.verbalizer_raw == [["bad", "horrible"], ["good"]]
+
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad"], ["good"]])
     test.set_prompt(prompt)
     assert test.verbalizer_raw == [["bad"], ["good"]]
 
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad"], ["good"], ['neutral']])
+    test.set_prompt(prompt)
+    assert test.verbalizer_raw == [["bad"], ["good"], ['neutral']]
 
 def test_calibrate():
     ex = torch.tensor([[0.25, 0.75], [0.5, 0.5], [0.75, 0.25]])
