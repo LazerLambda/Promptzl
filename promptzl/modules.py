@@ -214,21 +214,36 @@ class LLM4ClassificationBase(torch.nn.Module):
             ]
         )
 
-    def _predicted_indices_to_labels(self, predicted: Tensor) -> Tensor:
+    def _predicted_indices_to_labels(
+        self, predicted: Tensor, return_type: str
+    ) -> Tuple[Union[Tensor, List[str]], str]:
         """Predicted Indices to Labels.
 
-        Convert the predicted indices to labels if the verbalizer dictionary is available.
+        Convert the predicted indices to labels if the verbalizer dictionary is available. If return_type is set to 'torch'
+        while the keys of the verbalizer dict are strings, 'return_type' is set to 'list'.
 
         Args:
             predicted (tensor): The predicted indices.
+            return_type (str): Intended type for output.
 
         Returns:
-            tensor: The predicted labels.
+            Tuple[Union[Tensor, List[str]], str]: The predicted labels (either as tensor or list) and the 'return_type' variable.
         """
         if self.verbalizer_dict is not None:
             verb_kes_list: List[Union[int, str]] = list(self.verbalizer_dict.keys())
-            predicted = tensor([verb_kes_list[idx.item()] for idx in predicted])
-        return predicted
+            if True in [isinstance(e, str) for e in self.verbalizer_dict.keys()]:
+                warn(
+                    (
+                        "Verbalizer has been provided with a dictionary of the form `Dict[str, Any]`."
+                        " However return_type is set to 'torch'. String-tensors are not supported. `return_type` changed to 'lists'"
+                    ),
+                    category=UserWarning,
+                )
+                return_type = "list"
+                predicted = [verb_kes_list[idx.item()] for idx in predicted]
+            else:
+                predicted = tensor([verb_kes_list[idx.item()] for idx in predicted])
+        return predicted, return_type
 
     def calibrate_output(
         self, output: LLM4ClassificationOutput
@@ -265,8 +280,10 @@ class LLM4ClassificationBase(torch.nn.Module):
             distribution = tensor(distribution)
 
         distribution = calibrate_fn(distribution)
-        predictions: tensor = torch.argmax(distribution, dim=-1)
-        predictions = self._predicted_indices_to_labels(predictions)
+        predictions: Union[Tensor, List[str]] = torch.argmax(distribution, dim=-1)
+        predictions, return_type = self._predicted_indices_to_labels(
+            predictions, return_type
+        )
 
         return LLM4ClassificationOutput(
             self._prepare_output(predictions, return_type, True),
@@ -317,7 +334,10 @@ class LLM4ClassificationBase(torch.nn.Module):
         elif return_type == "numpy":
             return output.numpy()
         elif return_type == "list":
-            return output.tolist()
+            if isinstance(output, list):
+                return output
+            else:
+                return output.tolist()
         elif return_type == "polars":
             if self.verbalizer_dict is not None:
                 return pl.DataFrame(
@@ -419,7 +439,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             output = calibrate_fn(output)
 
         predicted = torch.argmax(output, dim=-1)
-        predicted = self._predicted_indices_to_labels(predicted)
+        predicted, return_type = self._predicted_indices_to_labels(
+            predicted, return_type
+        )
 
         return LLM4ClassificationOutput(
             self._prepare_output(predicted, return_type, True),
