@@ -532,7 +532,7 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     ) -> None:
         """**Masked-Language-Modeling-Based Classification**
 
-        :code:`MaskedLM4Classification` works with all models that can be loaded through 
+        :code:`MaskedLM4Classification` works with all models that can be loaded through
         the call :code:`AutoModelForMaskedLM.from_pretrained(model_id)` with valid model_ids from huggingface.co.
 
         Args:
@@ -632,7 +632,7 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     ) -> None:
         """**Causal-Language-Modeling-Based Classification**
 
-        :code:`CausalLM4Classification` works with all models that can be loaded through 
+        :code:`CausalLM4Classification` works with all models that can be loaded through
         the call :code:`AutoModelForCausalLM.from_pretrained(model_id)` with valid model_ids from huggingface.co.
 
         Args:

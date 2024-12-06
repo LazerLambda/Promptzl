@@ -52,7 +52,7 @@ class SystemPrompt:
         self.generate: bool = generate
 
         if self.generate:
-            assert isinstance(prompt.collector[-1], Vbz)
+            assert isinstance(prompt.collector[-1], Vbz), "No Verbalizer found at the end of the sequence!"
 
         self.fvp: bool = False
         # Check for FVP because it does not support truncation
@@ -109,13 +109,15 @@ class SystemPrompt:
             - sum([len(e) for e in self.template_prmpt if isinstance(e, list)])
             - n_pre_suffix
         )  # Account for prefix and suffix tokens
-        if not generate:
+        if generate:
             self.max_len_keys: int = (
-                int((used_tokens - 1) // only_keys) if only_keys != 0 else used_tokens
+                int(used_tokens // only_keys) if only_keys != 0 else used_tokens
             )
         else:
             self.max_len_keys = (
-                int(used_tokens // only_keys) if only_keys != 0 else used_tokens
+                int((used_tokens - 1) // only_keys)
+                if only_keys != 0
+                else used_tokens  # Subtract one for mask token for prediction
             )
 
         self.prmpt_f: Callable[[Any], str] = self.prompt._prompt_fun(self.tokenizer)

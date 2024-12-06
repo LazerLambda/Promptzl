@@ -65,6 +65,8 @@ As we see here, it is crucial to first examine which characters the model produc
 
 TODO
 
+.. test if verbalizer labels are just ONE token!
+
 
 Tuning the Prompt (if Validation Data is Available)
 ---------------------------------------------------
