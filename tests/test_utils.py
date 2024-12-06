@@ -75,12 +75,21 @@ def test_exceeding_length_mlm():
     assert output['input_ids'].shape[0] == 4
     assert output['input_ids'].shape[1] <= tokenizer.model_max_length
 
+    prompt = Key("text_a") + Key("text_b") + Key("text_c") + Vbz([["bad", "horrible"], ["good"]])
+    model = MaskedLM4Classification(model_id_mlm, prompt=prompt)
+    with pytest.warns(UserWarning):
+        model.classify(Dataset.from_dict({
+            "text_a": ["a " * 10000 + "a"] * 4,
+            "text_b": ["b " * 10000 + "b"] * 4,
+            "text_c": ["c " * 10000 + "c"] * 4}))
+
 def test_exceeding_length_gen():
     tokenizer = AutoTokenizer.from_pretrained(model_id_gen, padding_side="left", clean_up_tokenization_spaces=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     prompt = Key("text") + Vbz([["bad", "horrible"], ["good"]])
     systemprompt = SystemPrompt(prompt, tokenizer)
+    print(tokenizer.model_max_length)
     with pytest.warns(UserWarning):
         output = systemprompt.get_tensors_fast({'text': ["a " * 10000 + "a"] *4})
     assert output['input_ids'].shape[0] == 4
@@ -103,6 +112,13 @@ def test_exceeding_length_gen():
     assert output['input_ids'].shape[0] == 4
     assert output['input_ids'].shape[1] <= tokenizer.model_max_length
 
+    prompt = Key("text_a") + Key("text_b") + Key("text_c") + Vbz([["bad", "horrible"], ["good"]])
+    model = CausalLM4Classification(model_id_gen, prompt=prompt)
+    with pytest.warns(UserWarning):
+        model.classify(Dataset.from_dict({
+                "text_a": ["a " * 10000 + "a"] * 4,
+                "text_b": ["b " * 10000 + "b"] * 4,
+                "text_c": ["c " * 10000 + "c"] * 4}))
 
 def test_prompt_str_fn():
     prompt = Key() + Txt(" HELLO WORLD ") + Vbz([["bad", "horrible"], ["good"]])
