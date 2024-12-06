@@ -13,6 +13,10 @@ Promptzl tackles this problem by providing a simple interface to leverage the po
 Masked vs Causal LMs
 --------------------
 
+.. Pro MLM Pro Causal
+.. context left and right, - context from left
+.. - cloze task, difficult to find prompt ,+ easier to find prompt
+
 While causal LMs like ChatGPT are well known for their strong performance in recent years, masked language models were strong contenders
 for many natural language tasks as well (and still are). The main difference between the two is that masked LMs predict a token given a context
 in both directions, while a causal LM predicts a token given a context only based on previous tokens (which can also be a prompt) at the end of
