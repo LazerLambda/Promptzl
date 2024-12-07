@@ -82,7 +82,7 @@ class LLM4ClassificationBase(torch.nn.Module):
 
         self.causal: bool = generate
 
-        self.set_prompt(prompt)
+        self.set_prompt(prompt, lower_verbalizer=lower_verbalizer)
 
         if device is None and torch.cuda.is_available():
             self.device: str = "cuda"
@@ -97,22 +97,19 @@ class LLM4ClassificationBase(torch.nn.Module):
                 category=UserWarning,
             )
 
-        self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
-            self.verbalizer_raw, lower=lower_verbalizer
-        )
-
         self.calibration_probs: Optional[Tensor] = None
 
         if self.causal:
             self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
 
-    def set_prompt(self, prompt: Prompt) -> None:
+    def set_prompt(self, prompt: Prompt, lower_verbalizer: bool = False) -> None:
         """Set Prompt.
 
         Sets the prompt for the class. Can be used for initialization or updating the object.
 
         Args:
             prompt (Prompt): The prompt to be set.
+            lower_verbalizer (bool, optional): A flag to determine if the verbalizer should be lowercased. Defaults to False.
         """
         self.prompt: SystemPrompt = SystemPrompt(
             prompt, self.tokenizer, generate=self.causal
@@ -121,6 +118,10 @@ class LLM4ClassificationBase(torch.nn.Module):
         self.verbalizer_dict: Optional[Dict[Union[int, str], List[str]]] = None
         if self.prompt.verbalizer.verbalizer_dict is not None:
             self.verbalizer_dict = self.prompt.verbalizer.verbalizer_dict
+
+        self.verbalizer_indices, self.grouped_indices = self._get_verbalizer(
+            self.verbalizer_raw, lower=lower_verbalizer
+        )
 
     def _get_verbalizer(
         self,
@@ -194,7 +195,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         return verbalizer_indices, grouped_indices
 
     @staticmethod
-    def combine_logits(logits: Tensor, grouped_indices: List[List[int]]) -> Tensor:
+    def group_logits(logits: Tensor, grouped_indices: List[List[int]]) -> Tensor:
         """Combine Logits.
 
         Combine the logits for different class labels by taking the arithmetic mean of the logits
@@ -216,17 +217,23 @@ class LLM4ClassificationBase(torch.nn.Module):
     def _predicted_indices_to_labels(self, predicted: Tensor) -> Tensor:
         """Predicted Indices to Labels.
 
-        Convert the predicted indices to labels if the verbalizer dictionary is available.
+        Convert the predicted indices to labels if the verbalizer dictionary is available. If return_type is set to 'torch'
+        while the keys of the verbalizer dict are strings, 'return_type' is set to 'list'.
 
         Args:
             predicted (tensor): The predicted indices.
+            return_type (str): Intended type for output.
 
         Returns:
-            tensor: The predicted labels.
+            Tuple[Union[Tensor, List[str]], str]: The predicted labels (either as tensor or list) and the 'return_type' variable.
         """
         if self.verbalizer_dict is not None:
             verb_kes_list: List[Union[int, str]] = list(self.verbalizer_dict.keys())
-            predicted = tensor([verb_kes_list[idx.item()] for idx in predicted])
+            if True in [isinstance(e, str) for e in self.verbalizer_dict.keys()]:
+                predicted = [verb_kes_list[idx.item()] for idx in predicted]
+            else:
+                predicted = tensor([verb_kes_list[idx.item()] for idx in predicted])
+            # predicted = tensor([verb_kes_list[idx.item()] for idx in predicted])
         return predicted
 
     def calibrate_output(
@@ -264,7 +271,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             distribution = tensor(distribution)
 
         distribution = calibrate_fn(distribution)
-        predictions: tensor = torch.argmax(distribution, dim=-1)
+        predictions: Union[Tensor, List[str]] = torch.argmax(distribution, dim=-1)
         predictions = self._predicted_indices_to_labels(predictions)
 
         return LLM4ClassificationOutput(
@@ -314,13 +321,23 @@ class LLM4ClassificationBase(torch.nn.Module):
         if return_type == "torch":
             return output
         elif return_type == "numpy":
-            return output.numpy()
+            if isinstance(output, list):
+                return np.asarray(output)
+            else:
+                return output.numpy()
         elif return_type == "list":
-            return output.tolist()
+            if isinstance(output, list):
+                return output
+            else:
+                return output.tolist()
         elif return_type == "polars":
             if self.verbalizer_dict is not None:
+                if isinstance(output, list):
+                    output = np.asarray(output)  #
+                else:
+                    output = output.numpy()
                 return pl.DataFrame(
-                    output.numpy(),
+                    output,
                     schema=["Prediction"]
                     if predict_labels
                     else [str(e) for e in self.verbalizer_dict.keys()],
@@ -334,8 +351,12 @@ class LLM4ClassificationBase(torch.nn.Module):
                 )
         else:
             if self.verbalizer_dict is not None:
+                if isinstance(output, list):
+                    output = np.asarray(output)
+                else:
+                    output = output.numpy()
                 return pd.DataFrame(
-                    output.numpy(),
+                    output,
                     columns=["Prediction"]
                     if predict_labels
                     else [str(e) for e in self.verbalizer_dict.keys()],
@@ -382,6 +403,8 @@ class LLM4ClassificationBase(torch.nn.Module):
         length_sorted_idx = np.argsort([-len(e) for e in dataset])
         dataset = dataset.select(length_sorted_idx)
         collector: List[Tensor] = []
+        if return_logits:
+            collector_logits: List[Tensor] = []
 
         self.model.eval()
 
@@ -396,17 +419,18 @@ class LLM4ClassificationBase(torch.nn.Module):
                 dataset[i : i + batch_size]
             )
             with torch.no_grad():
-                output: Tensor = self.forward(batch, **kwargs)
-                output = output.detach().cpu()
-                output = self.combine_logits(output, self.grouped_indices)
-                if not return_logits:
-                    if temperature != 1.0:
-                        output = torch.nn.functional.softmax(
-                            output / temperature, dim=-1
-                        )
-                    else:
-                        output = torch.nn.functional.softmax(output, dim=-1)
+                logits: Tensor = self.forward(batch, **kwargs)
+                logits = logits.detach().cpu()
+                logits = self.group_logits(logits, self.grouped_indices)
+                if temperature != 1.0:
+                    output: Tensor = torch.nn.functional.softmax(
+                        logits / temperature, dim=-1
+                    )
+                else:
+                    output = torch.nn.functional.softmax(logits, dim=-1)
                 collector.extend(output)
+                if return_logits:
+                    collector_logits.extend(logits)
 
         self.model.train()
 
@@ -414,16 +438,27 @@ class LLM4ClassificationBase(torch.nn.Module):
             torch.cuda.empty_cache()
 
         output = torch.stack([collector[idx] for idx in np.argsort(length_sorted_idx)])
+        if return_logits:
+            logits = torch.stack(
+                [collector_logits[idx] for idx in np.argsort(length_sorted_idx)]
+            )
         if calibrate:
             output = calibrate_fn(output)
 
         predicted = torch.argmax(output, dim=-1)
         predicted = self._predicted_indices_to_labels(predicted)
 
-        return LLM4ClassificationOutput(
-            self._prepare_output(predicted, return_type, True),
-            self._prepare_output(output, return_type, False),
-        )
+        if return_logits:
+            return LLM4ClassificationOutput(
+                self._prepare_output(predicted, return_type, True),
+                self._prepare_output(output, return_type, False),
+                self._prepare_output(logits, return_type, False),
+            )
+        else:
+            return LLM4ClassificationOutput(
+                self._prepare_output(predicted, return_type, True),
+                self._prepare_output(output, return_type, False),
+            )
 
     def classify(
         self,
@@ -447,6 +482,8 @@ class LLM4ClassificationBase(torch.nn.Module):
             batch_size (int): The batch size to be used. Defaults to 64.
             show_progress_bar (bool): A flag to determine if the progress bar should be shown. Defaults to False.
             return_logits (bool): A flag to determine if the logits should be returned. Defaults to False.
+                If the logits are returned and a label in the verbalizer contains more than one word, the logits
+                are averaged for the label grouping.
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
             calibrate (bool): A flag to determine if the logits should be calibrated. Defaults to False.
@@ -463,6 +500,13 @@ class LLM4ClassificationBase(torch.nn.Module):
             "pandas",
             "polars",
         ], "`return_type` must be: 'list', 'numpy', 'torch', 'polars' or 'pandas'"
+        if self.verbalizer_dict is not None:
+            if True in [isinstance(e, str) for e in self.verbalizer_dict.keys()]:
+                assert return_type != "torch", (
+                    "Verbalizer has been provided with a dictionary of the form `Dict[str, Any]."
+                    " However return_type is set to 'torch'. String-tensors are not supported with this option."
+                    "Please consider using a different return_type (e.g. 'list', 'numpy', 'pandas' or 'polars')."
+                )
         temperature = float(temperature)
         assert temperature > 0.0, "Temperature must be greater than 0."
 

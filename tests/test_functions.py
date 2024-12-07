@@ -41,10 +41,10 @@ def test_combine_function():
     test = CausalLM4Classification("sshleifer/tiny-gpt2", prompt)
     grouped_indices = [[0, 1], [2]]
 
-    combined = LLM4ClassificationBase.combine_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
+    combined = LLM4ClassificationBase.group_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
     assert torch.all(combined == tensor([[2., 7.], [3., 8.]]))
 
-    combined = LLM4ClassificationBase.combine_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
+    combined = LLM4ClassificationBase.group_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
     assert torch.all(combined == tensor([[2., 7.], [3., 8.]]))
 
 def test_set_prompt_function():
@@ -57,11 +57,22 @@ def test_set_prompt_function():
     test.set_prompt(prompt)
     assert test.verbalizer_raw == [["bad"], ["good"]]
 
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad"], ["good"], ['neutral']])
+    test.set_prompt(prompt)
+    assert test.verbalizer_raw == [["bad"], ["good"], ['neutral']]
+
+
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
     test = MaskedLM4Classification("nreimers/BERT-Tiny_L-2_H-128_A-2", prompt)
-    assert test.verbalizer_raw == [["bad"], ["good"]]
+    assert test.verbalizer_raw == [["bad", "horrible"], ["good"]]
+
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad"], ["good"]])
     test.set_prompt(prompt)
     assert test.verbalizer_raw == [["bad"], ["good"]]
 
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad"], ["good"], ['neutral']])
+    test.set_prompt(prompt)
+    assert test.verbalizer_raw == [["bad"], ["good"], ['neutral']]
 
 def test_calibrate():
     ex = torch.tensor([[0.25, 0.75], [0.5, 0.5], [0.75, 0.25]])
