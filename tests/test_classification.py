@@ -174,3 +174,33 @@ def test_w_vbz_string_mixed_dict():
     model.classify(dataset, return_type="pandas")
     model.classify(dataset, return_type="numpy")
     model.classify(dataset, return_type="polars")
+
+def test_classification_w_logits():
+
+    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+
+    model = promptzl.CausalLM4Classification(
+        model_id_gen,
+        prompt=prompt
+    )
+    dataset = Dataset.from_dict({"text": sample_data})
+    otpt = model.classify(dataset)
+    assert otpt.logits is None
+    otpt = model.classify(dataset, return_logits=True)
+    assert otpt.logits.shape == (len(dataset), 2)
+    model.classify(dataset, batch_size=2, return_logits=True)
+    model.classify(dataset, batch_size=2, temperature=0.5, return_logits=True)
+    model.classify(dataset, batch_size=2, calibrate=True, return_logits=True)
+    model.classify(dataset, batch_size=2, show_progress_bar=True, return_logits=True)
+    model.classify(dataset, return_type="list", return_logits=True)
+    model.classify(dataset, return_type="pandas", return_logits=True)
+    model.classify(dataset, return_type="numpy", return_logits=True)
+    model.classify(dataset, return_type="polars", return_logits=True)
+
+    dataset = DatasetDict({
+        'train': Dataset.from_dict({"text": sample_data}),
+        'test': Dataset.from_dict({"text": sample_data})})
+    model.classify(dataset, return_logits=True)
+
+    model.prompt.truncate = False
+    model.classify(dataset, return_logits=True)

@@ -41,10 +41,10 @@ def test_combine_function():
     test = CausalLM4Classification("sshleifer/tiny-gpt2", prompt)
     grouped_indices = [[0, 1], [2]]
 
-    combined = LLM4ClassificationBase.combine_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
+    combined = LLM4ClassificationBase.group_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
     assert torch.all(combined == tensor([[2., 7.], [3., 8.]]))
 
-    combined = LLM4ClassificationBase.combine_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
+    combined = LLM4ClassificationBase.group_logits(tensor([[1,3,7], [2,4,8]]), grouped_indices)
     assert torch.all(combined == tensor([[2., 7.], [3., 8.]]))
 
 def test_set_prompt_function():
