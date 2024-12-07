@@ -151,6 +151,26 @@ def test_w_vbz_string_dict():
         prompt=prompt
     )
     dataset = Dataset.from_dict({"text": sample_data})
-    with pytest.warns(UserWarning):
+    with pytest.raises(AssertionError):
         model.classify(dataset, return_type="torch")
 
+    model.classify(dataset, return_type="list")
+    model.classify(dataset, return_type="pandas")
+    model.classify(dataset, return_type="numpy")
+    model.classify(dataset, return_type="polars")
+
+def test_w_vbz_string_mixed_dict():
+
+    prompt = Key("text") + Txt(". It was ") + Vbz({"0": ["bad", "horrible"], 1: ["good"]})
+    model = promptzl.MaskedLM4Classification(
+        model_id_mlm,
+        prompt=prompt
+    )
+    dataset = Dataset.from_dict({"text": sample_data})
+    with pytest.raises(AssertionError):
+        model.classify(dataset, return_type="torch")
+
+    model.classify(dataset, return_type="list")
+    model.classify(dataset, return_type="pandas")
+    model.classify(dataset, return_type="numpy")
+    model.classify(dataset, return_type="polars")

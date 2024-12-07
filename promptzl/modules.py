@@ -215,8 +215,8 @@ class LLM4ClassificationBase(torch.nn.Module):
         )
 
     def _predicted_indices_to_labels(
-        self, predicted: Tensor, return_type: str
-    ) -> Tuple[Union[Tensor, List[str]], str]:
+        self, predicted: Tensor
+    ) -> Tensor:
         """Predicted Indices to Labels.
 
         Convert the predicted indices to labels if the verbalizer dictionary is available. If return_type is set to 'torch'
@@ -232,18 +232,11 @@ class LLM4ClassificationBase(torch.nn.Module):
         if self.verbalizer_dict is not None:
             verb_kes_list: List[Union[int, str]] = list(self.verbalizer_dict.keys())
             if True in [isinstance(e, str) for e in self.verbalizer_dict.keys()]:
-                warn(
-                    (
-                        "Verbalizer has been provided with a dictionary of the form `Dict[str, Any]`."
-                        " However return_type is set to 'torch'. String-tensors are not supported. `return_type` changed to 'lists'"
-                    ),
-                    category=UserWarning,
-                )
-                return_type = "list"
                 predicted = [verb_kes_list[idx.item()] for idx in predicted]
             else:
                 predicted = tensor([verb_kes_list[idx.item()] for idx in predicted])
-        return predicted, return_type
+            # predicted = tensor([verb_kes_list[idx.item()] for idx in predicted])
+        return predicted
 
     def calibrate_output(
         self, output: LLM4ClassificationOutput
@@ -281,8 +274,8 @@ class LLM4ClassificationBase(torch.nn.Module):
 
         distribution = calibrate_fn(distribution)
         predictions: Union[Tensor, List[str]] = torch.argmax(distribution, dim=-1)
-        predictions, return_type = self._predicted_indices_to_labels(
-            predictions, return_type
+        predictions = self._predicted_indices_to_labels(
+            predictions
         )
 
         return LLM4ClassificationOutput(
@@ -332,7 +325,10 @@ class LLM4ClassificationBase(torch.nn.Module):
         if return_type == "torch":
             return output
         elif return_type == "numpy":
-            return output.numpy()
+            if isinstance(output, list):
+                return np.asarray(output)
+            else:
+                return output.numpy()
         elif return_type == "list":
             if isinstance(output, list):
                 return output
@@ -340,8 +336,12 @@ class LLM4ClassificationBase(torch.nn.Module):
                 return output.tolist()
         elif return_type == "polars":
             if self.verbalizer_dict is not None:
+                if isinstance(output, list):
+                    output = np.asarray(output)#
+                else:
+                    output = output.numpy()
                 return pl.DataFrame(
-                    output.numpy(),
+                    output,
                     schema=["Prediction"]
                     if predict_labels
                     else [str(e) for e in self.verbalizer_dict.keys()],
@@ -355,8 +355,12 @@ class LLM4ClassificationBase(torch.nn.Module):
                 )
         else:
             if self.verbalizer_dict is not None:
+                if isinstance(output, list):
+                    output = np.asarray(output)
+                else:
+                    output = output.numpy()
                 return pd.DataFrame(
-                    output.numpy(),
+                    output,
                     columns=["Prediction"]
                     if predict_labels
                     else [str(e) for e in self.verbalizer_dict.keys()],
@@ -439,8 +443,8 @@ class LLM4ClassificationBase(torch.nn.Module):
             output = calibrate_fn(output)
 
         predicted = torch.argmax(output, dim=-1)
-        predicted, return_type = self._predicted_indices_to_labels(
-            predicted, return_type
+        predicted= self._predicted_indices_to_labels(
+            predicted
         )
 
         return LLM4ClassificationOutput(
@@ -486,6 +490,13 @@ class LLM4ClassificationBase(torch.nn.Module):
             "pandas",
             "polars",
         ], "`return_type` must be: 'list', 'numpy', 'torch', 'polars' or 'pandas'"
+        if self.verbalizer_dict is not None:
+            if True in [isinstance(e, str) for e in self.verbalizer_dict.keys()]:
+                assert return_type != "torch", (
+                    "Verbalizer has been provided with a dictionary of the form `Dict[str, Any]."
+                    " However return_type is set to 'torch'. String-tensors are not supported with this option."
+                    "Please consider using a different return_type (e.g. 'list', 'numpy', 'pandas' or 'polars')."
+                )
         temperature = float(temperature)
         assert temperature > 0.0, "Temperature must be greater than 0."
 
