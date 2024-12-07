@@ -312,6 +312,9 @@ class LLM4ClassificationOutput:
     distribution: Optional[
         Union[Tensor, pd.DataFrame, pl.DataFrame, List[List[float]], np.ndarray]
     ] = None
+    logits: Optional[
+        Union[Tensor, pd.DataFrame, pl.DataFrame, List[List[float]], np.ndarray]
+    ] = None
 
 
 def calibrate(probs: Tensor) -> Tensor:

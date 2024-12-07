@@ -195,7 +195,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         return verbalizer_indices, grouped_indices
 
     @staticmethod
-    def combine_logits(logits: Tensor, grouped_indices: List[List[int]]) -> Tensor:
+    def group_logits(logits: Tensor, grouped_indices: List[List[int]]) -> Tensor:
         """Combine Logits.
 
         Combine the logits for different class labels by taking the arithmetic mean of the logits
@@ -214,9 +214,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             ]
         )
 
-    def _predicted_indices_to_labels(
-        self, predicted: Tensor
-    ) -> Tensor:
+    def _predicted_indices_to_labels(self, predicted: Tensor) -> Tensor:
         """Predicted Indices to Labels.
 
         Convert the predicted indices to labels if the verbalizer dictionary is available. If return_type is set to 'torch'
@@ -274,9 +272,7 @@ class LLM4ClassificationBase(torch.nn.Module):
 
         distribution = calibrate_fn(distribution)
         predictions: Union[Tensor, List[str]] = torch.argmax(distribution, dim=-1)
-        predictions = self._predicted_indices_to_labels(
-            predictions
-        )
+        predictions = self._predicted_indices_to_labels(predictions)
 
         return LLM4ClassificationOutput(
             self._prepare_output(predictions, return_type, True),
@@ -337,7 +333,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         elif return_type == "polars":
             if self.verbalizer_dict is not None:
                 if isinstance(output, list):
-                    output = np.asarray(output)#
+                    output = np.asarray(output)  #
                 else:
                     output = output.numpy()
                 return pl.DataFrame(
@@ -407,6 +403,8 @@ class LLM4ClassificationBase(torch.nn.Module):
         length_sorted_idx = np.argsort([-len(e) for e in dataset])
         dataset = dataset.select(length_sorted_idx)
         collector: List[Tensor] = []
+        if return_logits:
+            collector_logits: List[Tensor] = []
 
         self.model.eval()
 
@@ -421,17 +419,18 @@ class LLM4ClassificationBase(torch.nn.Module):
                 dataset[i : i + batch_size]
             )
             with torch.no_grad():
-                output: Tensor = self.forward(batch, **kwargs)
-                output = output.detach().cpu()
-                output = self.combine_logits(output, self.grouped_indices)
-                if not return_logits:
-                    if temperature != 1.0:
-                        output = torch.nn.functional.softmax(
-                            output / temperature, dim=-1
-                        )
-                    else:
-                        output = torch.nn.functional.softmax(output, dim=-1)
+                logits: Tensor = self.forward(batch, **kwargs)
+                logits = logits.detach().cpu()
+                logits = self.group_logits(logits, self.grouped_indices)
+                if temperature != 1.0:
+                    output: Tensor = torch.nn.functional.softmax(
+                        logits / temperature, dim=-1
+                    )
+                else:
+                    output = torch.nn.functional.softmax(logits, dim=-1)
                 collector.extend(output)
+                if return_logits:
+                    collector_logits.extend(logits)
 
         self.model.train()
 
@@ -439,18 +438,27 @@ class LLM4ClassificationBase(torch.nn.Module):
             torch.cuda.empty_cache()
 
         output = torch.stack([collector[idx] for idx in np.argsort(length_sorted_idx)])
+        if return_logits:
+            logits = torch.stack(
+                [collector_logits[idx] for idx in np.argsort(length_sorted_idx)]
+            )
         if calibrate:
             output = calibrate_fn(output)
 
         predicted = torch.argmax(output, dim=-1)
-        predicted= self._predicted_indices_to_labels(
-            predicted
-        )
+        predicted = self._predicted_indices_to_labels(predicted)
 
-        return LLM4ClassificationOutput(
-            self._prepare_output(predicted, return_type, True),
-            self._prepare_output(output, return_type, False),
-        )
+        if return_logits:
+            return LLM4ClassificationOutput(
+                self._prepare_output(predicted, return_type, True),
+                self._prepare_output(output, return_type, False),
+                self._prepare_output(logits, return_type, False),
+            )
+        else:
+            return LLM4ClassificationOutput(
+                self._prepare_output(predicted, return_type, True),
+                self._prepare_output(output, return_type, False),
+            )
 
     def classify(
         self,
@@ -474,6 +482,8 @@ class LLM4ClassificationBase(torch.nn.Module):
             batch_size (int): The batch size to be used. Defaults to 64.
             show_progress_bar (bool): A flag to determine if the progress bar should be shown. Defaults to False.
             return_logits (bool): A flag to determine if the logits should be returned. Defaults to False.
+                If the logits are returned and a label in the verbalizer contains more than one word, the logits
+                are averaged for the label grouping.
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
             calibrate (bool): A flag to determine if the logits should be calibrated. Defaults to False.
