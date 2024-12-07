@@ -2,9 +2,12 @@
 [![GitHub - License](https://img.shields.io/badge/License-Apache-yellow.svg)][#github-license]
 [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=promptzl)][#docs-package]
 ![Tests Passing](https://github.com/lazerlambda/promptzl/actions/workflows/python-package.yml/badge.svg)
+[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/promptzl?logo=pypi&style=flat)][#pypi-package]
+[![PyPI - Package Version](https://img.shields.io/pypi/v/promptzl?logo=pypi&style=flat)][#pypi-package]
 
 [#github-license]: https://github.com/LazerLambda/Promptzl/blob/main/LICENSE.md
 [#docs-package]: https://promptzl.readthedocs.io/en/latest/
+[#pypi-package]: https://pypi.org/project/promptzl/
 <!--- BADGES: END --->
 
 
