@@ -1,5 +1,9 @@
 # Releases
 
+# 1.0.0 Promptzl Stable Version
+
+### Bugfixes
+ - Throw error when empty labels in verbalizer are provided.
 
 ## 0.9.3
 
