@@ -140,6 +140,10 @@ class LLM4ClassificationBase(torch.nn.Module):
         Returns:
             Tuple[List[int], List[List[int]]]: The verbalizer indices and the grouped indices.
         """
+        if isinstance(verbalizer_raw, list):
+            assert 0 not in [
+                len(item) for sublist in verbalizer_raw for item in sublist
+            ], "Empty string in verbalizer detected! Please provide only non-empty strings."
         combine: Callable[
             [List[List[Any]], List[List[Any]]], List[List[Any]]
         ] = lambda a, b: [e[0] + e[1] for e in list(zip(a, b))]

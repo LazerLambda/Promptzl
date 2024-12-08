@@ -102,3 +102,32 @@ def test_fvp_input_lenght_error():
     dataset = Dataset.from_dict({"text": ["a " * 10000 + "a"]})
     with pytest.raises(ValueError):
         model.classify(dataset)
+
+def test_empty_verb_labels_errors():
+    prompt = Txt("") + Vbz([[""], ["good", "wonderful", "great"]]) + Key("text")
+    with pytest.raises(AssertionError):
+        promptzl.CausalLM4Classification(
+            model_id_gen,
+            prompt=prompt
+        )
+
+    prompt = Txt("") + Vbz({0: [""], 1: ["good", "wonderful", "great"]}) + Key("text")
+    with pytest.raises(AssertionError):
+        promptzl.CausalLM4Classification(
+            model_id_gen,
+            prompt=prompt
+        )
+
+    prompt = Txt("") + Vbz([[""], ["good", "wonderful", "great"]]) + Key("text")
+    with pytest.raises(AssertionError):
+        promptzl.MaskedLM4Classification(
+            model_id_mlm,
+            prompt=prompt
+        )
+
+    prompt = Txt("") + Vbz({0: [""], 1: ["good", "wonderful", "great"]}) + Key("text")
+    with pytest.raises(AssertionError):
+        promptzl.MaskedLM4Classification(
+            model_id_mlm,
+            prompt=prompt
+        )

@@ -63,7 +63,6 @@ class SystemPrompt:
 
         self.prompt._check_valid_keys()
 
-        self.intermediate_token = None
         if not self.generate:
             if self.tokenizer.mask_token_id is None or not hasattr(
                 self.tokenizer, "mask_token_id"
@@ -71,12 +70,6 @@ class SystemPrompt:
                 raise ValueError(
                     "Tokenizer does not have a mask token. Please provide a tokenizer with a mask token."
                 )
-
-        for i in range(0, len(self.prompt.collector) - 1):
-            if isinstance(self.prompt.collector[i], (Txt)) and isinstance(
-                self.prompt.collector[i + 1], Vbz
-            ):
-                self.intermediate_token = self.prompt.collector[i].text[-1]
 
         prefix_suffix: Tuple[List[int], List[int]] = self.get_prefix_suffix()
         self.prefix: List[int] = prefix_suffix[0]
