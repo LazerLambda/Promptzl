@@ -131,3 +131,19 @@ def test_empty_verb_labels_errors():
             model_id_mlm,
             prompt=prompt
         )
+
+def test_error_prompt_too_long():
+    prompt = Txt("a " * 2000) + Key("text") + Vbz([["bad"], ["good"]])
+
+
+    with pytest.raises(ValueError):
+        promptzl.MaskedLM4Classification(
+            model_id_mlm,
+            prompt=prompt
+        )
+
+    with pytest.raises(ValueError):
+        promptzl.CausalLM4Classification(
+            model_id_gen,
+            prompt=prompt
+        )
