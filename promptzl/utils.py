@@ -110,11 +110,13 @@ class SystemPrompt:
             self.max_len_keys = (
                 int(used_tokens // only_keys) if only_keys != 0 else used_tokens
             )
-        
+
         if self.max_len_keys < 1:
             raise ValueError(
-                (f"No tokens left for data. Please reduce the length of the prompt."
-                f"Max. length: {self.tokenizer.model_max_length}, beyond max. length: {(-1) * self.max_len_keys}")
+                f"The prompt is too long, leaving no tokens for the data. "
+                f"Please reduce the length of the prompt. "
+                f"Maximum model length: {self.tokenizer.model_max_length}, "
+                f"exceeded by: {(-1) * self.max_len_keys} tokens."
             )
 
         self.prmpt_f: Callable[[Any], str] = self.prompt._prompt_fun(self.tokenizer)
