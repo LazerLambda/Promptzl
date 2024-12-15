@@ -1,3 +1,5 @@
+.. _tutorial_tldr:
+
 Tutorial - Basic Usage
 ======================
 
@@ -5,26 +7,6 @@ Promptzl can be used in two ways: with `masked language models <https://huggingf
 and with `causal language models <https://huggingface.co/docs/transformers/en/tasks/language_modeling>`_.
 
 After running :code:`pip install promptzl` it is possible to run the following examples.
-
-Masked Language Models
-----------------------
-Using promptzl is simple. Here's a basic example (from the work of Schick and Schütze) of how to use it to classify text with a *masked language model*:
-
-.. code-block:: python
-
-    from promptzl import *
-    from datasets import load_dataset
-
-    dataset = load_dataset("SetFit/ag_news")
-
-    verbalizer = Vbz({0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})
-    prompt = Txt("[Category:") + verbalizer + Txt("] ") + Key()
-
-    model = MaskedLM4Classification("roberta-large", prompt)
-    output = model.classify(dataset['test'], show_progress_bar=True).predictions
-    sum([int(prd == lbl) for prd, lbl in zip(output, dataset['test']['label'])]) / len(output)
-    0.7986842105263158
-
 
 Causal Language Models
 ----------------------
@@ -39,11 +21,50 @@ Thus, it is possible to instruct the model to generate a certain output, which f
     from promptzl import *
     from datasets import load_dataset
 
-    dataset = load_dataset("SetFit/ag_news")
+    dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
+
+    prompt = FVP(lambda e:\
+        f"""
+        Product Review Classification into categories 'positive' or 'negative'.
+
+        'Good value
+        
+        I love Curve and this large bottle offers great value. Highly recommended.'='positive'
+        'Edge of Danger
+        
+        1 star - only because that's the minimum. This book shows that famous people can publish anything.'='negative'
+
+        '{e['text']}'=""", Vbz({0: ["negative"], 1: ["positive"]}))
+
+    model = CausalLM4Classification(
+        'HuggingFaceTB/SmolLM2-1.7B',
+        prompt=prompt)
+
+    output = model.classify(ds, show_progress_bar=True).predictions
+    sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(ds['label']))]) / len(output)
+    0.92
+
+It is also possible to use *Prompt-Element-Objects* as it will be shown in the following example. Using *Prompt-Element-Objects* (see :ref:`prompt-element-objects`)
+is safer, as it automatically truncates the prompt to the maximum length of the model. This is especially useful when using
+smaller models where the context length is limited.
+
+
+Masked Language Models
+----------------------
+Using promptzl is simple. Here's a basic example (from the work of Schick and Schütze) of how to use it to classify text with a *masked language model*:
+
+.. code-block:: python
+
+    from promptzl import *
+    from datasets import load_dataset
+
+    dataset = load_dataset("SetFit/ag_news")['test']
 
     verbalizer = Vbz({0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})
     prompt = Txt("[Category:") + verbalizer + Txt("] ") + Key()
 
-    model = CausalLM4Classification("TODO", prompt)
+    model = MaskedLM4Classification("roberta-large", prompt)
+    output = model.classify(dataset, show_progress_bar=True).predictions
+    sum([int(prd == lbl) for prd, lbl in zip(output, dataset['label'])]) / len(output)
+    0.7986842105263158
 
-However, finding a good prompt can be challenging. The next section will discuss how to establish a good workflow with this package.

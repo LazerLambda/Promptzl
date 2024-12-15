@@ -4,6 +4,8 @@ Prompt Classes
 The prompt classes are used to construct the prompt in a easy way by simply concatenating the objects through the `+` operator.
 There are two main approaches to initialize the Classifier object: 
 
+.. _prompt-element-objects:
+
 Using *Prompt-Element-Objects*
 ----------------------------------
 
