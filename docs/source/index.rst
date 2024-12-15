@@ -6,7 +6,7 @@
 Promptzl Documentation
 ======================
 
-Promptzl is a simple library for turning state-of-the-art LLMs into old-school
+Promptzl is an easy-to-use library for turning state-of-the-art LLMs into old-school
 pytorch-based, zero-shot classifiers based on the 🤗-transformers library.
 
    - 💪 Zero-shot classification
