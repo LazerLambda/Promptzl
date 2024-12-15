@@ -37,31 +37,31 @@ Check out more in the [official documentation.](https://promptzl.readthedocs.io/
 In just a few lines of code, you can transform a LLM of choice into an old-school classifier with all it's desirable properties:
 
 ```{python}
-    from promptzl import *
-    from datasets import load_dataset
+from promptzl import *
+from datasets import load_dataset
 
-    dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
+dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
 
-    # Provide a prompt with a task description and examples
-    prompt = FVP(lambda e:\
-        f"""
-        Product Review Classification into categories 'positive' or 'negative'.
+# Provide a prompt with a task description and examples
+prompt = FVP(lambda e:\
+    f"""
+    Product Review Classification into categories 'positive' or 'negative'.
 
-        'Good value
-        
-        I love Curve and this large bottle offers great value. Highly recommended.'='positive'
-        'Edge of Danger
-        
-        1 star - only because that's the minimum. This book shows that famous people can publish anything.'='negative'
+    'Good value
+    
+    I love Curve and this large bottle offers great value. Highly recommended.'='positive'
+    'Edge of Danger
+    
+    1 star - only because that's the minimum. This book shows that famous people can publish anything.'='negative'
 
-        '{e['text']}'=""", Vbz({0: ["negative"], 1: ["positive"]}))
+    '{e['text']}'=""", Vbz({0: ["negative"], 1: ["positive"]}))
 
-    model = CausalLM4Classification(
-        'HuggingFaceTB/SmolLM2-1.7B',
-        prompt=prompt)
+model = CausalLM4Classification(
+    'HuggingFaceTB/SmolLM2-1.7B',
+    prompt=prompt)
 
-    output = model.classify(ds, show_progress_bar=True).predictions
-    sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(ds['label']))]) / len(output)
-    0.92
+output = model.classify(ds, show_progress_bar=True).predictions
+sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(ds['label']))]) / len(output)
+0.92
 ```
 
