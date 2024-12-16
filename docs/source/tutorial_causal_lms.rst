@@ -40,9 +40,11 @@ verbalizer (TODO link to verbalizer in background) that extracts the logits of i
         Vbz({0: ["negative"], 1: ["positive"]})
     )
 
-..note::
+.. note::
     It is also possible to use *Prompt-Element-Objects* (see :ref:`prompt-element-objects`) and also to provide a list of label words to the verbalizer.
     However, using a dict allows us to return keys of the dict in the predictions list eventually.
+
+.. TODO: Describe how to come up with a good prompt and mention GPT 3 Radford et al 2020
 
 Loading the Model
 -----------------
@@ -69,7 +71,7 @@ It is also possible to get the (combined) logits for each class, however the def
 
     output = model.classify(dataset)
 
-..note::
+.. note::
     It is also possible to show a progress bar by setting the :code:`show_progress_bar` parameter to :code:`True`
     and set the :code:`batch_size` to a desired value if the model does not fit on the GPU.
 
@@ -86,7 +88,7 @@ After we have classified the dataset, we can evaluate the predictions. The predi
 
     accuracy_score(dataset['label'], output.predictions)
 
-..note::
+.. note::
     When using only a list of lists of label words in the verbalizer, it might be first necessary to adjust the predictions to the values used in the dataset.
     In this case, the predictions refer to the indices of the lists in the verbalizer.
     E.g.: :code:`[['negative'], ['positive']]` will produce predictions in the form of zeros and ones.
