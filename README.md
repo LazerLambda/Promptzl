@@ -54,13 +54,13 @@ prompt = FVP(lambda e:\
     
     1 star - only because that's the minimum. This book shows that famous people can publish anything.'='negative'
 
-    '{e['text']}'=""", Vbz({0: ["negative"], 1: ["positive"]}))
+    '{e['text']}'='""", Vbz({0: ["negative"], 1: ["positive"]}))
 
 model = CausalLM4Classification(
     'HuggingFaceTB/SmolLM2-1.7B',
     prompt=prompt)
 
-output = model.classify(ds, show_progress_bar=True).predictions
+output = model.classify(ds, show_progress_bar=True, batch_size=1).predictions
 sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(ds['label']))]) / len(output)
 0.92
 ```
