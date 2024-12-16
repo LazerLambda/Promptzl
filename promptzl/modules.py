@@ -21,6 +21,7 @@ from .utils import calibrate as calibrate_fn
 
 class LLM4ClassificationBase(torch.nn.Module):
     """Handles the main computations like extracting the logits, calibration and returning new logits."""
+
     # TODO: Class attributes
 
     def __init__(
