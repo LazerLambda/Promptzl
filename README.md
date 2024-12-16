@@ -39,10 +39,10 @@ In just a few lines of code, you can transform a LLM of choice into an old-schoo
 ```{python}
 from promptzl import *
 from datasets import load_dataset
+import torch
 
 dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
 
-# Provide a prompt with a task description and examples
 prompt = FVP(lambda e:\
     f"""
     Product Review Classification into categories 'positive' or 'negative'.
@@ -54,14 +54,14 @@ prompt = FVP(lambda e:\
     
     1 star - only because that's the minimum. This book shows that famous people can publish anything.'='negative'
 
-    '{e['text']}'='""", Vbz({0: ["negative"], 1: ["positive"]}))
+    '{e['text']}'=""", Vbz({0: ["negative"], 1: ["positive"]}))
 
 model = CausalLM4Classification(
     'HuggingFaceTB/SmolLM2-1.7B',
     prompt=prompt)
 
-output = model.classify(ds, show_progress_bar=True, batch_size=1).predictions
-sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(ds['label']))]) / len(output)
+output = model.classify(dataset, show_progress_bar=True, batch_size=1).predictions
+sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(dataset['label']))]) / len(output)
 0.92
 ```
 
