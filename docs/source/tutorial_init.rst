@@ -10,7 +10,6 @@ After running :code:`pip install promptzl` it is possible to run the following e
 
 Causal Language Models
 ----------------------
-This is a simple example, but promptzl can be used for more complex tasks as well.
 
 It is also possible to use a *causal language model* in a similar way. Here, it is also possible to leverage the
 fine-tuned nature of novel LLMs, that are aimed at interacting with the user, making finding an appropriate prompt easier.
@@ -51,7 +50,7 @@ smaller models where the context length is limited.
 
 Masked Language Models
 ----------------------
-Using promptzl is simple. Here's a basic example (from the work of Schick and Schütze) of how to use it to classify text with a *masked language model*:
+Here's a basic example (from the work of Schick and Schütze) of how to classify text with a *masked language model*:
 
 .. code-block:: python
 
@@ -68,3 +67,4 @@ Using promptzl is simple. Here's a basic example (from the work of Schick and Sc
     sum([int(prd == lbl) for prd, lbl in zip(output, dataset['label'])]) / len(output)
     0.7986842105263158
 
+This is a simple example, but promptzl can be used for more complex tasks as well.

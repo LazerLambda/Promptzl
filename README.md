@@ -18,7 +18,7 @@ Promptzl is an easy-to-use library for turning state-of-the-art LLMs into old-sc
 pytorch-based, zero-shot classifiers based on the 🤗-transformers library.
 
    - 💪 Zero-shot classification
-   - 🤖 [Causal](https://huggingface.co/models?pipeline_tag=text-generation) and [masked](https://huggingface.co/models?pipeline_tag=fill-mask) LMs from the 🤗-hub are available
+   - 🤖 All [causal](https://huggingface.co/models?pipeline_tag=text-generation) and [masked](https://huggingface.co/models?pipeline_tag=fill-mask) LMs from the 🤗-hub are available
    - ⚡ Fast and easy to use (just a few lines of code needed. Check the example below!)
    - 📦 Promptzl works with batches
    - 🔎 All models are transparent on your device

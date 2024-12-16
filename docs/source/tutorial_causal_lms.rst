@@ -94,8 +94,8 @@ After we have classified the dataset, we can evaluate the predictions. The predi
     E.g.: :code:`[['negative'], ['positive']]` will produce predictions in the form of zeros and ones.
 
 
-Using LLAMA
------------
+Using Proprietary Models
+------------------------
 
 A model like LLAMA might need further arguments for initialization. These arguments can be passed  when initializing the model. In this example,
 we use quantization and an access token for the huggingface hub:
