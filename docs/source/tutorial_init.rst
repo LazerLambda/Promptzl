@@ -19,6 +19,7 @@ Thus, it is possible to instruct the model to generate a certain output, which f
 
     from promptzl import *
     from datasets import load_dataset
+    import torch
 
     dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
 
@@ -39,8 +40,8 @@ Thus, it is possible to instruct the model to generate a certain output, which f
         'HuggingFaceTB/SmolLM2-1.7B',
         prompt=prompt)
 
-    output = model.classify(ds, show_progress_bar=True).predictions
-    sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(ds['label']))]) / len(output)
+    output = model.classify(dataset, show_progress_bar=True, batch_size=1).predictions
+    sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(dataset['label']))]) / len(output)
     0.92
 
 It is also possible to use *Prompt-Element-Objects* as it will be shown in the following example. Using *Prompt-Element-Objects* (see :ref:`prompt-element-objects`)
@@ -50,7 +51,7 @@ smaller models where the context length is limited.
 
 Masked Language Models
 ----------------------
-Here's a basic example (from the work of Schick and Schütze) of how to classify text with a *masked language model*:
+Here's a basic example (from `Schick and Schütze., 2020 <https://aclanthology.org/2021.eacl-main.20>`_) of how to classify text with a *masked language model*:
 
 .. code-block:: python
 

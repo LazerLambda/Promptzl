@@ -44,7 +44,30 @@ verbalizer (TODO link to verbalizer in background) that extracts the logits of i
     It is also possible to use *Prompt-Element-Objects* (see :ref:`prompt-element-objects`) and also to provide a list of label words to the verbalizer.
     However, using a dict allows us to return keys of the dict in the predictions list eventually.
 
-.. TODO: Describe how to come up with a good prompt and mention GPT 3 Radford et al 2020
+Finding a Good Prompt
+^^^^^^^^^^^^^^^^^^^^^
+When dealing with base models it can be useful to draw inspirations from `Radford et al., 2020 <https://arxiv.org/pdf/2005.14165>`_. In this work, the authors
+provided examples in the prompt so that the model can learn how to classify data from this particular domain. It is crucial to form some sort of a intensive to
+produce exactly the tokens we are interested in. 
+
+In the following, we will take a look at an example for a natural langauge inference task where a premise and a hypothesis is given and 
+the model must classify into the categories of :code:`entailment`, :code:`neutral` or :code:`contradiction`:
+
+.. code-block::
+
+f"""
+Natural Language Inference. Given is a premise and a hypothesis which must be classified as 'entailment', 'neutral' and 'contradiction'.
+
+Premise: 'How do you know? All this is their information again.' - Hypothesis: 'This information belongs to them.'='entailment'
+Premise: 'But a few Christian mosaics survive above the apse is the Virgin with the infant Jesus, with the Archangel Gabriel to the right (his companion Michael, to the left, has vanished save for a few feathers from his wings).' - Hypothesis: 'Most of the Christian mosaics were destroyed by Muslims.  '='neutral'
+Premise: 'At the end of Rue des Francs-Bourgeois is what many consider to be the city's most handsome residential square, the Place des Vosges, with its stone and red brick facades.' - Hypothesis: 'Place des Vosges is constructed entirely of gray marble.'='contradiction'
+
+Premise:  '{e['premise']}' - Hypothesis: '{e['hypothesis']}'='"""
+
+This prompt works as follows: A description in natural language of the task and the categories the model has to label the instances to is given, further some examples (one for each class) is given to
+show the model how to classify the data and finally the data is provided in the same form as the previous examples. Crucially, the label for the unknown label is the next token to be predicted.
+This will increase the probability of predicting :code:`entailment`, :code:`neutral` or :code:`contradiction` as the next token and thus our the labels
+we are interested in.
 
 Loading the Model
 -----------------
