@@ -38,8 +38,6 @@ The model is asked to predict the token of interest and we can extract the label
 we can already classify into :code:`good` and :code:`bad` just by extracting the logits at the indices for :code:`good` and :code:`bad` from the vocabulary
 and get a distribution using the softmax function.
 
-.. TODO EXample
-
 
 Formal Definition
 -----------------
@@ -67,38 +65,6 @@ For obtaining the distribution, the softmax function can be applied:
 .. math::
 
    \mathbb P(l) = \frac{\mathcal M(\mathcal V(l)| \text{Prompt}(x))}{\sum_{l' \in \mathcal L} \mathcal M(\mathcal V(l')| \text{Prompt}(x))}
-
-
-
-
-.. Logits (:math:`\mathbf L`)
-
-.. .. math::
-
-..    \mathcal{V}(\mathbf L)_V = \{V_{\text{label}}_0\}
-
-.. .. math::
-
-..    \mathcal{V}(\text{label})_V = V_{\text{label}_{0}}
-
-.. Vbz = {'positive' -> Voc_{positive}, 'negative' -> Voc_{negative}}
-
-.. It is also necessary to define a prompt that guides the model to produce the desired output.
-.. This technique is refered to as a Prompt-Verbalizer-Pair (PVP), which is used to obtain a function of the following form:
-
-.. .. math::
-
-..    \mathbb{P}_V(y = \mathcal M(\text{Pattern}(x)))
-
-.. .. math::
-
-..    \mathbb{P}_V(y = \mathcal M(\text{Pattern}(x))) = \frac{}{\sum_{i=0}^{||}}
-
-.. P_V(y = Pattern(x)) = softmax(Vbz(M(Pattern(x))))
-
-.. where :math:`x` is the input text, :math:`y` is a class and Pattern is the function that transforms the output into a cloze-task.
-
-.. P_V(y = Pattern(x)) = softmax(Vbz(M(Pattern(x))))
 
 This function passes the data through the model, the verbalizer extracts the logits of interest for each class and then a softmax is applied
 to obtain the probabilities of the classes.
