@@ -37,8 +37,6 @@ the LLM into a classifier. This is what Promptzl does. A simple example can be f
    :align: center
    :scale: 50 %
 
-This approach has been shown effective in mulitple research works (`Schick and Schütze, 2021 <https://aclanthology.org/2021.eacl-main.20/>`_; Schick et al., 2021, Hu et al., 2022).
-
 Background
 ----------
 .. toctree::
