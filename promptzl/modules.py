@@ -732,7 +732,7 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         batch = {k: v.to(self.device) for k, v in batch.items()}
         logits: Optional[Tensor] = None
 
-        outputs: ModelOutput = self.model(**batch, **kwargs)
+        outputs: ModelOutput = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], **kwargs)
         logits = outputs.logits[:, -1, self.verbalizer_indices]
 
         if return_model_output:
