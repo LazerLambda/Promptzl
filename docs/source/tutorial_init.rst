@@ -42,7 +42,7 @@ Thus, it is possible to instruct the model to generate a certain output, which f
 
     output = model.classify(dataset, show_progress_bar=True, batch_size=1).predictions
     sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(dataset['label']))]) / len(output)
-    0.92
+    0.935
 
 It is also possible to use *Prompt-Element-Objects* as it will be shown in the following example. Using *Prompt-Element-Objects* (see :ref:`prompt-element-objects`)
 is safer, as it automatically truncates the prompt to the maximum length of the model. This is especially useful when using
