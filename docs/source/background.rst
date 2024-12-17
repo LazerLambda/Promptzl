@@ -32,6 +32,12 @@ classify a text into the categories 'positive' or 'negative', we can enhance the
 to produce a specific output. Depending on the training of the model, this can be done by transforming the text into a cloze-task
 or predicting the next token in the sequence which is also the label for the task.
 
+In the previous section, the examples: :code:`"Hello World! Promptzl is a [MASK] library."` and :code:`"Hello World! Promptzl is a [NEXT-TOKEN]"`
+where used to exemplify how language modeling can work. Here, we can already see how classification can work in this context. 
+The model is asked to predict the token of interest and we can extract the label-token of interest. For example in :code:`"Hello World! Promptzl is a [MASK] library."`
+we can already classify into :code:`good` and :code:`bad` just by extracting the logits at the indices for :code:`good` and :code:`bad` from the vocabulary
+and get a distribution using the softmax function.
+
 .. TODO EXample
 
 
@@ -40,24 +46,64 @@ Formal Definition
 The idea has been pioniereed by `Schick and Schütze, 2020a <https://aclanthology.org/2021.eacl-main.20>`_ where further few-shot learning was applied to improve the
 classfication capabilities of masked-language models. However, even RoBERTa showed proficient zero-shot classification capabilities which is the focus of promptzl.
 
-To transform an LM into a classifier, a **verbalizer** must be defined which maps
-the tokens of interest to the logits of the model.
+To transform an LM into a classifier, a **verbalizer** (:math:`\mathcal{V}`) must be defined which maps
+the label words tokens (:math:`\mathcal{L}`) to the indices in the vocabulary (:math:`V`) allowing us to use the respective logits of the label words (:math:`\mathcal{V}: \mathcal{L} \rightarrow V`).
+
+For the case of a verbalizer that only uses :code:`good` and :code:`bad`, the definition is the following:
+
+.. math::
+
+   \mathcal V(l) = \begin{cases}
+			V_{\text{good}_0}, & l = \text{good}\\
+         V_{\text{bad}_0}, & l = \text{bad}
+		 \end{cases}
+
+The function (:math:`\mathcal M(t| x)`) yields the logit for token (:math:`t`) given context (:math:`x`). Thus (:math:`\mathcal M(\mathcal V(l)| x)`)
+can be used to get the logits for each label word using the verbalizer function. To further guide the model to predict the tokens of interest,
+it is necessary to enhance the input text with the (:math:`\text{Prompt}`) function.
+
+For obtaining the distribution, the softmax function can be applied:
+
+.. math::
+
+   \mathbb P(l) = \frac{\mathcal M(\mathcal V(l)| \text{Prompt}(x))}{\sum_{l' \in \mathcal L} \mathcal M(\mathcal V(l')| \text{Prompt}(x))}
+
+
+
+
+.. Logits (:math:`\mathbf L`)
+
+.. .. math::
+
+..    \mathcal{V}(\mathbf L)_V = \{V_{\text{label}}_0\}
+
+.. .. math::
+
+..    \mathcal{V}(\text{label})_V = V_{\text{label}_{0}}
 
 .. Vbz = {'positive' -> Voc_{positive}, 'negative' -> Voc_{negative}}
 
-It is also necessary to define a prompt that guides the model to produce the desired output.
-This technique is refered to as a Prompt-Verbalizer-Pair (PVP), which is used to obtain a function of the following form:
+.. It is also necessary to define a prompt that guides the model to produce the desired output.
+.. This technique is refered to as a Prompt-Verbalizer-Pair (PVP), which is used to obtain a function of the following form:
+
+.. .. math::
+
+..    \mathbb{P}_V(y = \mathcal M(\text{Pattern}(x)))
+
+.. .. math::
+
+..    \mathbb{P}_V(y = \mathcal M(\text{Pattern}(x))) = \frac{}{\sum_{i=0}^{||}}
 
 .. P_V(y = Pattern(x)) = softmax(Vbz(M(Pattern(x))))
 
-where x is the input text, y is a class and Pattern is the function that transforms the output into a cloze-task.
+.. where :math:`x` is the input text, :math:`y` is a class and Pattern is the function that transforms the output into a cloze-task.
 
 .. P_V(y = Pattern(x)) = softmax(Vbz(M(Pattern(x))))
 
 This function passes the data through the model, the verbalizer extracts the logits of interest for each class and then a softmax is applied
 to obtain the probabilities of the classes.
-Additionally, it is also possible to use multiple label words where the logits can be averaged as introduced by `Schick and Schütze, 2020b <https://aclanthology.org/2020.coling-main.488/>`_.
-More links to these branch of works, is provided in XXX.
+Additionally, it is also possible to use multiple label words where the logits can be averaged as introduced by `Schick and Schütze, 2020b <https://aclanthology.org/2020.coling-main.488/>`_,
+which is left out here for the sake of brevity.
 
 
 The Point for Causal Language Models
@@ -74,6 +120,7 @@ Here, in-context-learning can also be applied to further boost performance. It i
 the first tokens must be distinct for classification.
 The *strength of the open source ecosystem* of large causal langauge models, is a strong point to use them for classification tasks as well.
 
+.. _further-reading:
 
 Further Reading
 ---------------
