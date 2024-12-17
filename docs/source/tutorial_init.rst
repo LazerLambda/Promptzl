@@ -20,6 +20,7 @@ Thus, it is possible to instruct the model to generate a certain output, which f
     from promptzl import *
     from datasets import load_dataset
     import torch
+    from sklearn.metrics import accuracy_score
 
     dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
 
@@ -40,8 +41,8 @@ Thus, it is possible to instruct the model to generate a certain output, which f
         'HuggingFaceTB/SmolLM2-1.7B',
         prompt=prompt)
 
-    output = model.classify(dataset, show_progress_bar=True, batch_size=1).predictions
-    sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(dataset['label']))]) / len(output)
+    output = model.classify(dataset, show_progress_bar=True, batch_size=8)
+    accuracy_score(dataset['label'], output.predictions)
     0.935
 
 It is also possible to use *Prompt-Element-Objects* as it will be shown in the following example. Using *Prompt-Element-Objects* (see :ref:`prompt-element-objects`)
