@@ -22,11 +22,11 @@ tutorial, we will use the IMDB dataset which is a binary classification task. Th
 
 For the sake of brevity, we will only use the first 1000 examples of the dataset.
 
-Defining a Prompt
------------------
+Defining a Prompt and a Verbalizer
+----------------------------------
 
 As we are interested in classifying only positive or negative samples, we need to define a prompt that guides the model to produce the desired output and
-verbalizer (TODO link to verbalizer in background) that extracts the logits of interest. The prompt is defined as follows:
+verbalizer (how the verbalizer works is described in :ref:`formal-definition`) that extracts the logits of interest. The prompt is defined as follows:
 
 .. code-block:: python
 
@@ -41,7 +41,7 @@ verbalizer (TODO link to verbalizer in background) that extracts the logits of i
     )
 
 .. note::
-    It is also possible to use *Prompt-Element-Objects* (see :ref:`prompt-element-objects`) and also to provide a list of label words to the verbalizer.
+    It is also possible to use *Prompt-Element-Objects* (see :ref:`intuition-and-definition`) and also to provide a list of label words to the verbalizer.
     However, using a dict allows us to return keys of the dict in the predictions list eventually.
 
 Finding a Good Prompt
@@ -53,16 +53,16 @@ produce exactly the tokens we are interested in.
 In the following, we will take a look at an example for a natural langauge inference task where a premise and a hypothesis is given and 
 the model must classify into the categories of :code:`entailment`, :code:`neutral` or :code:`contradiction`:
 
-.. code-block::
+.. code-block:: python
 
-f"""
-Natural Language Inference. Given is a premise and a hypothesis which must be classified as 'entailment', 'neutral' and 'contradiction'.
+    f"""
+    Natural Language Inference. Given is a premise and a hypothesis which must be classified as 'entailment', 'neutral' and 'contradiction'.
 
-Premise: 'How do you know? All this is their information again.' - Hypothesis: 'This information belongs to them.'='entailment'
-Premise: 'But a few Christian mosaics survive above the apse is the Virgin with the infant Jesus, with the Archangel Gabriel to the right (his companion Michael, to the left, has vanished save for a few feathers from his wings).' - Hypothesis: 'Most of the Christian mosaics were destroyed by Muslims.  '='neutral'
-Premise: 'At the end of Rue des Francs-Bourgeois is what many consider to be the city's most handsome residential square, the Place des Vosges, with its stone and red brick facades.' - Hypothesis: 'Place des Vosges is constructed entirely of gray marble.'='contradiction'
+    Premise: 'How do you know? All this is their information again.' - Hypothesis: 'This information belongs to them.'='entailment'
+    Premise: 'But a few Christian mosaics survive above the apse is the Virgin with the infant Jesus, with the Archangel Gabriel to the right (his companion Michael, to the left, has vanished save for a few feathers from his wings).' - Hypothesis: 'Most of the Christian mosaics were destroyed by Muslims.  '='neutral'
+    Premise: 'At the end of Rue des Francs-Bourgeois is what many consider to be the city's most handsome residential square, the Place des Vosges, with its stone and red brick facades.' - Hypothesis: 'Place des Vosges is constructed entirely of gray marble.'='contradiction'
 
-Premise:  '{e['premise']}' - Hypothesis: '{e['hypothesis']}'='"""
+    Premise:  '{e['premise']}' - Hypothesis: '{e['hypothesis']}'='"""
 
 This prompt works as follows: A description in natural language of the task and the categories the model has to label the instances to is given, further some examples (one for each class) is given to
 show the model how to classify the data and finally the data is provided in the same form as the previous examples. Crucially, the label for the unknown label is the next token to be predicted.
@@ -77,7 +77,7 @@ that is also fairly small so it can fit on even smaller GPUs. The model is loade
 
 .. code-block:: python
 
-    model = CausalLM4Classification(
+   model = CausalLM4Classification(
         'HuggingFaceTB/SmolLM2-1.7B',
         prompt=prompt
     )
@@ -166,7 +166,7 @@ We can do this quite easily by using the :code:`pipeline` method of the transfor
 
 Producing multiple outputs, we will see that then model is tuned to produce first two newsline characters, so we need to adapt our prompt accordingly:
 
-.. code-block::python
+.. code-block:: python
 
     prompt = FVP(
         lambda e: f"""

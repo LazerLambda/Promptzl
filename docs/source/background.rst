@@ -23,9 +23,16 @@ predicts a token given a context only based on previous tokens (which can also b
 Hence, it is necessary to construct the prompts differently for the two model families. The prompt is crucial for the performance of the model.
 The aim of this library is to extract the classifcation solely on this prediction, thus the quality of the prompt is of great importance.
 
+.. _intuition-and-definition:
+
+Intuition and Definition
+------------------------
+
+.. _intuition:
 
 Intuition
----------
+^^^^^^^^^
+
 While this is the main task of a language model is to predict a token to form natural language, it can
 also be used for classification tasks by only extracting the logits of the tokens of interest. For example, if we want to
 classify a text into the categories 'positive' or 'negative', we can enhance the data with a prompt that guides the model
@@ -39,8 +46,11 @@ we can already classify into :code:`good` and :code:`bad` just by extracting the
 and get a distribution using the softmax function.
 
 
+.. _formal-definition:
+
 Formal Definition
------------------
+^^^^^^^^^^^^^^^^^
+
 The idea has been pioniereed by `Schick and Schütze, 2020a <https://aclanthology.org/2021.eacl-main.20>`_ where further few-shot learning was applied to improve the
 classfication capabilities of masked-language models. However, even RoBERTa showed proficient zero-shot classification capabilities which is the focus of promptzl.
 
@@ -85,6 +95,20 @@ are necessary when filling one token after another.
 Here, in-context-learning can also be applied to further boost performance. It is also possible to use words that are tokenized into multiple tokens as only
 the first tokens must be distinct for classification.
 The *strength of the open source ecosystem* of large causal langauge models, is a strong point to use them for classification tasks as well.
+
+.. _calibration:
+
+Calibration
+-----------
+
+It has been found (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_, `Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_) that
+some tokens are more likely to be predicted than others. This can lead to a bias in the classification task. To counteract this, it is possible to
+calibrate the output. Here, the probabilities are averaged and used to assess the prediction probability in context of the overall probability 
+of the word being predicted. As we can see in the following example, this can lead to a stronger overall performance:
+
+
+.. TODO: Get math for this
+
 
 .. _further-reading:
 

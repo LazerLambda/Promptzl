@@ -65,3 +65,4 @@ Tutorials
 
    tutorial_init
    tutorial_causal_lms.rst
+   tutorial_masked_lms.rst
