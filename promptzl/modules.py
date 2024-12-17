@@ -599,9 +599,7 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         """
         tokenizer = AutoTokenizer.from_pretrained(
             model_id,
-            clean_up_tokenization_spaces=True,
-            use_fast=True,
-            **tok_args if tok_args is not None else {},
+            **tok_args if tok_args is not None else {"clean_up_tokenization_spaces": True, "use_fast": True},
         )
         model = AutoModelForMaskedLM.from_pretrained(
             model_id, **model_args if model_args is not None else {}
@@ -695,10 +693,8 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         """
         tokenizer = AutoTokenizer.from_pretrained(
             model_id,
-            clean_up_tokenization_spaces=True,
-            use_fast=True,
             padding_side="left",
-            **tok_args if tok_args is not None else {},
+            **tok_args if tok_args is not None else {"clean_up_tokenization_spaces": True, "use_fast": True},
         )
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
