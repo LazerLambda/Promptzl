@@ -52,7 +52,9 @@ class SystemPrompt:
         self.generate: bool = generate
 
         if self.generate:
-            assert isinstance(prompt.collector[-1], Vbz), "No Verbalizer found at the end of the sequence!"
+            assert isinstance(
+                prompt.collector[-1], Vbz
+            ), "No Verbalizer found at the end of the sequence!"
 
         self.fvp: bool = False
         # Check for FVP because it does not support truncation

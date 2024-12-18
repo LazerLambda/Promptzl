@@ -382,7 +382,6 @@ class LLM4ClassificationBase(torch.nn.Module):
         return_logits: bool,
         show_progress_bar: bool,
         return_type: str,
-        calibrate: bool,
         temperature: float,
         **kwargs: Any,
     ) -> LLM4ClassificationOutput:
@@ -398,8 +397,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             show_progress_bar (bool): A flag to determine if the progress bar should be shown.
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
-            predict_labels (bool): A flag to determine if the labels (argmax) should be returned.
-            calibrate (bool): A flag to determine if the logits should be calibrated.
             temperature (float): The temperature to be used. Defaults to 1.0.
             kwargs: Additional arguments for the forward function (the model).
 
@@ -448,8 +445,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             logits = torch.stack(
                 [collector_logits[idx] for idx in np.argsort(length_sorted_idx)]
             )
-        if calibrate:
-            output = calibrate_fn(output)
 
         predicted = torch.argmax(output, dim=-1)
         predicted = self._predicted_indices_to_labels(predicted)
@@ -473,7 +468,6 @@ class LLM4ClassificationBase(torch.nn.Module):
         show_progress_bar: bool = False,
         return_logits: bool = False,
         return_type: str = "torch",
-        calibrate: bool = False,
         temperature: float = 1.0,
         **kwargs: Any,
     ) -> Union[LLM4ClassificationOutput, Dict[str, LLM4ClassificationOutput]]:
@@ -492,7 +486,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                 are averaged for the label grouping.
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
-            calibrate (bool): A flag to determine if the logits should be calibrated. Defaults to False.
             temperature (float): The temperature to be used. Defaults to 1.0.
             kwargs: Additional arguments for the forward function (the model).
 
@@ -523,7 +516,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                 return_logits,
                 show_progress_bar=show_progress_bar,
                 return_type=return_type,
-                calibrate=calibrate,
                 temperature=temperature,
                 **kwargs,
             )
@@ -536,7 +528,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                     return_logits,
                     show_progress_bar=show_progress_bar,
                     return_type=return_type,
-                    calibrate=calibrate,
                     temperature=temperature,
                     **kwargs,
                 )
