@@ -90,7 +90,7 @@ class Txt(Prompt):
     def __init__(self, text: str = " "):
         """**Text Representation in Prompt**
 
-        This class allows including custom text in the prompt.
+        This class can be used to add additional text to the prompt:
         I.e. :code:`Txt("Hello ") + Vbz([['World'], ['Mars]]) + Txt('!')` will prepend "Hello World!"
         and append "!" to the prompt.
 
@@ -129,14 +129,15 @@ class Key(Prompt):
     """Placeholder (Object) for Key Representation."""
 
     def __init__(self, key: str = "text"):
-        """**Data-Placeholder to Corresponding Key**
+        """**Placeholder to Corresponding Key in Data.**
 
         This class allows including a key in the prompt that will be replaced by the
         corresponding value in the dataset. I.e. :code:`Key("text") + Txt(" is ") + Vbz([['good', 'bad']])`
-        will replace the key "text" with the corresponding value in the dataset and append " is " and the verbalizer.
+        requires a column 'text' in the dataset and fills the key-placeholder with the corresponding text.
 
-        If the dataset consists of :code:`{"text": ["Restaurant X", "Restaurant Y"]}`, the text the model will
-        see is :code:`"Restaurant X is "` and :code:`"Restaurant Y is "`.
+        Consider a dataset :code:`{"text": ["Restaurant X", "Restaurant Y"]}`, the final prompts will be
+        :code:`"Restaurant X is "` and :code:`"Restaurant Y is "` for causal models. Using MLMs will return:
+        :code:`"Restaurant X is [MASK]"` and :code:`"Restaurant Y is [MASK]"`
 
         Args:
             key (str, optional): Key. Defaults to "text".
@@ -290,15 +291,29 @@ class FVP(Prompt):
     """Function Verbalizer Pair (FVP) Class."""
 
     def __init__(
-        self, _prompt_function: Callable[[Dict[str, str]], str], verbalizer: Vbz
+        self, prompt_function: Callable[[Dict[str, str]], str], verbalizer: Vbz
     ):
-        """Initialize Class.
+        """**Function-Verbalizer-Pair Class**.
+
+        Prompt class which handles the prompt-generating function and the verbalizer.
+        The prompt-generating function must return the final prompt that is forwarded into the tokenizer
+        as a string. The only argument must accept a Dict[str, str] where the keys must refer to the keys
+        in the dataset that is to be classified and the values are the respective instance from the dataset
+        as a string. For example:
+
+        .. code:: python
+
+            FVP(
+                lambda e: f"NLI-Task. Premise: '{e['premise']}' Hypothesis: '{e['hypothesis']}' Does the premise entail the hypothesis?",
+                Vbz({0: ['yes'], 1: ['no']})
+            )
 
         Args:
-            _prompt_function (Callable[[Dict[str, str]], str]): Function to build prompt.
-            verbalizer (Vbz): Verbalizer.
+            prompt_function (Callable[[Dict[str, str]], str]): Function to build prompt taking on dict argument
+                where a string is returned where the final prompt is constructed.
+            verbalizer (Vbz): Verbalizer object.
         """
-        self.fvp_fn = _prompt_function
+        self.fvp_fn = prompt_function
         super().__init__([self, verbalizer])
 
     def __add__(self, *args: Any) -> Prompt:

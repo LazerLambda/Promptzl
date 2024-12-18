@@ -1,3 +1,5 @@
+.. _tutorial_causal_lms:
+
 Tutorial: Causal-Language-Model-Based Classifiers
 =================================================
 

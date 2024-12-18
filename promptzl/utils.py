@@ -302,11 +302,15 @@ class SystemPrompt:
 
 @dataclass
 class LLM4ClassificationOutput:
-    """Class for Organizing Output of LLM4Classification.
+    """**Class for Organizing Output.**
 
     Attributes:
-        predictions (Optional[Any]): Predictions (i.e. predicted label for each instance).
-        distribution (Optional[Any]): Distribution of predictions (i.e. probabilities for each label).
+        predictions (Optional[Union[Tensor, pd.DataFrame, pl.DataFrame, List[Union[int, str]], np.ndarray]]:
+            Predictions (i.e. predicted label for each instance).
+        distribution (Optional[Union[Tensor, pd.DataFrame, pl.DataFrame, List[Union[int, str]], np.ndarray]]:
+            Distribution of predictions (i.e. probabilities for each label).
+        logits (Optional[Union[Tensor, pd.DataFrame, pl.DataFrame, List[Union[int, str]], np.ndarray]]:
+            Logits for the label words in the verbalizer. The order referes to the flattened verbalizer indices.
     """
 
     predictions: Optional[
@@ -324,25 +328,20 @@ def calibrate(probs: Tensor) -> Tensor:
     """**Calibrates Probabilities**
 
     Addresses the calibartion issue (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_,
-    `Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_). In MLM-based models, some tokens
-    are more likely to be generated than others. This can lead to biased probabilities. To address this,
-    the probabilities are calibrated in the following way.
+    `Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_).
 
-    The mean of the probabilities for each class is computed and then used as the divisor for the
-    probabilities of each class. The probabilities are then normalized by the sum of the probabilities
-    to form a valid probability distribution.
+    In language models, some tokens are more likely to be generated than others.
+    This can lead to biased predictions which can be mitigated using contextualized calibration
+    (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_).
 
-    This technique can lead to improved performance in some cases.
-
-    .. note::
-        The calibration is always performed on the given probabilities, which works well in the case of many examples.
-        For consecutevly calibration, it is may be helpfull to store the mean of the probabilities and use it as the divisor.
+    A contextualized prior is computed and then used to calibrate the probabilities. A detailed
+    description is found in :ref:`calibration`.
 
     Args:
-        probs (tensor): The probabilities to be calibrated.
+        probs (torch.Tensor): The probabilities to be calibrated.
 
     Returns:
-        tensor: The calibrated probabilities.
+        torch.Tensor: The calibrated probabilities.
     """
     probs = probs / (torch.mean(probs, dim=0) + 1e-50)
     return probs / probs.sum(dim=-1, keepdim=True)

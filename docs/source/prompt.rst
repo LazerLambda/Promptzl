@@ -1,3 +1,5 @@
+.. _prompt-classes:
+
 Prompt Classes
 ==============
 
@@ -12,14 +14,15 @@ Using *Prompt-Element-Objects*
  - :class:`~promptzl.Txt` for text representation, i.e. :code:`Txt("I give you the following text: ")`
  - :class:`~promptzl.Key` for the keys that refer to a column in the corresponding huggingface dataset, i.e. :code:`Key('text')`
    (the key 'text' is the default key and can usually be omitted) or use multiple Key objects if multiple columns are used
-   (e.g. :code:`Txt("Premise: ") + Key('premise') + Txt("\n\nHypothesis") + Key('nHypothesis')`)
+   (e.g. :code:`Txt("Premise: ") + Key('premise') + Txt("\\n\\nHypothesis: ") + Key('hypothesis') + Vbz(...`)
  - :class:`~promptzl.Vbz` for the verbalizer, i.e. :code:`Vbz({0: ["Good"], 1: ["Bad"]})`
    The verbalizer object is requried to be in every prompt as it is used to extract the tokens of interest from the logits over the
    vocabulary. It is also possible to use multiple words for a class.
 
    .. note::
-      Using prompt-elements-objects has the advantage of truncating the final prompt in case the context length is exceeded. In this case,
-      the data at the position of the keys is truncated so that the other parts of the prompt still remain within the context window.
+      Using prompt-elements-objects **has the advantage of truncating the final prompt in case the context length is exceeded**. In this case,
+      the data at the position of the keys is truncated so that the other parts of the prompt still remain within the context window, while
+      this is **usually not a problem for modern causal LMs**, it might raise an error when using MLMs or smaller causal LMs.
       This is especially important for masked language models, as the masked token **must** be in text.
  
 Using *Function-Verbalizer-Pair Class* (FVP)

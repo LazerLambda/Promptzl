@@ -1,3 +1,5 @@
+.. _background:
+
 Background
 ==========
 
@@ -74,7 +76,7 @@ For obtaining the distribution, the softmax function can be applied:
 
 .. math::
 
-   \mathbb P(l) = \frac{\mathcal M(\mathcal V(l)| \text{Prompt}(x))}{\sum_{l' \in \mathcal L} \mathcal M(\mathcal V(l')| \text{Prompt}(x))}
+   \mathbb P(l|x)_{\text{Prompt}} = \frac{\mathcal M(\mathcal V(l)| \text{Prompt}(x))}{\sum_{l' \in \mathcal L} \mathcal M(\mathcal V(l')| \text{Prompt}(x))}
 
 This function passes the data through the model, the verbalizer extracts the logits of interest for each class and then a softmax is applied
 to obtain the probabilities of the classes.
@@ -102,12 +104,31 @@ Calibration
 -----------
 
 It has been found (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_, `Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_) that
-some tokens are more likely to be predicted than others. This can lead to a bias in the classification task. To counteract this, it is possible to
-calibrate the output. Here, the probabilities are averaged and used to assess the prediction probability in context of the overall probability 
-of the word being predicted. As we can see in the following example, this can lead to a stronger overall performance:
+some tokens are more likely to be predicted than others. This can lead to a bias in the classification task. For example in a sentiment classification task, the
+token 'good' might be predicted with a higher probability than 'bad' even though the input is clearly negative.To counteract this, it is possible to
+calibrate the output.
+
+A contextualized prior is computed which captures the probabilities based on the prompt for the tokens that we are interested in. The contextualized prior
+is computed by averaging the probabilities of the tokens of interest:
+
+.. math::
+
+   \overline{\mathbb{P}(l|X)} = \frac{1}{n} \sum_{x \in X} \mathbb{P}(l|x)_{\text{Prompt}}
 
 
-.. TODO: Get math for this
+Where :math:`n` is the number of samples. This step has been done in advance in `Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_ and
+`Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_. However in this library, the probabilities are computed based on the Predictions
+posteriorly. This step omits the estimation of the probabilities in advance.
+
+Using this contextualized prior, the predictions can be calibrated as follows:
+
+.. math::
+
+   \tilde{\mathbb P(l)} = \frac{\mathbb P(l|x)_{\text{Prompt}}}{\overline{\mathbb{P}(l|X)}} / \left [ \sum_{l' \in \mathcal L} \frac{\mathbb P(l'|x)_{\text{Prompt}}}{\overline{\mathbb{P}(l'|X)}} \right ]
+
+The function :meth:`~promptzl.utils.calibrate` can be used to calibrate the raw predictions
+(as tensors). Additionally, the entire :class:`promptzl.utils.LLM4ClassificationOutput` object can be calibrated as well using :meth:`promptzl.modules.LLM4ClassificationBase.calibrate_output`.
+`Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_ showed that contextualized calibration can lead to a stronger performance in MLMs.
 
 
 .. _further-reading:

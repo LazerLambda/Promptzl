@@ -1,3 +1,5 @@
+.. _tutorial_masked_lms:
+
 Tutorial: Masked-Language-Model-Based Classifiers
 =================================================
 
