@@ -237,9 +237,9 @@ class LLM4ClassificationBase(torch.nn.Module):
         self, output: LLM4ClassificationOutput
     ) -> LLM4ClassificationOutput:
         """
-        Wrapper for the :meth:`promptzl.utils.calibrate` method that retains the types (e.g. 'torch', 'pandas' etc.)
+        Wrapper for the :meth:`promptzl.utils.calibrate` method that retains the types (e.g., 'torch', 'pandas' etc.)
         and returns an updated :class:`promptzl.utils.LLM4ClassificationOutput` object
-        with calibrated probabilites. More about calibration is available in :ref:`calibration`.
+        with calibrated probabilities. More about calibration is available in :ref:`calibration`.
 
         Args:
             output (LLM4ClassificationOutput): A :class:`promptzl.utils.LLM4ClassificationOutput`
@@ -464,10 +464,9 @@ class LLM4ClassificationBase(torch.nn.Module):
         **kwargs: Any,
     ) -> Union[LLM4ClassificationOutput, Dict[str, LLM4ClassificationOutput]]:
         """
-        Classifies the data and return the results in the requested format. For the prediction loop,
-        smart-batching is used where the data is sorted according to the lengths of the instances
-        and then predicted longest-first. After the prediction, the data is reordered into its initial
-        order.
+    Classifies the data and returns the results in the requested format. For the prediction loop, smart-batching is used,
+    where the data is sorted according to the lengths of the instances and then predicted as the longest first. After the
+    prediction, the data is reordered into its initial order.
 
         Args:
             data (Union[Dataset, Any]): The data to be classified.
@@ -479,8 +478,8 @@ class LLM4ClassificationBase(torch.nn.Module):
                 for :code:`['good', 'great']`
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
-            temperature (float): The temperature to be used. Defaults to 1.0.
-            kwargs: Additional arguments for the forward function (the model).
+            temperature (float): The temperature for the softmax function. Defaults to 1.0.
+            kwargs: Additional arguments for the model's forward function.
 
         Returns:
             Any: The output logits.
@@ -566,7 +565,7 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         """**Masked-Language-Modeling-Based Classification**
 
         :code:`MaskedLM4Classification` works with all models that can be loaded through
-        the call :code:`AutoModelForMaskedLM.from_pretrained(model_id)` with valid model_ids from huggingface.co.
+        :code:`AutoModelForMaskedLM.from_pretrained(model_id)` with valid model_ids from `huggingface.co <https://huggingface.co/models?pipeline_tag=fill-mask>`_.
 
         Args:
             model_id (str): Valid model identifier for huggingface.co.
@@ -580,7 +579,6 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
                 Defaults to False.
             model_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
             tok_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
-            **kwargs: Additional arguments for initializing the underlying huggingface-model.
         """
         tokenizer = AutoTokenizer.from_pretrained(
             model_id,
@@ -607,7 +605,7 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         **kwargs: Any,
     ) -> Union[Tensor, Tuple[Tensor, ModelOutput]]:
         """
-        Perform the forward pass of the model and return the logits.
+        Perform forward pass and return logits.
 
         Args:
             batch (Dict[str, torch.Tensor]): The input batch.
@@ -662,7 +660,7 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         """**Causal-LM-Based Classification**
 
         :code:`CausalLM4Classification` works with all models that can be loaded through
-        the call :code:`AutoModelForCausalLM.from_pretrained(model_id)` with valid model_ids from huggingface.co.
+        :code:`AutoModelForCausalLM.from_pretrained(model_id)` with valid model_ids from `huggingface.co <https://huggingface.co/models?pipeline_tag=text-generation>`_.
 
         Args:
             model_id (str): Valid model identifier for huggingface.co.
@@ -705,7 +703,7 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         **kwargs: Any,
     ) -> Union[Tensor, Tuple[Tensor, ModelOutput]]:
         """
-        Perform the forward pass of the model and return the logits.
+        Perform forward pass and return logits.
 
         Args:
             batch (Dict[str, torch.Tensor]): The input batch.
