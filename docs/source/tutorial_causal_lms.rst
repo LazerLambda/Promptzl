@@ -146,6 +146,7 @@ we use quantization and an access token for the huggingface hub:
 
 The arguments :code:`tok_args` and :code:`model_args` are used to pass additional arguments when calling the :code:`from_pretrained` method under the hood.
 
+.. _tutorial_causal_lms_fine_tuned:
 
 Using a Fine-Tuned/Chatbot Model
 --------------------------------

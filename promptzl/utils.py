@@ -327,15 +327,12 @@ class LLM4ClassificationOutput:
 def calibrate(probs: Tensor) -> Tensor:
     """**Calibrates Probabilities**
 
-    Addresses the calibartion issue (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_,
-    `Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_).
+    Adressing the calibration issue (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_,
+    `Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_), where some tokens are
+    more likely to be predicted than others, and the probabilities are calibrated accordingly.
 
-    In language models, some tokens are more likely to be generated than others.
-    This can lead to biased predictions which can be mitigated using contextualized calibration
-    (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_).
-
-    A contextualized prior is computed and then used to calibrate the probabilities. A detailed
-    description is found in :ref:`calibration`.
+    A contextualized prior is computed and then used to calibrate the probabilities.
+    A detailed description is found in :ref:`calibration`.
 
     Args:
         probs (torch.Tensor): The probabilities to be calibrated.

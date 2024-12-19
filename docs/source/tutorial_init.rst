@@ -11,15 +11,15 @@ After running :code:`pip install promptzl` it is possible to run the following e
 Causal Language Models
 ----------------------
 
-It is also possible to use a *causal language model* in a similar way. Here, it is also possible to leverage the
-fine-tuned nature of novel LLMs, that are aimed at interacting with the user, making finding an appropriate prompt easier.
-Thus, it is possible to instruct the model to generate a certain output, which further improves the classification performance:
+It is also possible to use a *causal language model* similarly. Here, it is also possible to leverage the
+The fine-tuned nature of novel LLMs is that they are aimed at interacting with the user, guiding the model
+to produce the correct output more straightforward (but also has downsides as described in :ref:`tutorial_causal_lms_fine_tuned`)
+In the following, we will see an example of how a base model without fine-tuning is used for classification:
 
 .. code-block:: python
 
-    from promptzl import *
     from datasets import load_dataset
-    import torch
+    from promptzl import *
     from sklearn.metrics import accuracy_score
 
     dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
@@ -45,8 +45,8 @@ Thus, it is possible to instruct the model to generate a certain output, which f
     accuracy_score(dataset['label'], output.predictions)
     0.935
 
-It is also possible to use *Prompt-Element-Objects* as it will be shown in the following example. Using *Prompt-Element-Objects* (see :ref:`prompt-element-objects`)
-is safer, as it automatically truncates the prompt to the maximum length of the model. This is especially useful when using
+It is also possible to use *Prompt-Element-Objects* as shown in the following example. Using *Prompt-Element-Objects* (see :ref:`prompt-element-objects`)
+is safer, as it automatically truncates the prompt to the maximum model length, which is especially useful when using
 smaller models where the context length is limited.
 
 
@@ -56,8 +56,9 @@ Here's a basic example (from `Schick and Schütze., 2020 <https://aclanthology.o
 
 .. code-block:: python
 
-    from promptzl import *
     from datasets import load_dataset
+    from promptzl import *
+    from sklearn.metrics import accuracy_score
 
     dataset = load_dataset("SetFit/ag_news")['test']
 
@@ -65,8 +66,6 @@ Here's a basic example (from `Schick and Schütze., 2020 <https://aclanthology.o
     prompt = Txt("[Category:") + verbalizer + Txt("] ") + Key()
 
     model = MaskedLM4Classification("roberta-large", prompt)
-    output = model.classify(dataset, show_progress_bar=True).predictions
-    sum([int(prd == lbl) for prd, lbl in zip(output, dataset['label'])]) / len(output)
+    output = model.classify(dataset, show_progress_bar=True)
+    accuracy_score(dataset['label'], output.predictions)
     0.7986842105263158
-
-This is a simple example, but promptzl can be used for more complex tasks as well.

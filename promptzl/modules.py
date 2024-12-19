@@ -468,21 +468,21 @@ class LLM4ClassificationBase(torch.nn.Module):
         where the data is sorted according to the lengths of the instances and then predicted as the longest first. After the
         prediction, the data is reordered into its initial order.
 
-            Args:
-                data (Union[Dataset, Any]): The data to be classified.
-                batch_size (int): The batch size to be used. Defaults to 64.
-                show_progress_bar (bool): A flag to determine if the progress bar should be shown. Defaults to False.
-                return_logits (bool): A flag to determine if the logits should be returned. Defaults to False.
-                    If the logits are returned and a label in the verbalizer contains more than one word, the logits
-                    are averaged for the label group. E.g. :code:`Vbz([['good', 'great'], ['bad']])` mean logits are computed
-                    for :code:`['good', 'great']`
-                return_type (str): The return type. Defaults to "torch". Supported types are "list",
-                    "torch", "numpy", "pandas" and "polars".
-                temperature (float): The temperature for the softmax function. Defaults to 1.0.
-                kwargs: Additional arguments for the model's forward function.
+        Args:
+            data (Union[Dataset, Any]): The data to be classified.
+            batch_size (int): The batch size to be used. Defaults to 64.
+            show_progress_bar (bool): A flag to determine if the progress bar should be shown. Defaults to False.
+            return_logits (bool): A flag to determine if the logits should be returned. Defaults to False.
+                If the logits are returned and a label in the verbalizer contains more than one word, the logits
+                are averaged for the label group. E.g. :code:`Vbz([['good', 'great'], ['bad']])` mean logits are computed
+                for :code:`['good', 'great']`
+            return_type (str): The return type. Defaults to "torch". Supported types are "list",
+                "torch", "numpy", "pandas" and "polars".
+            temperature (float): The temperature for the softmax function. Defaults to 1.0.
+            kwargs: Additional arguments for the model's forward function.
 
-            Returns:
-                Any: The output logits.
+        Returns:
+            Any: The output logits.
         """
         assert return_type in [
             "list",
@@ -550,7 +550,7 @@ class LLM4ClassificationBase(torch.nn.Module):
 class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """**Masked-LM-Based Classification**
 
-    This class can be used with all masked-language-based language models from huggingface.co.
+    This class can be used with all masked-language-based language models from the Hugging Face hub.
     """
 
     def __init__(
@@ -565,11 +565,12 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         """**Masked-Language-Modeling-Based Classification**
 
         :code:`MaskedLM4Classification` works with all models that can be loaded through
-        :code:`AutoModelForMaskedLM.from_pretrained(model_id)` with valid model_ids from
-        `huggingface.co <https://huggingface.co/models?pipeline_tag=fill-mask>`_.
+        :code:`AutoModelForMaskedLM.from_pretrained(model_id)` with valid `masked <https://huggingface.co/models?pipeline_tag=fill-mask>`_
+        model_ids from the Hugging Face hub.
+
 
         Args:
-            model_id (str): Valid model identifier for huggingface.co.
+            model_id (str): Valid model identifier for the Hugging Face hub.
             prompt (Prompt): A prompt object. Example usage:
                 ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
                 or
@@ -646,7 +647,7 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
 class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Causal-Language-Modeling-Based Classification.
 
-    This class can be used with all causal/autoregressive language models from huggingface.co.
+    This class can be used with all causal language models from the Hugging Face hub.
     """
 
     def __init__(
@@ -661,11 +662,11 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         """**Causal-LM-Based Classification**
 
         :code:`CausalLM4Classification` works with all models that can be loaded through
-        :code:`AutoModelForCausalLM.from_pretrained(model_id)` with valid model_ids from
-        `huggingface.co <https://huggingface.co/models?pipeline_tag=text-generation>`_.
+        :code:`AutoModelForCausalLM.from_pretrained(model_id)` with valid `causal
+        <https://huggingface.co/models?pipeline_tag=text-generation>`_ model_ids from the Hugging Face hub.
 
         Args:
-            model_id (str): Valid model identifier for huggingface.co.
+            model_id (str): Valid model identifier for the Hugging Face hub.
             prompt (Prompt): A prompt object. Example usage:
                 ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
                 or

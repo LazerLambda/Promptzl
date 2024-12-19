@@ -41,7 +41,6 @@ Import necessary dependencies and initialize an example dataset:
 from datasets import load_dataset
 from promptzl import *
 from sklearn.metrics import accuracy_score
-import torch
 
 dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
 ```
