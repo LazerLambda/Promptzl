@@ -307,7 +307,7 @@ class LLM4ClassificationBase(torch.nn.Module):
     ]:
         """
         Transforms data into the desired output type.
-        
+
         Args:
             output (torch.Tensor): The output to be prepared. Can be the predicted tensor or the distribution tensor.
             return_type (str): The return type (Supported types are "list", "torch", "numpy", "pandas" and "polars").
@@ -465,7 +465,7 @@ class LLM4ClassificationBase(torch.nn.Module):
     ) -> Union[LLM4ClassificationOutput, Dict[str, LLM4ClassificationOutput]]:
         """
         Classifies the data and return the results in the requested format. For the prediction loop,
-        smart-batching is used where the data is sorted according to the lengths of the instances 
+        smart-batching is used where the data is sorted according to the lengths of the instances
         and then predicted longest-first. After the prediction, the data is reordered into its initial
         order.
 

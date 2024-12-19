@@ -131,9 +131,9 @@ class Key(Prompt):
     def __init__(self, key: str = "text"):
         """**Placeholder to Corresponding Key in Data.**
 
-        This class allows including a key in the prompt that will be replaced by the
-        corresponding value in the dataset. I.e. :code:`Key("text") + Txt(" is ") + Vbz([['good', 'bad']])`
-        requires a column 'text' in the dataset and fills the key-placeholder with the corresponding text.
+        This class allows for including key objects in the prompt that the corresponding value in the dataset will replace.
+        For example, :code:`Key("text") + Txt(" is ") + Vbz([['good', 'bad']])` requires a column 'text' in the
+        dataset and fills the key placeholder with the corresponding text.
 
         Consider a dataset :code:`{"text": ["Restaurant X", "Restaurant Y"]}`, the final prompts will be
         :code:`"Restaurant X is "` and :code:`"Restaurant Y is "` for causal models. Using MLMs will return:
@@ -216,14 +216,12 @@ class Vbz(Prompt):
     ):
         """**Verbalizer Representation in Prompt**
 
-        The verbalizer object is the most crucial part of this approach as it defines where the masked token
-        is located in the MLM setting and defines the words where the tokens in the vocabulary are extracted.
-        Hence a valid prompt must include one verbalizer. For causal models, the verbalizer **must** be at the end
+        A valid prompt must include one verbalizer. For causal models, the verbalizer **must** be at the end
         of the prompt while the verbalizer can be at **any position** in the prompt when using masked models.
 
-        The corresponding words for each class (can be multiple), must be provided in the form of a list of lists
-        or a dictionary where the key is the class label (ideally refering to the representation in the dataset)
-        and the value is a list of words corresponding to the semantic of the class.
+        The corresponding (which can be more than one) words for each class must be provided in the form of a list of lists
+        or a dictionary where the key is the class label (ideally referring to the representation in the dataset)
+        and the value is a list of words corresponding to the class semantics.
 
         Valid verbalizers:
 
@@ -295,11 +293,10 @@ class FVP(Prompt):
     ):
         """**Function-Verbalizer-Pair Class**.
 
-        Prompt class which handles the prompt-generating function and the verbalizer.
-        The prompt-generating function must return the final prompt that is forwarded into the tokenizer
-        as a string. The only argument must accept a Dict[str, str] where the keys must refer to the keys
-        in the dataset that is to be classified and the values are the respective instance from the dataset
-        as a string. For example:
+        Prompt class organizing the prompt-generating function and the verbalizer.
+        The prompt-generating function must return the final prompt forwarded into the tokenizer
+        as a string. The only argument must accept a Dict[str, str] where the keys must refer to the columns
+        in the dataset, and the values are the respective observations from the dataset. For example:
 
         .. code:: python
 
