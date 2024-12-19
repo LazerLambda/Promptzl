@@ -14,16 +14,16 @@
 <!-- TODO -->
 # <p style="text-align: center;">Pr🥨mptzl</p>
 
-Promptzl is an easy-to-use library for turning state-of-the-art LLMs into old-school
-pytorch-based, zero-shot classifiers based on the 🤗-transformers library.
+Turn state-of-the-art LLMs into zero-shot PyTorch classifiers in just a few lines of code.
 
-   - 💪 Zero-shot classification
-   - 🤖 All [causal](https://huggingface.co/models?pipeline_tag=text-generation) and [masked](https://huggingface.co/models?pipeline_tag=fill-mask) LMs from the 🤗-hub are available
-   - ⚡ Fast and easy to use (just a few lines of code needed. Check the example below!)
-   - 📦 Promptzl works with batches
-   - 🔎 All models are transparent on your device
-   - 📈 Properties of old-school classifiers included
-   - 🚀 No need for proprietary APIs
+Promptzl offers:
+   - 🤖 Zero-shot classification with LLMs
+   - 🤗 Turning `causal <https://huggingface.co/models?pipeline_tag=text-generation>`_ and `masked <https://huggingface.co/models?pipeline_tag=fill-mask>`_ LMs into classifiers without any training
+   - 📦 Batch processing on your device for efficiency
+   - 🚀 Speed-up over calling an online API
+   - 🔎 Transparency and accessibility by using the model locally
+   - 📈 Distribution over the classes
+   - ✂️ No need to extract the predictions from the answer.
 
 Check out more in the [official documentation.](https://promptzl.readthedocs.io/en/latest/)
 
@@ -36,13 +36,18 @@ Check out more in the [official documentation.](https://promptzl.readthedocs.io/
 
 In just a few lines of code, you can transform a LLM of choice into an old-school classifier with all it's desirable properties:
 
+Import necessary dependencies and initialize an example dataset:
 ```{python}
-from promptzl import *
 from datasets import load_dataset
+from promptzl import *
+from sklearn.metrics import accuracy_score
 import torch
 
 dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
+```
 
+Define a prompt for guiding the language model to the correct predictions:
+```{python}
 prompt = FVP(lambda e:\
     f"""
     Product Review Classification into categories 'positive' or 'negative'.
@@ -55,15 +60,21 @@ prompt = FVP(lambda e:\
     1 star - only because that's the minimum. This book shows that famous people can publish anything.'='negative'
 
     '{e['text']}'=""", Vbz({0: ["negative"], 1: ["positive"]}))
+```
 
+Initialize a model:
+```{python}
 model = CausalLM4Classification(
     'HuggingFaceTB/SmolLM2-1.7B',
     prompt=prompt)
-
-output = model.classify(dataset, show_progress_bar=True, batch_size=1).predictions
-sum([int(prd == lbl) for prd, lbl in zip(output, torch.tensor(dataset['label']))]) / len(output)
-0.92
 ```
 
-For more detailed tutorials, check out the [official documentation](https://promptzl.readthedocs.io/en/latest/)!
+Classify the data:
+```{prompt}
+output = model.classify(dataset, show_progress_bar=True, batch_size=1)
+accuracy_score(dataset['label'], output.predictions)
+0.935
+```
+
+For more detailed tutorials, check out the [documentation](https://promptzl.readthedocs.io/en/latest/)!
 
