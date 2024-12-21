@@ -29,10 +29,10 @@ straightforward but might lead to errors more easily.
       hence, an FVP prompt can be used instead of prompt-element objects.
 
 
-Using *Function-Verbalizer-Pair Class* (FVP)
---------------------------------------------
+*Function-Verbalizer-Pair Class* (FVP)
+--------------------------------------
 
- :class:`~promptzl.FVP` stands for the function-verbalizer-pair. In contrast to prompt-element-objects, a function is directly defined with a verbalizer.
+:class:`~promptzl.FVP` stands for the function-verbalizer-pair. In contrast to prompt-element-objects, a function is directly defined with a verbalizer.
 e.g., :code:`FVP(lambda x: f"{x['text']}\n", {0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})`.
 The function receives a dictionary where the keys must refer to the columns in the dataset, and the values correspond to the respective observations.
 The FVP class inherits from the prompt class and can be used for initializing the classifier classes (see. :class:`promptzl.modules.MaskedLM4Classification`

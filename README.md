@@ -14,10 +14,10 @@
 <!-- TODO -->
 # <p style="text-align: center;">Pr🥨mptzl</p>
 
-Turn state-of-the-art LLMs into zero-shot PyTorch classifiers in just a few lines of code.
+Turn state-of-the-art LLMs into zero<sup>+</sup>-shot PyTorch classifiers in just a few lines of code.
 
 Promptzl offers:
-   - 🤖 Zero-shot classification with LLMs
+   - 🤖 Zero<sup>+</sup>-shot classification with LLMs
    - 🤗 Turning `causal <https://huggingface.co/models?pipeline_tag=text-generation>`_ and `masked <https://huggingface.co/models?pipeline_tag=fill-mask>`_ LMs into classifiers without any training
    - 📦 Batch processing on your device for efficiency
    - 🚀 Speed-up over calling an online API
