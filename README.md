@@ -47,9 +47,8 @@ dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
 
 Define a prompt for guiding the language model to the correct predictions:
 ```python
-prompt = FVP(lambda e:\
-    f"""
-    Restaurant review classification into categories 'positive' or 'negative'.
+prompt = FVP(
+    lambda e: f"""Restaurant review classification into categories 'positive' or 'negative'.
 
     'Best pretzls in town!'='positive'
     'Rude staff, horrible food.'='negative'
