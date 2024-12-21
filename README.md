@@ -78,7 +78,7 @@ Classify the data:
 from sklearn.metrics import accuracy_score
 output = model.classify(dataset, show_progress_bar=True, batch_size=1)
 accuracy_score(dataset['label'], output.predictions)#
-1.o
+1.0
 ```
 
 For more detailed tutorials, check out the [documentation](https://promptzl.readthedocs.io/en/latest/)!
