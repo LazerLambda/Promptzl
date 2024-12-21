@@ -36,7 +36,7 @@ Check out more in the [official documentation.](https://promptzl.readthedocs.io/
 
 In just a few lines of code, you can transform a LLM of choice into an old-school classifier with all it's desirable properties:
 
-Import necessary dependencies and initialize an example dataset:
+Set up the dataset:
 ```python
 from datasets import Dataset
 
