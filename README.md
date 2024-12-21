@@ -38,11 +38,24 @@ In just a few lines of code, you can transform a LLM of choice into an old-schoo
 
 Import necessary dependencies and initialize an example dataset:
 ```python
-from datasets import load_dataset
+from datasets import Dataset
 from promptzl import *
 from sklearn.metrics import accuracy_score
 
-dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
+from datasets import Dataset
+from promptzl import *
+from sklearn.metrics import accuracy_score
+
+dataset = Dataset.from_dict(
+    {
+        'text': [
+        "The food was absolutely wonderful, from preparation to presentation, very pleasing.",
+        "The service was a bit slow, but the food made up for it. Highly recommend the pasta!",
+        "The restaurant was too noisy and the food was mediocre at best. Not worth the price.",
+        ],
+        'label': [1, 1, 0]
+    }
+)
 ```
 
 Define a prompt for guiding the language model to the correct predictions:
@@ -68,7 +81,6 @@ Classify the data:
 ```{prompt}
 output = model.classify(dataset, show_progress_bar=True, batch_size=1)
 accuracy_score(dataset['label'], output.predictions)
-0.935
 ```
 
 For more detailed tutorials, check out the [documentation](https://promptzl.readthedocs.io/en/latest/)!
