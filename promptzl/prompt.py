@@ -6,11 +6,14 @@ from transformers.tokenization_utils_base import PreTrainedTokenizerBase
 class Prompt:
     """Base Function for Prompt.
 
-    Provides magic __add__ method to combine prompt parts.
+    Provides magic __add__ method to combine prompt parts, __fn_str__ method
+    for the functional representation in the also included method _prompt_fun.
+    _prompt_fun returns a function that can be used to build the final prompt
+    before the tokenization.
     """
 
     def __init__(self, collector: list):
-        """Initialiize Class.
+        """Base Class for User-Facing Prompt.
 
         Args:
             collector (list): List of prompt parts.
@@ -85,7 +88,11 @@ class Txt(Prompt):
     """Object for Text Representation."""
 
     def __init__(self, text: str = " "):
-        """Initialize Class.
+        """**Text Representation in Prompt**
+
+        This class can be used to add additional text to the prompt:
+        I.e. :code:`Txt("Hello ") + Vbz([['World'], ['Mars]]) + Txt('!')` will prepend "Hello World!"
+        and append "!" to the prompt.
 
         Args:
             text (str, optional): Text. Defaults to " ".
@@ -122,7 +129,15 @@ class Key(Prompt):
     """Placeholder (Object) for Key Representation."""
 
     def __init__(self, key: str = "text"):
-        """Initialize Class.
+        """**Placeholder to Corresponding Key in Data.**
+
+        This class allows for including key objects in the prompt that the corresponding value in the dataset will replace.
+        For example, :code:`Key("text") + Txt(" is ") + Vbz([['good', 'bad']])` requires a column 'text' in the
+        dataset and fills the key placeholder with the corresponding text.
+
+        Consider a dataset :code:`{"text": ["Restaurant X", "Restaurant Y"]}`, the final prompts will be
+        :code:`"Restaurant X is "` and :code:`"Restaurant Y is "` for causal models. Using MLMs will return:
+        :code:`"Restaurant X is [MASK]"` and :code:`"Restaurant Y is [MASK]"`
 
         Args:
             key (str, optional): Key. Defaults to "text".
@@ -197,15 +212,33 @@ class Vbz(Prompt):
 
     def __init__(
         self,
-        verbalizer: Union[
-            Dict[Union[int, str], List[str]],
-            List[List[str]],
-        ],
+        verbalizer: Optional[Dict[Union[int, str], List[str]]],
     ):
-        """Initialize Class.
+        """**Verbalizer Representation in Prompt**
+
+        A valid prompt must include one verbalizer. For causal models, the verbalizer **must** be at the end
+        of the prompt while the verbalizer can be at **any position** in the prompt when using masked models.
+
+        The corresponding (which can be more than one) words for each class must be provided in the form of a list of lists
+        or a dictionary where the key is the class label (ideally referring to the representation in the dataset)
+        and the value is a list of words corresponding to the class semantics.
+
+        Valid verbalizers:
+
+        .. code-block:: python
+
+            Key() + Txt("Is this good?") + Vbz([["good", "bad"], ["ugly"]])
+            Key() + Txt("Is this good?") + Vbz({0: ["good", "bad"], 1: ["ugly"]})
+
+        The above examples are valid for causal and masked models. The following example is only valid for masked models:
+
+        .. code-block:: python
+
+            Key("headline") + Txt("[Category:]")  + Vbz([["Politics", "Nature", "Technology"], ["ugly"]]) + Txt("]") + Key("body")
+
 
         Args:
-            verbalizer (List[List[str]]): List of verbalizers.
+            verbalizer (Optional[Dict[Union[int, str], List[str]]]): List of verbalizers.
         """
         self.verbalizer_dict: Optional[Dict[Union[int, str], List[str]]] = None
         if isinstance(verbalizer, dict):
@@ -256,15 +289,28 @@ class FVP(Prompt):
     """Function Verbalizer Pair (FVP) Class."""
 
     def __init__(
-        self, _prompt_function: Callable[[Dict[str, str]], str], verbalizer: Vbz
+        self, prompt_function: Callable[[Dict[str, str]], str], verbalizer: Vbz
     ):
-        """Initialize Class.
+        """**Function-Verbalizer-Pair Class**.
+
+        Prompt class organizing the prompt-generating function and the verbalizer.
+        The prompt-generating function must return the final prompt forwarded into the tokenizer
+        as a string. The only argument must accept a Dict[str, str] where the keys must refer to the columns
+        in the dataset, and the values are the respective observations from the dataset. For example:
+
+        .. code:: python
+
+            FVP(
+                lambda e: f"NLI-Task. Premise: '{e['premise']}' Hypothesis: '{e['hypothesis']}' Does the premise entail the hypothesis?",
+                Vbz({0: ['yes'], 1: ['no']})
+            )
 
         Args:
-            _prompt_function (Callable[[Dict[str, str]], str]): Function to build prompt.
-            verbalizer (Vbz): Verbalizer.
+            prompt_function (Callable[[Dict[str, str]], str]): Function to build prompt taking on dict argument
+                where a string is returned where the final prompt is constructed.
+            verbalizer (Vbz): Verbalizer object.
         """
-        self.fvp_fn = _prompt_function
+        self.fvp_fn = prompt_function
         super().__init__([self, verbalizer])
 
     def __add__(self, *args: Any) -> Prompt:

@@ -12,7 +12,7 @@ authors = [
     { name = "Philipp Koch", email = "PhillKoch@protonmail.com" }
 ]
 license = { file = "LICENSE" }
-keywords = ["llm", "nlp", "transformers", "classifiers", "predictive modeling", "machine learning", "torch", "huggingface"]
+keywords = ["llm", "nlp", "transformers", "classifiers", "predictive modeling", "machine learning", "torch", "huggingface", "zero-shot", "prompting"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",

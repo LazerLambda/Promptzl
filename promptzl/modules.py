@@ -32,12 +32,10 @@ class LLM4ClassificationBase(torch.nn.Module):
         generate: bool,
         device: Optional[str] = None,
         lower_verbalizer: bool = False,
-        truncate: bool = True,
     ) -> None:
-        """Initialize Class.
+        """**Base Class for LM-Classifiers**
 
-        Initialize class with the model, tokenizer, prompt, device, lower verbalizer and truncate.
-        Check if all input is valid.
+        Checks correctness of input and initializes the class.
 
         Args:
             model (PreTrainedModel): The model to be used.
@@ -46,11 +44,10 @@ class LLM4ClassificationBase(torch.nn.Module):
                 ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
                 or
                 ```FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))```
-                WARNING: Using FVP can result in indexing errors as automatic truncation is not applied.
+                More about the prompt object in :ref:`prompt-classes`.
             generate (bool): A flag to determine if the model should be able to generate.
             device (Optional[str], optional): The device to be used. Defaults to None.
             lower_verbalizer (bool, optional): A flag to determine if the verbalizer should be lowercased. Defaults to False.
-            truncate (bool, optional): A flag to determine if the prompt should be truncated. Defaults to True.
 
         Raises:
             AssertionError: If model is not of type PreTrainedModel.
@@ -59,7 +56,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             AssertionError: If generate is not of type bool.
             AssertionError: If device is not of type str or None.
             AssertionError: If lower_verbalizer is not of type bool.
-            AssertionError: If truncate is not of type bool.
         """
         assert isinstance(
             model, PreTrainedModel
@@ -75,7 +71,6 @@ class LLM4ClassificationBase(torch.nn.Module):
         assert isinstance(
             lower_verbalizer, bool
         ), "Lower Verbalizer must be of type bool"
-        assert isinstance(truncate, bool), "Truncate must be of type bool"
 
         super().__init__()
 
@@ -105,9 +100,8 @@ class LLM4ClassificationBase(torch.nn.Module):
             self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
 
     def set_prompt(self, prompt: Prompt, lower_verbalizer: bool = False) -> None:
-        """Set Prompt.
-
-        Sets the prompt for the class. Can be used for initialization or updating the object.
+        """
+        Can be used for initialization or updating the object.
 
         Args:
             prompt (Prompt): The prompt to be set.
@@ -130,8 +124,7 @@ class LLM4ClassificationBase(torch.nn.Module):
         verbalizer_raw: List[List[str]],
         lower: bool = False,
     ) -> Tuple[List[int], List[List[int]]]:
-        """Get Verbalizer.
-
+        """
         Build verbalizer and add improve it with lowercased words if needed or add the intermediate token.
         Add ing the previous token (' ' + 'TOKEN' = ' TOKEN') can lead to improved performance.
 
@@ -202,16 +195,15 @@ class LLM4ClassificationBase(torch.nn.Module):
 
     @staticmethod
     def group_logits(logits: Tensor, grouped_indices: List[List[int]]) -> Tensor:
-        """Combine Logits.
-
-        Combine the logits for different class labels by taking the arithmetic mean of the logits
-        for each class label.
+        """
+        Combines the logits if different label words are used by taking the arithmetic mean of the logits
+        for each class.
 
         Args:
-            logits (tensor): The logits to be combined.
+            logits (torch.Tensor): The logits to be combined.
 
         Returns:
-            tensor: The combined logits.
+            torch.Tensor: The combined logits.
         """
         return torch.stack(
             [
@@ -221,17 +213,16 @@ class LLM4ClassificationBase(torch.nn.Module):
         )
 
     def _predicted_indices_to_labels(self, predicted: Tensor) -> Tensor:
-        """Predicted Indices to Labels.
-
-        Convert the predicted indices to labels if the verbalizer dictionary is available. If return_type is set to 'torch'
+        """
+        Converts the predicted indices to labels if the verbalizer dictionary is available. If return_type is set to 'torch'
         while the keys of the verbalizer dict are strings, 'return_type' is set to 'list'.
 
         Args:
-            predicted (tensor): The predicted indices.
+            predicted (torch.Tensor): The predicted indices.
             return_type (str): Intended type for output.
 
         Returns:
-            Tuple[Union[Tensor, List[str]], str]: The predicted labels (either as tensor or list) and the 'return_type' variable.
+            Tuple[Union[torch.Tensor, List[str]], str]: The predicted labels (either as tensor or list) and the 'return_type' variable.
         """
         if self.verbalizer_dict is not None:
             verb_kes_list: List[Union[int, str]] = list(self.verbalizer_dict.keys())
@@ -245,17 +236,17 @@ class LLM4ClassificationBase(torch.nn.Module):
     def calibrate_output(
         self, output: LLM4ClassificationOutput
     ) -> LLM4ClassificationOutput:
-        """Calibrate Output.
-
-        Calibrate the obtained output. Method takes the `LLM4ClassificationOutput` object and calibrates the
-        distribution. The predictions are also updated to the calibrated distribution. The type of the output
-        is kept the same as the input.
+        """
+        Wrapper for the :meth:`promptzl.utils.calibrate` method that retains the types (e.g., 'torch', 'pandas' etc.)
+        and returns an updated :class:`promptzl.utils.LLM4ClassificationOutput` object
+        with calibrated probabilities. More about calibration is available in :ref:`calibration`.
 
         Args:
-            output (LLM4ClassificationOutput): The output logits.
-
+            output (LLM4ClassificationOutput): A :class:`promptzl.utils.LLM4ClassificationOutput`
+                object with predictions and probabilites.
         Returns:
-            LLM4ClassificationOutput: The calibrated output logits.
+            LLM4ClassificationOutput: A :class:`promptzl.utils.LLM4ClassificationOutput`
+                with calibrated probabilities and predictions. Logits are kept not altered if available.
         """
         return_type: str = "torch"
         distribution: Union[
@@ -291,20 +282,21 @@ class LLM4ClassificationBase(torch.nn.Module):
         return_model_output: bool = False,
         **kwargs: Any,
     ) -> Union[Tensor, Tuple[Tensor, ModelOutput]]:
-        """Forward Function.
+        """**Forward Function.**
 
-        Perform the forward pass of the model and return the logits.
+        Perform the forward pass of the model and return the logits for each class.
+        This method must be implemented in a child class.
 
         Args:
-            batch (Dict[str, tensor]): The input batch.
+            batch (Dict[str, torch.Tensor]): The input batch.
             return_model_output (bool): A flag to determine if the model output should be returned.
             kwargs: Additional arguments for the model.
 
         Raises:
-            NotImplementedError: If the forward function is not implemented in the subclass.
+            NotImplementedError: If the forward function is not implemented.
 
         Returns:
-            Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
+            Union[torch.Tensor, Tuple[torch.Tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
         raise NotImplementedError("Forward function must be implemented in subclass.")
 
@@ -313,16 +305,17 @@ class LLM4ClassificationBase(torch.nn.Module):
     ) -> Union[
         Tensor, np.ndarray, List[Union[str, float, int]], pd.DataFrame, pl.DataFrame
     ]:
-        """Prepare Output for Desired Return Type.
+        """
+        Transforms data into the desired output type.
 
         Args:
-            output (tensor): The output to be prepared. Can be the predicted tensor or the distribution tensor.
+            output (torch.Tensor): The output to be prepared. Can be the predicted tensor or the distribution tensor.
             return_type (str): The return type (Supported types are "list", "torch", "numpy", "pandas" and "polars").
             predict_labels (bool): A flag to determine the output tensor is already the tensor with the predicted labels
                 or the distribution tensor.
 
         Returns:
-            Union[tensor, np.ndarray, List[Union[str, float, int]], pd.DataFrame, pl.DataFrame]: The prepared output.
+            Union[torch.Tensor, np.ndarray, List[Union[str, float, int]], pd.DataFrame, pl.DataFrame]: The prepared output.
         """
         if return_type == "torch":
             return output
@@ -382,13 +375,11 @@ class LLM4ClassificationBase(torch.nn.Module):
         return_logits: bool,
         show_progress_bar: bool,
         return_type: str,
-        calibrate: bool,
         temperature: float,
         **kwargs: Any,
     ) -> LLM4ClassificationOutput:
-        """Smart Forward.
-
-        Smart batch dataset and predict. Return the results in the requested format.
+        """
+        Smart batch dataset and predict labels for the dataset. Returns the results in the requested format.
 
 
         Args:
@@ -398,8 +389,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             show_progress_bar (bool): A flag to determine if the progress bar should be shown.
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
-            predict_labels (bool): A flag to determine if the labels (argmax) should be returned.
-            calibrate (bool): A flag to determine if the logits should be calibrated.
             temperature (float): The temperature to be used. Defaults to 1.0.
             kwargs: Additional arguments for the forward function (the model).
 
@@ -448,8 +437,6 @@ class LLM4ClassificationBase(torch.nn.Module):
             logits = torch.stack(
                 [collector_logits[idx] for idx in np.argsort(length_sorted_idx)]
             )
-        if calibrate:
-            output = calibrate_fn(output)
 
         predicted = torch.argmax(output, dim=-1)
         predicted = self._predicted_indices_to_labels(predicted)
@@ -473,15 +460,13 @@ class LLM4ClassificationBase(torch.nn.Module):
         show_progress_bar: bool = False,
         return_logits: bool = False,
         return_type: str = "torch",
-        calibrate: bool = False,
         temperature: float = 1.0,
         **kwargs: Any,
     ) -> Union[LLM4ClassificationOutput, Dict[str, LLM4ClassificationOutput]]:
-        """Classify Data.
-
-        Classify the data and return the results in the requested format. This method is used to prepare the data
-        according to the provided input format.
-        Before inference, model is set into eval() mode and later reset to train() mode.
+        """
+        Classifies the data and returns the results in the requested format. For the prediction loop, smart-batching is used,
+        where the data is sorted according to the lengths of the instances and then predicted as the longest first. After the
+        prediction, the data is reordered into its initial order.
 
         Args:
             data (Union[Dataset, Any]): The data to be classified.
@@ -489,12 +474,12 @@ class LLM4ClassificationBase(torch.nn.Module):
             show_progress_bar (bool): A flag to determine if the progress bar should be shown. Defaults to False.
             return_logits (bool): A flag to determine if the logits should be returned. Defaults to False.
                 If the logits are returned and a label in the verbalizer contains more than one word, the logits
-                are averaged for the label grouping.
+                are averaged for the label group. E.g. :code:`Vbz([['good', 'great'], ['bad']])` mean logits are computed
+                for :code:`['good', 'great']`
             return_type (str): The return type. Defaults to "torch". Supported types are "list",
                 "torch", "numpy", "pandas" and "polars".
-            calibrate (bool): A flag to determine if the logits should be calibrated. Defaults to False.
-            temperature (float): The temperature to be used. Defaults to 1.0.
-            kwargs: Additional arguments for the forward function (the model).
+            temperature (float): The temperature for the softmax function. Defaults to 1.0.
+            kwargs: Additional arguments for the model's forward function.
 
         Returns:
             Any: The output logits.
@@ -523,7 +508,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                 return_logits,
                 show_progress_bar=show_progress_bar,
                 return_type=return_type,
-                calibrate=calibrate,
                 temperature=temperature,
                 **kwargs,
             )
@@ -536,7 +520,6 @@ class LLM4ClassificationBase(torch.nn.Module):
                     return_logits,
                     show_progress_bar=show_progress_bar,
                     return_type=return_type,
-                    calibrate=calibrate,
                     temperature=temperature,
                     **kwargs,
                 )
@@ -565,9 +548,9 @@ class LLM4ClassificationBase(torch.nn.Module):
 
 
 class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
-    """Masked-Language-Modeling-Based Classification.
+    """**Masked-LM-Based Classification**
 
-    This class can be used with all masked-language-based language models from huggingface.co.
+    This class can be used with all masked-language-based language models from the Hugging Face hub.
     """
 
     def __init__(
@@ -576,30 +559,34 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         prompt: Prompt,
         device: Optional[str] = None,
         lower_verbalizer: bool = False,
-        truncate: bool = True,
         model_args: Optional[Dict[str, Any]] = None,
         tok_args: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Initialize Class.
+        """**Masked-Language-Modeling-Based Classification**
+
+        :code:`MaskedLM4Classification` works with all models that can be loaded through
+        :code:`AutoModelForMaskedLM.from_pretrained(model_id)` with valid `masked <https://huggingface.co/models?pipeline_tag=fill-mask>`_
+        model_ids from the Hugging Face hub.
+
 
         Args:
-            model_id (str): Valid model identifier for huggingface.co.
+            model_id (str): Valid model identifier for the Hugging Face hub.
             prompt (Prompt): A prompt object. Example usage:
                 ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
                 or
                 ```FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))```
-                WARNING: Using FVP can result in indexing errors as automatic truncation is not applied.
+                More about the prompt object in :ref:`prompt-classes`.
             device (Optional[str]): The device to be used. Defaults to None.
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
                 Defaults to False.
-            truncate (bool): A flag to determine if the prompt should be truncated. Defaults to True.
             model_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
             tok_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
-            **kwargs: Additional arguments for initializing the underlying huggingface-model.
         """
         tokenizer = AutoTokenizer.from_pretrained(
             model_id,
-            **tok_args if tok_args is not None else {"clean_up_tokenization_spaces": True, "use_fast": True},
+            **tok_args
+            if tok_args is not None
+            else {"clean_up_tokenization_spaces": True, "use_fast": True},
         )
         model = AutoModelForMaskedLM.from_pretrained(
             model_id, **model_args if model_args is not None else {}
@@ -611,7 +598,6 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             generate=False,
             device=device,
             lower_verbalizer=lower_verbalizer,
-            truncate=truncate,
         )
 
     def forward(
@@ -620,17 +606,16 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         return_model_output: bool = False,
         **kwargs: Any,
     ) -> Union[Tensor, Tuple[Tensor, ModelOutput]]:
-        """Forward Function.
-
-        Perform the forward pass of the model and return the logits.
+        """
+        Perform forward pass and return logits.
 
         Args:
-            batch (Dict[str, tensor]): The input batch.
+            batch (Dict[str, torch.Tensor]): The input batch.
             return_model_output (bool): A flag to determine if the model output should be returned.
             kwargs: Additional arguments for the model.
 
         Returns:
-            Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
+            Union[torch.Tensor, Tuple[torch.Tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
         batch = {k: v.to(self.device) for k, v in batch.items()}
         logits: Optional[Tensor] = None
@@ -662,7 +647,7 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
 class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
     """Causal-Language-Modeling-Based Classification.
 
-    This class can be used with all causal/autoregressive language models from huggingface.co.
+    This class can be used with all causal language models from the Hugging Face hub.
     """
 
     def __init__(
@@ -671,30 +656,34 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         prompt: Prompt,
         device: Optional[str] = None,
         lower_verbalizer: bool = False,
-        truncate: bool = True,
         model_args: Optional[Dict[str, Any]] = None,
         tok_args: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """Initialize Class.
+        """**Causal-LM-Based Classification**
+
+        :code:`CausalLM4Classification` works with all models that can be loaded through
+        :code:`AutoModelForCausalLM.from_pretrained(model_id)` with valid `causal
+        <https://huggingface.co/models?pipeline_tag=text-generation>`_ model_ids from the Hugging Face hub.
 
         Args:
-            model_id (str): Valid model identifier for huggingface.co.
+            model_id (str): Valid model identifier for the Hugging Face hub.
             prompt (Prompt): A prompt object. Example usage:
                 ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
                 or
                 ```FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))```
-                WARNING: Using FVP can result in indexing errors as automatic truncation is not applied.
+                More about the prompt object in :ref:`prompt-classes`.
             device (Optional[str]): The device to be used. Defaults to None.
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
                 Defaults to False.
-            truncate (bool): A flag to determine if the prompt should be truncated. Defaults to True.
             model_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
             tok_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
         """
         tokenizer = AutoTokenizer.from_pretrained(
             model_id,
             padding_side="left",
-            **tok_args if tok_args is not None else {"clean_up_tokenization_spaces": True, "use_fast": True},
+            **tok_args
+            if tok_args is not None
+            else {"clean_up_tokenization_spaces": True, "use_fast": True},
         )
         if tokenizer.pad_token is None:
             tokenizer.pad_token = tokenizer.eos_token
@@ -708,7 +697,6 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             generate=True,
             device=device,
             lower_verbalizer=lower_verbalizer,
-            truncate=truncate,
         )
 
     def forward(
@@ -717,22 +705,25 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         return_model_output: bool = False,
         **kwargs: Any,
     ) -> Union[Tensor, Tuple[Tensor, ModelOutput]]:
-        """Forward Function.
-
-        Perform the forward pass of the model and return the logits.
+        """
+        Perform forward pass and return logits.
 
         Args:
-            batch (Dict[str, tensor]): The input batch.
+            batch (Dict[str, torch.Tensor]): The input batch.
             return_model_output (bool): A flag to determine if the model output should be returned.
             kwargs: Additional arguments for the model.
 
         Returns:
-            Union[tensor, Tuple[tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
+            Union[torch.Tensor, Tuple[torch.Tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
         """
         batch = {k: v.to(self.device) for k, v in batch.items()}
         logits: Optional[Tensor] = None
 
-        outputs: ModelOutput = self.model(input_ids=batch['input_ids'], attention_mask=batch['attention_mask'], **kwargs)
+        outputs: ModelOutput = self.model(
+            input_ids=batch["input_ids"],
+            attention_mask=batch["attention_mask"],
+            **kwargs,
+        )
         logits = outputs.logits[:, -1, self.verbalizer_indices]
 
         if return_model_output:

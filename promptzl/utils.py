@@ -52,7 +52,9 @@ class SystemPrompt:
         self.generate: bool = generate
 
         if self.generate:
-            assert isinstance(prompt.collector[-1], Vbz)
+            assert isinstance(
+                prompt.collector[-1], Vbz
+            ), "No Verbalizer found at the end of the sequence!"
 
         self.fvp: bool = False
         # Check for FVP because it does not support truncation
@@ -102,13 +104,23 @@ class SystemPrompt:
             - sum([len(e) for e in self.template_prmpt if isinstance(e, list)])
             - n_pre_suffix
         )  # Account for prefix and suffix tokens
-        if not generate:
+        if generate:
             self.max_len_keys: int = (
-                int((used_tokens - 1) // only_keys) if only_keys != 0 else used_tokens
+                int(used_tokens // only_keys) if only_keys != 0 else used_tokens
             )
         else:
             self.max_len_keys = (
-                int(used_tokens // only_keys) if only_keys != 0 else used_tokens
+                int((used_tokens - 1) // only_keys)
+                if only_keys != 0
+                else used_tokens  # Subtract one for mask token for prediction
+            )
+
+        if self.max_len_keys < 1:
+            raise ValueError(
+                f"The prompt is too long, leaving no tokens for the data. "
+                f"Please reduce the length of the prompt. "
+                f"Maximum model length: {self.tokenizer.model_max_length}, "
+                f"exceeded by: {(-1) * self.max_len_keys} tokens."
             )
 
         if self.max_len_keys < 1:
@@ -298,11 +310,15 @@ class SystemPrompt:
 
 @dataclass
 class LLM4ClassificationOutput:
-    """Class for Organizing Output of LLM4Classification.
+    """**Class for Organizing Output.**
 
     Attributes:
-        predictions (Optional[Any]): Predictions (i.e. predicted label for each instance).
-        distribution (Optional[Any]): Distribution of predictions (i.e. probabilities for each label).
+        predictions (Optional[Union[Tensor, pd.DataFrame, pl.DataFrame, List[Union[int, str]], np.ndarray]]:
+            Predictions (i.e. predicted label for each instance).
+        distribution (Optional[Union[Tensor, pd.DataFrame, pl.DataFrame, List[Union[int, str]], np.ndarray]]:
+            Distribution of predictions (i.e. probabilities for each label).
+        logits (Optional[Union[Tensor, pd.DataFrame, pl.DataFrame, List[Union[int, str]], np.ndarray]]:
+            Logits for the label words in the verbalizer. The order referes to the flattened verbalizer indices.
     """
 
     predictions: Optional[
@@ -317,16 +333,20 @@ class LLM4ClassificationOutput:
 
 
 def calibrate(probs: Tensor) -> Tensor:
-    """Calibrate Probabilities.
+    """**Calibrates Probabilities**
 
-    Address the calibartion issue ([Zhao et al., 2021](https://arxiv.org/abs/2102.09690),
-    [Hu et al., 2022](https://aclanthology.org/2022.acl-long.158/)).
+    Adressing the calibration issue (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_,
+    `Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_), where some tokens are
+    more likely to be predicted than others, and the probabilities are calibrated accordingly.
+
+    A contextualized prior is computed and then used to calibrate the probabilities.
+    A detailed description is found in :ref:`calibration`.
 
     Args:
-        probs (tensor): The probabilities to be calibrated.
+        probs (torch.Tensor): The probabilities to be calibrated.
 
     Returns:
-        tensor: The calibrated probabilities.
+        torch.Tensor: The calibrated probabilities.
     """
     probs = probs / (torch.mean(probs, dim=0) + 1e-50)
     return probs / probs.sum(dim=-1, keepdim=True)
