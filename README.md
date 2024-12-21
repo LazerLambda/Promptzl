@@ -49,14 +49,10 @@ Define a prompt for guiding the language model to the correct predictions:
 ```{python}
 prompt = FVP(lambda e:\
     f"""
-    Product Review Classification into categories 'positive' or 'negative'.
+    Restaurant review classification into categories 'positive' or 'negative'.
 
-    'Good value
-    
-    I love Curve and this large bottle offers great value. Highly recommended.'='positive'
-    'Edge of Danger
-    
-    1 star - only because that's the minimum. This book shows that famous people can publish anything.'='negative'
+    'Best pretzls in town!'='positive'
+    'Rude staff, horrible food.'='negative'
 
     '{e['text']}'=""", Vbz({0: ["negative"], 1: ["positive"]}))
 ```
