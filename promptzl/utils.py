@@ -123,6 +123,14 @@ class SystemPrompt:
                 f"exceeded by: {(-1) * self.max_len_keys} tokens."
             )
 
+        if self.max_len_keys < 1:
+            raise ValueError(
+                f"The prompt is too long, leaving no tokens for the data. "
+                f"Please reduce the length of the prompt. "
+                f"Maximum model length: {self.tokenizer.model_max_length}, "
+                f"exceeded by: {(-1) * self.max_len_keys} tokens."
+            )
+
         self.prmpt_f: Callable[[Any], str] = self.prompt._prompt_fun(self.tokenizer)
         self.key_list = [
             e.key for e in self.prompt.collector if isinstance(e, (Img, Key))
