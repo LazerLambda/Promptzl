@@ -39,12 +39,6 @@ In just a few lines of code, you can transform a LLM of choice into an old-schoo
 Import necessary dependencies and initialize an example dataset:
 ```python
 from datasets import Dataset
-from promptzl import *
-from sklearn.metrics import accuracy_score
-
-from datasets import Dataset
-from promptzl import *
-from sklearn.metrics import accuracy_score
 
 dataset = Dataset.from_dict(
     {
@@ -60,6 +54,7 @@ dataset = Dataset.from_dict(
 
 Define a prompt for guiding the language model to the correct predictions:
 ```python
+from promptzl import FVP, Vbz
 prompt = FVP(
     lambda e: f"""Restaurant review classification into categories 'positive' or 'negative'.
 
@@ -72,13 +67,15 @@ prompt = FVP(
 
 Initialize a model:
 ```python
+from promptzl import CausalLM4Classification
 model = CausalLM4Classification(
     'HuggingFaceTB/SmolLM2-1.7B',
     prompt=prompt)
 ```
 
 Classify the data:
-```{prompt}
+```python
+from sklearn.metrics import accuracy_score
 output = model.classify(dataset, show_progress_bar=True, batch_size=1)
 accuracy_score(dataset['label'], output.predictions)
 ```
