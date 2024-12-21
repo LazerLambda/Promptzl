@@ -37,7 +37,7 @@ Check out more in the [official documentation.](https://promptzl.readthedocs.io/
 In just a few lines of code, you can transform a LLM of choice into an old-school classifier with all it's desirable properties:
 
 Import necessary dependencies and initialize an example dataset:
-```{python}
+```python
 from datasets import load_dataset
 from promptzl import *
 from sklearn.metrics import accuracy_score
@@ -46,7 +46,7 @@ dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
 ```
 
 Define a prompt for guiding the language model to the correct predictions:
-```{python}
+```python
 prompt = FVP(lambda e:\
     f"""
     Restaurant review classification into categories 'positive' or 'negative'.
@@ -54,11 +54,12 @@ prompt = FVP(lambda e:\
     'Best pretzls in town!'='positive'
     'Rude staff, horrible food.'='negative'
 
-    '{e['text']}'=""", Vbz({0: ["negative"], 1: ["positive"]}))
+    '{e['text']}'=""",
+    Vbz({0: ["negative"], 1: ["positive"]}))
 ```
 
 Initialize a model:
-```{python}
+```python
 model = CausalLM4Classification(
     'HuggingFaceTB/SmolLM2-1.7B',
     prompt=prompt)
