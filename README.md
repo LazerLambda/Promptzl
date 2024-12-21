@@ -12,7 +12,7 @@
 
 
 <!-- TODO -->
-# <p style="text-align: center;">Pr🥨mptzl</p>
+<h1 align="center">Pr🥨mptzl</h1>
 
 Turn state-of-the-art LLMs into zero<sup>+</sup>-shot PyTorch classifiers in just a few lines of code.
 
