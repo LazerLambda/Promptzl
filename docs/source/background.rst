@@ -90,6 +90,8 @@ to get the probabilities of the classes.
 Additionally, it is also possible to use multiple label words where the logits can be averaged as introduced by `Schick and Schütze, 2020b <https://aclanthology.org/2020.coling-main.488/>`_,
 which is left out here for the sake of brevity.
 
+.. _point_for_clms:
+
 The Point for Causal Language Models
 ------------------------------------
 
