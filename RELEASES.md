@@ -4,6 +4,10 @@
 
 Stable version of promptzl. Turn LLMs into classifers!
 
+### Breaking Changes
+ - Class `promptzl.prompt.FVP` renamed to `promptzl.prompt.FFnVbzPair`
+ - Argument `tok_args` renamed to `tokenizer_args` in `promptzl.modules.CausalLM4Classification` and `promptzl.modules.MaskedLM4Classification`
+
 ### Bugfixes
  - Throw error if empty labels in verbalizer are passed.
  - Add error if prompt is too long upon initialization
