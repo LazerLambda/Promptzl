@@ -25,7 +25,7 @@ Promptzl offers:
    - 📈 Distribution over the classes
    - ✂️ No need to extract the predictions from the answer.
 
-Check out more in the [official documentation.](https://promptzl.readthedocs.io/en/latest/)
+For more information, check out the [official documentation.](https://promptzl.readthedocs.io/en/latest/)
 
 ## Installation
 
