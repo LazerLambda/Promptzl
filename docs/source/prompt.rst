@@ -28,6 +28,7 @@ straightforward but might lead to errors more easily.
       avoid cutting off crucial parts of the appended prompt. The context length is usually not a problem when dealing with modern LLMs;
       hence, an FVP prompt can be used instead of prompt-element objects.
 
+.. _functoin_verbalizer_pair:
 
 *Function-Verbalizer-Pair Class* (FVP)
 --------------------------------------

@@ -6,14 +6,13 @@ Tutorial - Basic Usage
 Promptzl can be used in two ways: with `masked language models <https://huggingface.co/docs/transformers/main/en/tasks/masked_language_modeling>`_ 
 and with `causal language models <https://huggingface.co/docs/transformers/en/tasks/language_modeling>`_.
 
-After running :code:`pip install promptzl` it is possible to run the following examples.
+After running :code:`pip install -U promptzl` it is possible to run the following examples.
 
 Causal Language Models
 ----------------------
 
-It is also possible to use a *causal language model* similarly. Here, it is also possible to leverage the
-The fine-tuned nature of novel LLMs is that they are aimed at interacting with the user, guiding the model
-to produce the correct output more straightforward (but also has downsides as described in :ref:`tutorial_causal_lms_fine_tuned`)
+All causal models from the 🤗-transformers library can be used for classification tasks. The idea is to guide the model to produce the correct output by
+providing a prompt that contains the information about the classification task and condens the classification into a single word at the end of the prompt.
 In the following, we will see an example of how a base model without fine-tuning is used for classification:
 
 .. code-block:: python
@@ -28,12 +27,8 @@ In the following, we will see an example of how a base model without fine-tuning
         f"""
         Product Review Classification into categories 'positive' or 'negative'.
 
-        'Good value
-        
-        I love Curve and this large bottle offers great value. Highly recommended.'='positive'
-        'Edge of Danger
-        
-        1 star - only because that's the minimum. This book shows that famous people can publish anything.'='negative'
+        'Good value! It is a great product'='positive'
+        'Book was boring. Didn't like it. Cannot recommend!'='negative'
 
         '{e['text']}'=""", Vbz({0: ["negative"], 1: ["positive"]}))
 
@@ -52,7 +47,10 @@ smaller models where the context length is limited.
 
 Masked Language Models
 ----------------------
-Here's a basic example (from `Schick and Schütze., 2020 <https://aclanthology.org/2021.eacl-main.20>`_) of how to classify text with a *masked language model*:
+
+Here's a basic example (from `Schick and Schütze., 2020 <https://aclanthology.org/2021.eacl-main.20>`_) of how to classify text with a *masked language model*.
+Instead of using :ref:`functoin_verbalizer_pair`, we use *prompt-element-objects* to construct the prompt as they truncate the data if it exceeds the
+model's context length.
 
 .. code-block:: python
 
