@@ -1,7 +1,7 @@
 .. _tutorial_masked_lms:
 
-Tutorial: Masked-Language-Model-Based Classifiers
-=================================================
+Tutorial - Masked-Language-Model-Based Classifiers
+==================================================
 
 While causal language models predict the next token in an autoregressive manner from left to right, masked language
 models (MLMs) can predict a token based on the surrounding context. A word in the sequence is masked, and the model

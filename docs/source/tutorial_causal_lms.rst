@@ -1,7 +1,7 @@
 .. _tutorial_causal_lms:
 
-Tutorial: Causal-Language-Model-Based Classifiers
-=================================================
+Tutorial - Causal-Language-Model-Based Classifiers
+==================================================
 
 Causal language models (CLMs) are trained to predict the next token in a sequence based on the previous context (next-token objective),
 which requires us always to set the verbalizer at the end of the sequence. The prompt is crucial for the model's performance, and the

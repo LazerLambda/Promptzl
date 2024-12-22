@@ -22,7 +22,7 @@ Promptzl offers:
    - 📦 Batch processing on your device for efficiency
    - 🚀 Speed-up over calling an online API
    - 🔎 Transparency and accessibility by using the model locally
-   - 📈 Distribution over the classes
+   - 📈 Distribution over labels
    - ✂️ No need to extract the predictions from the answer.
 
 For more information, check out the [**official documentation**.](https://promptzl.readthedocs.io/en/latest/)
