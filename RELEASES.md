@@ -2,6 +2,8 @@
 
 # 1.0.0 Promptzl Stable Version
 
+Stable version of promptzl. Turn LLMs into classifers!
+
 ### Bugfixes
  - Throw error if empty labels in verbalizer are passed.
  - Add error if prompt is too long upon initialization
