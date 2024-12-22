@@ -9,14 +9,14 @@ underlying model's training objective must be considered.
 
 In the current open-source causal LLM ecosystem, there are two groups of causal LMs:
 the base models, the ones that were only trained on the next-token objective, and those that were further fine-tuned on instructions to act like
-assistants like ChatGPT. Both models can be used for classifications, but the characteristics of each must be kept in mind. Usually, the latter
+assistants akin to ChatGPT. Both models can be used for classifications, but the characteristics of each must be kept in mind. Usually, the latter
 models have a name indicating the further tuning like '-instruct' (:code:`HuggingFaceTB/SmolLM2-1.7B` vs. :code:`HuggingFaceTB/SmolLM2-1.7B-Instruct`
 where the latter is fine-tuned).
 
 Example Dataset
 ---------------
 
-As promptly is intended to be used along the hugging face transformers and dataset libraries, we first have to initialize an example dataset.
+As promptzl is intended to be used along the 🤗-transformers and -dataset libraries, we first have to initialize an example dataset.
 We will use the IMDB dataset for this tutorial, which is a binary classification task. The dataset is loaded as follows:
 
 .. code-block:: python
@@ -46,12 +46,12 @@ verbalizer (how the verbalizer works is described in :ref:`formal-definition`) t
     )
 
 .. note::
-    It is also possible to use *Prompt-Element-Objects* (see :ref:`intuition-and-definition`) or provide a list of label words to the verbalizer.
-    However, using a dictionary allows us to return the dictionary keys to the predictions list eventually.
+    It is also possible to use *Prompt-Element-Objects* (see :ref:`intuition-and-definition`) or provide a list of label words to the :code:`Vbz` object.
+    However, using a dictionary allows us to return the dictionary keys to the predictions list.
 
 Finding a Good Prompt
 ^^^^^^^^^^^^^^^^^^^^^
-Constructing the prompt in a form that guides the model to predict only the tokens we are interested in (label words) with a high probability is crucial. 
+**Constructing the prompt in a form that guides the model to predict only the tokens we are interested in (label words) with a high probability is crucial**. 
 
 If labeled data is available, it is possible to leverage in-context learning and enhance the prompt with these samples, which can be sampled from the dataset.
 In the following, we will take a look at an example of a natural language inference task, **independent of the IMDB task further used in this tutorial**,
@@ -70,14 +70,15 @@ where a premise and a hypothesis are given and the model must classify into the 
 
 This prompt works as follows: First, a natural language description of the task and the categories the model has to label the instances to is given.
 Then, some examples (one for each class) are provided to show the model how to classify the data (if labeled data is available).
-Finally, the data is provided in the same form as the previous examples. Crucially, the label for the class is the next token to be predicted,
-which will increase the probability of predicting :code:`entailment`, :code:`neutral` or :code:`contradiction`.
+Finally, the data is provided in the same form as the previous examples but is cut off at the point where the label for the sought observation
+is to be predicted. With the previous examples, the model is now more likely to predict a label of code:`entailment`, :code:`neutral` or :code:`contradiction`.
+
 
 Loading the Model
 -----------------
 
-After we have defined the prompt, we can load the model. In this case, we will use the causal language model :code:`HuggingFaceTB/SmolLM2-1.7B`, which is a causal language model
-that is also fairly small so that it can fit on even smaller GPUs. The model is loaded as follows:
+After we have defined the prompt, we can load the model. In this case, we will use the CLM :code:`HuggingFaceTB/SmolLM2-1.7B`, which is relatively
+small and can also fit on smaller GPUs. The model is loaded as follows:
 
 .. code-block:: python
 
@@ -91,8 +92,8 @@ We have set up everything and can start classifying the dataset.
 Classifying the Dataset
 -----------------------
 
-To classify the dataset, we can use the model's :code:`classify` method. This method returns an object containing the predictions and the distribution.
-It is also possible to get the (combined) logits for each class; however, the default behavior only returns predictions and distributions. The method is called as follows:
+To classify the dataset, we can use the model's :code:`classify` method. This method returns an :class:`promptzl.utils.LLM4ClassificationOutput` object containing the predictions and the distribution.
+It is also possible to get the logits for each class. The method is called as follows:
 
 .. code-block:: python
 
@@ -158,9 +159,7 @@ can also be used but require a different approach. Firstly, it is strongly recom
 this example, we will use the :code:`HuggingFaceH4/zephyr-7b-beta` model.
 
 As the objective is not to predict the next token but to be a helpful assistant, we first need to examine the behavior when generating text.
-We can do this quite easily by using the :code:`pipeline` method of the transformers library. The arguments :code:`tok_args` and :code:`model_args`
-are used to pass additional arguments when calling the :code:`from_pretrained` method under the hood.
-
+We can do this quite easily by using the :code:`pipeline` method of the transformers library.
 
 .. code-block:: python
 
@@ -198,6 +197,8 @@ and initialize the model:
 Now, we can again classify the dataset and evaluate the predictions as shown above.
 
 .. code-block:: python
+
+    from sklearn.metrics import accuracy_score
 
     output = model.classify(dataset)
 
