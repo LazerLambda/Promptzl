@@ -43,9 +43,9 @@ from datasets import Dataset
 dataset = Dataset.from_dict(
     {
         'text': [
-        "The food was absolutely wonderful, from preparation to presentation, very pleasing.",
-        "The service was a bit slow, but the food made up for it. Highly recommend the pasta!",
-        "The restaurant was too noisy and the food was mediocre at best. Not worth the price.",
+            "The food was absolutely wonderful, from preparation to presentation, very pleasing.",
+            "The service was a bit slow, but the food made up for it. Highly recommend the pasta!",
+            "The restaurant was too noisy and the food was mediocre at best. Not worth the price.",
         ],
         'label': [1, 1, 0]
     }
