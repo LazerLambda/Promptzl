@@ -1,4 +1,4 @@
-__version__ = "0.9.3"
+__version__ = "1.0.0"
 
 from .modules import (
     CausalLM4Classification,
