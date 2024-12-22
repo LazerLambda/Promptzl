@@ -92,10 +92,10 @@ The Point for Causal Language Models
 ------------------------------------
 
 However, using MLMs is limited to the fact that the prompt must be engineered in a particular way to form a cloze-task
-and MLMs are also usually limited by a short context size (except `ModernBERT <https://huggingface.co/collections/answerdotai/modernbert-67627ad707a4acbf33c41deb>`_).
+and MLMs are also usually limited by a short`context size (except `ModernBERT <https://huggingface.co/collections/answerdotai/modernbert-67627ad707a4acbf33c41deb>`_).
 With the advent of large open-source language models post ChatGPT, which typically contain strong real-world knowledge capabilities
 and have longer context lengths, it is possible to use CLMs to classify text as well. In MLMs, it is also a problem to use words that consist
-of multiple tokens (e.g., the RoBERTa tokenizer will tokenize "Transportation" into :code:`[19163, 41067]`), as there is usually one MASK token.
+of multiple tokens (e.g., the `RoBERTa <https://arxiv.org/abs/1907.11692>`_ tokenizer will tokenize "Transportation" into :code:`[19163, 41067]`), as there is usually one MASK token for prediction.
 `Schick and Schütze, 2021 <https://aclanthology.org/2021.naacl-main.185/>`_
 solved this by using multiple mask-tokens and thus also predicting in multiple forward passes, which has the downside of leading to slower inference.
 
