@@ -82,18 +82,18 @@ def test_not_one_verbalizer_error():
         prompt._get_verbalizer()
 
 def test_fvp_error():
-    prompt = FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+    prompt = FnVbzPair(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
     with pytest.raises(NotImplementedError):
         prompt.__fn_str__(AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True))
     
     with pytest.raises(ValueError):
-        FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]])) + Txt("asdf")
+        FnVbzPair(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]])) + Txt("asdf")
 
     with pytest.raises(ValueError):
-        Txt("asdf") + FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+        Txt("asdf") + FnVbzPair(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
 
 def test_fvp_input_lenght_error():
-    prompt = FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+    prompt = FnVbzPair(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
     model = promptzl.CausalLM4Classification(
         model_id_gen,
         prompt=prompt
@@ -102,3 +102,48 @@ def test_fvp_input_lenght_error():
     dataset = Dataset.from_dict({"text": ["a " * 10000 + "a"]})
     with pytest.raises(ValueError):
         model.classify(dataset)
+
+def test_empty_verb_labels_errors():
+    prompt = Txt("") + Vbz([[""], ["good", "wonderful", "great"]]) + Key("text")
+    with pytest.raises(AssertionError):
+        promptzl.CausalLM4Classification(
+            model_id_gen,
+            prompt=prompt
+        )
+
+    prompt = Txt("") + Vbz({0: [""], 1: ["good", "wonderful", "great"]}) + Key("text")
+    with pytest.raises(AssertionError):
+        promptzl.CausalLM4Classification(
+            model_id_gen,
+            prompt=prompt
+        )
+
+    prompt = Txt("") + Vbz([[""], ["good", "wonderful", "great"]]) + Key("text")
+    with pytest.raises(AssertionError):
+        promptzl.MaskedLM4Classification(
+            model_id_mlm,
+            prompt=prompt
+        )
+
+    prompt = Txt("") + Vbz({0: [""], 1: ["good", "wonderful", "great"]}) + Key("text")
+    with pytest.raises(AssertionError):
+        promptzl.MaskedLM4Classification(
+            model_id_mlm,
+            prompt=prompt
+        )
+
+def test_error_prompt_too_long():
+    prompt = Txt("a " * 2000) + Key("text") + Vbz([["bad"], ["good"]])
+
+
+    with pytest.raises(ValueError):
+        promptzl.MaskedLM4Classification(
+            model_id_mlm,
+            prompt=prompt
+        )
+
+    with pytest.raises(ValueError):
+        promptzl.CausalLM4Classification(
+            model_id_gen,
+            prompt=prompt
+        )

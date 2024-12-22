@@ -45,7 +45,6 @@ def test_simple_causal_class_prompt():
     assert int(torch.sum(otpt.distribution).item()) == len(dataset)
     model.classify(dataset, batch_size=2)
     model.classify(dataset, batch_size=2, temperature=0.5)
-    model.classify(dataset, batch_size=2, calibrate=True)
     model.classify(dataset, batch_size=2, show_progress_bar=True)
     model.classify(dataset, return_type="list")
     model.classify(dataset, return_type="pandas")
@@ -57,7 +56,6 @@ def test_simple_causal_class_prompt():
         'test': Dataset.from_dict({"text": sample_data})})
     model.classify(dataset)
 
-    model.prompt.truncate = False
     model.classify(dataset)
 
 def test_simple_mlm_class_prompt():
@@ -74,7 +72,6 @@ def test_simple_mlm_class_prompt():
     assert int(torch.sum(otpt.distribution).item()) == len(dataset)
     model.classify(dataset, batch_size=2)
     model.classify(dataset, batch_size=2, temperature=0.5)
-    model.classify(dataset, batch_size=2, calibrate=True)
     model.classify(dataset, batch_size=2, show_progress_bar=True)
     model.classify(dataset, return_type="list")
     model.classify(dataset, return_type="pandas")
@@ -86,45 +83,40 @@ def test_simple_mlm_class_prompt():
         'test': Dataset.from_dict({"text": sample_data})})
     model.classify(dataset)
 
-    model.prompt.truncate = False
     model.classify(dataset)
 
-def test_w_o_truncation():
-    prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
-    dataset = Dataset.from_dict({"text": sample_data})
+# def test_w_o_truncation():
+#     prompt = Key("text") + Txt(". It was ") + Vbz([["bad", "horrible"], ["good"]])
+#     dataset = Dataset.from_dict({"text": sample_data})
 
-    model = promptzl.CausalLM4Classification(
-        model_id_gen,
-        prompt=prompt,
-        truncate=True
-    )
-    model.classify(dataset)
-    model = promptzl.MaskedLM4Classification(
-        model_id_mlm,
-        prompt=prompt,
-        truncate=True
-    )
-    model.classify(dataset)
+#     model = promptzl.CausalLM4Classification(
+#         model_id_gen,
+#         prompt=prompt
+#     )
+#     model.classify(dataset)
+#     model = promptzl.MaskedLM4Classification(
+#         model_id_mlm,
+#         prompt=prompt
+#     )
+#     model.classify(dataset)
 
 def test_w_fvp():
     tokenizer = AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True)
     mask_token = tokenizer.mask_token
-    prompt = FVP(lambda e: f"{e['text']} It was [MASK]", Vbz([["bad", "horrible"], ["good"]])) 
+    prompt = FnVbzPair(lambda e: f"{e['text']} It was {mask_token}", Vbz([["bad", "horrible"], ["good"]])) 
     dataset = Dataset.from_dict({"text": sample_data})
 
     model = promptzl.MaskedLM4Classification(
         model_id_mlm,
-        prompt=prompt,
-        truncate=True
+        prompt=prompt
     )
     model.classify(dataset)
 
     tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
-    prompt = FVP(lambda e: f"{e['text']}. It was ",Vbz([["bad", "horrible"], ["good"]])) 
+    prompt = FnVbzPair(lambda e: f"{e['text']}. It was ",Vbz([["bad", "horrible"], ["good"]])) 
     model = promptzl.CausalLM4Classification(
         model_id_gen,
-        prompt=prompt,
-        truncate=True
+        prompt=prompt
     )
     model.classify(dataset)
 
@@ -190,7 +182,6 @@ def test_classification_w_logits():
     assert otpt.logits.shape == (len(dataset), 2)
     model.classify(dataset, batch_size=2, return_logits=True)
     model.classify(dataset, batch_size=2, temperature=0.5, return_logits=True)
-    model.classify(dataset, batch_size=2, calibrate=True, return_logits=True)
     model.classify(dataset, batch_size=2, show_progress_bar=True, return_logits=True)
     model.classify(dataset, return_type="list", return_logits=True)
     model.classify(dataset, return_type="pandas", return_logits=True)
@@ -200,7 +191,4 @@ def test_classification_w_logits():
     dataset = DatasetDict({
         'train': Dataset.from_dict({"text": sample_data}),
         'test': Dataset.from_dict({"text": sample_data})})
-    model.classify(dataset, return_logits=True)
-
-    model.prompt.truncate = False
     model.classify(dataset, return_logits=True)

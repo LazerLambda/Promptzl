@@ -114,7 +114,7 @@ def test_vbz_w_dict():
 
 
 def test_fpv():
-    prompt = FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+    prompt = FnVbzPair(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
     assert prompt._prompt_fun()({'text': 'test'}) == "test It was "
-    assert str(prompt) == "<FVP>"
-    assert prompt.__repr__() == "<FVP>"
+    assert str(prompt) == "<FnVbzPair>"
+    assert prompt.__repr__() == "<FnVbzPair>"

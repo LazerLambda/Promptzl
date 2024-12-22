@@ -102,17 +102,6 @@ def test_init():
             lower_verbalizer=-1
         )
 
-    with pytest.raises(Exception):
-        prompt = Txt("This is a test ") + Key("text") + Vbz([["bad"], ["good", "wonderful", "great"]])
-        model = AutoModelForCausalLM.from_pretrained(model_id_gen)
-        tokenizer = AutoTokenizer.from_pretrained(model_id_gen, clean_up_tokenization_spaces=True)
-        promptzl.LLM4ClassificationBase(
-            model=model,
-            tokenizer=tokenizer,
-            prompt=prompt,
-            generate=False,
-            truncate=None
-        )
 
 def init_promptzl(model_id, generate):
     device = "cpu"

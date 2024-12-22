@@ -24,6 +24,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
+    'sphinx.ext.mathjax',
     ]
 
 templates_path = ['_templates']
@@ -39,7 +40,7 @@ html_static_path = ['_static']
 
 
 # Autodoc settings
-autoclass_content = 'both'
+autoclass_content = 'init'
 
 # Mock imports for modules that are not available during the build process
 autodoc_mock_imports = [
