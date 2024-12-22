@@ -6,7 +6,7 @@
 [![PyPI - Package Version](https://img.shields.io/pypi/v/promptzl?logo=pypi&style=flat)][#pypi-package]
 
 [#github-license]: https://github.com/LazerLambda/Promptzl/blob/main/LICENSE.md
-[#docs-package]: https://promptzl.readthedocs.io/en/latest/
+[#docs-package]: https://promptzl.readthedocs.io/en/stable/
 [#pypi-package]: https://pypi.org/project/promptzl/
 <!--- BADGES: END --->
 
