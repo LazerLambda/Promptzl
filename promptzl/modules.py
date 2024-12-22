@@ -49,6 +49,10 @@ class LLM4ClassificationBase(torch.nn.Module):
             device (Optional[str], optional): The device to be used. Defaults to None.
             lower_verbalizer (bool, optional): A flag to determine if the verbalizer should be lowercased. Defaults to False.
 
+        Attributes:
+            model: Hugging Face model.
+            tokenizer: Hugging Face tokenizer.
+
         Raises:
             AssertionError: If model is not of type PreTrainedModel.
             AssertionError: If tokenizer is not of type PreTrainedTokenizerBase.
@@ -582,6 +586,10 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
                 Defaults to False.
             model_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
             tok_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
+
+        Attributes:
+            model: Hugging Face model.
+            tokenizer: Hugging Face tokenizer.
         """
         tokenizer = AutoTokenizer.from_pretrained(
             model_id,
@@ -678,6 +686,10 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
                 Defaults to False.
             model_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
             tok_args (Optional[Dict[str, Any]]): Additional arguments for initializing the underlying huggingface-model.
+
+        Attributes:
+            model: Hugging Face model.
+            tokenizer: Hugging Face tokenizer.
         """
         tokenizer = AutoTokenizer.from_pretrained(
             model_id,
