@@ -18,7 +18,7 @@ Turn state-of-the-art LLMs into zero<sup>+</sup>-shot PyTorch classifiers in jus
 
 Promptzl offers:
    - 🤖 Zero<sup>+</sup>-shot classification with LLMs
-   - 🤗 Turning `causal <https://huggingface.co/models?pipeline_tag=text-generation>`_ and `masked <https://huggingface.co/models?pipeline_tag=fill-mask>`_ LMs into classifiers without any training
+   - 🤗 Turning [causal](https://huggingface.co/models?pipeline_tag=text-generation>) and [masked](https://huggingface.co/models?pipeline_tag=fill-mask>) LMs into classifiers without any training
    - 📦 Batch processing on your device for efficiency
    - 🚀 Speed-up over calling an online API
    - 🔎 Transparency and accessibility by using the model locally
