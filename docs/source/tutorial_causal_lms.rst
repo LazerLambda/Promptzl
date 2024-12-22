@@ -3,18 +3,21 @@
 Tutorial: Causal-Language-Model-Based Classifiers
 =================================================
 
-Causal langauge models are trained to predict the next token in a sequence based on the previous context (next-token objective). This requires us to always set the verbalizer
-at the end of the sequence. The prompt is crucial for the performance of the model and the training objective of the underlying model must be taken into account.
-In the current open-source causal LLM ecosystem, there are two groups of causal LMs, the base models, the ones which where only trained on the next-token objective and the
-ones that were further fine-tuned on instructions to act like assistants like ChatGPT. Both models can be used for classifications but the characterstics of each nex-token predictions
-must be kept in mind. Usually the latter models have a name indicating the further tuning like '-instruct' (:code:`HuggingFaceTB/SmolLM2-1.7B` vs. :code:`HuggingFaceTB/SmolLM2-1.7B-Instruct`
+Causal language models (CLMs) are trained to predict the next token in a sequence based on the previous context (next-token objective),
+which requires us always to set the verbalizer at the end of the sequence. The prompt is crucial for the model's performance, and the
+underlying model's training objective must be considered.
+
+In the current open-source causal LLM ecosystem, there are two groups of causal LMs:
+the base models, the ones that were only trained on the next-token objective, and those that were further fine-tuned on instructions to act like
+assistants like ChatGPT. Both models can be used for classifications, but the characteristics of each must be kept in mind. Usually, the latter
+models have a name indicating the further tuning like '-instruct' (:code:`HuggingFaceTB/SmolLM2-1.7B` vs. :code:`HuggingFaceTB/SmolLM2-1.7B-Instruct`
 where the latter is fine-tuned).
 
 Example Dataset
 ---------------
 
-As promtzl is intended to be used along the huggingface transformers and dataset libraries, we first have to initilaize an example dataset. For this
-tutorial, we will use the IMDB dataset which is a binary classification task. The dataset is loaded as follows:
+As promptly is intended to be used along the hugging face transformers and dataset libraries, we first have to initialize an example dataset.
+We will use the IMDB dataset for this tutorial, which is a binary classification task. The dataset is loaded as follows:
 
 .. code-block:: python
 
@@ -22,7 +25,7 @@ tutorial, we will use the IMDB dataset which is a binary classification task. Th
 
     dataset = load_dataset("mteb/imdb")['test'].select(range(1000))
 
-For the sake of brevity, we will only use the first 1000 examples of the dataset.
+For brevity, we will only use the first 1000 examples of the dataset.
 
 Defining a Prompt and a Verbalizer
 ----------------------------------
@@ -43,17 +46,16 @@ verbalizer (how the verbalizer works is described in :ref:`formal-definition`) t
     )
 
 .. note::
-    It is also possible to use *Prompt-Element-Objects* (see :ref:`intuition-and-definition`) and also to provide a list of label words to the verbalizer.
-    However, using a dict allows us to return keys of the dict in the predictions list eventually.
+    It is also possible to use *Prompt-Element-Objects* (see :ref:`intuition-and-definition`) or provide a list of label words to the verbalizer.
+    However, using a dictionary allows us to return the dictionary keys to the predictions list eventually.
 
 Finding a Good Prompt
 ^^^^^^^^^^^^^^^^^^^^^
-When dealing with base models it can be useful to draw inspirations from `Radford et al., 2020 <https://arxiv.org/pdf/2005.14165>`_. In this work, the authors
-provided examples in the prompt so that the model can learn how to classify data from this particular domain. It is crucial to form some sort of a intensive to
-produce exactly the tokens we are interested in. 
+Constructing the prompt in a form that guides the model to predict only the tokens we are interested in (label words) with a high probability is crucial. 
 
-In the following, we will take a look at an example for a natural langauge inference task where a premise and a hypothesis is given and 
-the model must classify into the categories of :code:`entailment`, :code:`neutral` or :code:`contradiction`:
+If labeled data is available, it is possible to leverage in-context learning and enhance the prompt with these samples, which can be sampled from the dataset.
+In the following, we will take a look at an example of a natural language inference task, **independent of the IMDB task further used in this tutorial**,
+where a premise and a hypothesis are given and the model must classify into the categories of :code:`entailment`, :code:`neutral` or :code:`contradiction`:
 
 .. code-block:: python
 
@@ -66,16 +68,16 @@ the model must classify into the categories of :code:`entailment`, :code:`neutra
 
     Premise:  '{e['premise']}' - Hypothesis: '{e['hypothesis']}'='"""
 
-This prompt works as follows: A description in natural language of the task and the categories the model has to label the instances to is given, further some examples (one for each class) is given to
-show the model how to classify the data and finally the data is provided in the same form as the previous examples. Crucially, the label for the unknown label is the next token to be predicted.
-This will increase the probability of predicting :code:`entailment`, :code:`neutral` or :code:`contradiction` as the next token and thus our the labels
-we are interested in.
+This prompt works as follows: First, a natural language description of the task and the categories the model has to label the instances to is given.
+Then, some examples (one for each class) are provided to show the model how to classify the data (if labeled data is available).
+Finally, the data is provided in the same form as the previous examples. Crucially, the label for the class is the next token to be predicted,
+which will increase the probability of predicting :code:`entailment`, :code:`neutral` or :code:`contradiction`.
 
 Loading the Model
 -----------------
 
-After we have defined the prompt, we can load the model. In this case, we will use the causal language model :code:`HuggingFaceTB/SmolLM2-1.7B` which is a causal language model
-that is also fairly small so it can fit on even smaller GPUs. The model is loaded as follows:
+After we have defined the prompt, we can load the model. In this case, we will use the causal language model :code:`HuggingFaceTB/SmolLM2-1.7B`, which is a causal language model
+that is also fairly small so that it can fit on even smaller GPUs. The model is loaded as follows:
 
 .. code-block:: python
 
@@ -84,13 +86,13 @@ that is also fairly small so it can fit on even smaller GPUs. The model is loade
         prompt=prompt
     )
 
-Nice, now we have set up everything and can start to calssify the dataset!
+We have set up everything and can start classifying the dataset.
 
 Classifying the Dataset
 -----------------------
 
-To classify the dataset, we can use the :code:`classify` method of the model. The method returns an object that contains the predictions and the distribution.
-It is also possible to get the (combined) logits for each class, however the default behavior only returns predictions and distributions. The method is called as follows:
+To classify the dataset, we can use the model's :code:`classify` method. This method returns an object containing the predictions and the distribution.
+It is also possible to get the (combined) logits for each class; however, the default behavior only returns predictions and distributions. The method is called as follows:
 
 .. code-block:: python
 
@@ -100,7 +102,7 @@ It is also possible to get the (combined) logits for each class, however the def
     It is also possible to show a progress bar by setting the :code:`show_progress_bar` parameter to :code:`True`
     and set the :code:`batch_size` to a desired value if the model does not fit on the GPU.
 
-Calibration is usually not necessary in causal models.
+:ref:`Calibration` is usually not necessary in causal models.
 
 Evaluation of the Predictions
 -----------------------------
@@ -114,7 +116,7 @@ After we have classified the dataset, we can evaluate the predictions. The predi
     accuracy_score(dataset['label'], output.predictions)
 
 .. note::
-    When using only a list of lists of label words in the verbalizer, it might be first necessary to adjust the predictions to the values used in the dataset.
+    When using List[List[str]] instead of Dict[str, List[str]] in the verbalizer, it might be necessary first to adjust the predictions to the values used in the dataset.
     In this case, the predictions refer to the indices of the lists in the verbalizer.
     E.g.: :code:`[['negative'], ['positive']]` will produce predictions in the form of zeros and ones.
 
@@ -122,8 +124,8 @@ After we have classified the dataset, we can evaluate the predictions. The predi
 Using Proprietary Models
 ------------------------
 
-A model like LLAMA might need further arguments for initialization. These arguments can be passed  when initializing the model. In this example,
-we use quantization and an access token for the huggingface hub:
+A model like LLAMA might need further arguments for initialization. These arguments can be passed when initializing the model. In this example,
+we use quantization and an access token for the Hugging Face hub:
 
 .. code-block:: python
 
@@ -151,12 +153,14 @@ The arguments :code:`tok_args` and :code:`model_args` are used to pass additiona
 Using a Fine-Tuned/Chatbot Model
 --------------------------------
 
-As mentioned previously, there are also many fine-tuned models available that are tuned to act like assistants similar to ChatGPT. These models
-can also be used but require a a different approach. First, it is strongly recommended to explore the behavior of the model given a prompt. In this
-example, we will use the :code:`HuggingFaceH4/zephyr-7b-beta` model.
+As mentioned previously, many fine-tuned models are also available that are tuned to act like assistants similar to ChatGPT. These models
+can also be used but require a different approach. Firstly, it is strongly recommended to explore the model's behavior given a prompt. In
+this example, we will use the :code:`HuggingFaceH4/zephyr-7b-beta` model.
 
-As the objective is not to predict the next token but to be a helpfull assistant, we first need to look at the behavior when generating text.
-We can do this quite easily by using the :code:`pipeline` method of the transformers library:
+As the objective is not to predict the next token but to be a helpful assistant, we first need to examine the behavior when generating text.
+We can do this quite easily by using the :code:`pipeline` method of the transformers library. The arguments :code:`tok_args` and :code:`model_args`
+are used to pass additional arguments when calling the :code:`from_pretrained` method under the hood.
+
 
 .. code-block:: python
 
@@ -167,7 +171,7 @@ We can do this quite easily by using the :code:`pipeline` method of the transfor
     model(dataset[0]['text'] + "Is this a positive or negative review? Answer with 'positive' or 'negative'.")
 
 
-Producing multiple outputs, we will see that then model is tuned to produce first two newsline characters, so we need to adapt our prompt accordingly:
+Producing multiple outputs, we will see that the model is tuned to predict first two newline characters, so we need to adapt our prompt accordingly:
 
 .. code-block:: python
 
