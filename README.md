@@ -54,8 +54,8 @@ dataset = Dataset.from_dict(
 
 Define a prompt for guiding the language model to the correct predictions:
 ```python
-from promptzl import FVP, Vbz
-prompt = FVP(
+from promptzl import FnVbzPair, Vbz
+prompt = FnVbzPair(
     lambda e: f"""Restaurant review classification into categories 'positive' or 'negative'.
 
     'Best pretzls in town!'='positive'

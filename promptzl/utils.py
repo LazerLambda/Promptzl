@@ -12,7 +12,7 @@ from datasets import Dataset
 from torch import Tensor, tensor
 from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
-from .prompt import FVP, Img, Key, Prompt, Txt, Vbz
+from .prompt import FnVbzPair, Img, Key, Prompt, Txt, Vbz
 
 
 class SystemPrompt:
@@ -57,8 +57,8 @@ class SystemPrompt:
             ), "No Verbalizer found at the end of the sequence!"
 
         self.fvp: bool = False
-        # Check for FVP because it does not support truncation
-        if isinstance(prompt, FVP):
+        # Check for FnVbzPair because it does not support truncation
+        if isinstance(prompt, FnVbzPair):
             self.fvp = True
 
         self.verbalizer: Vbz = self.prompt._get_verbalizer()
@@ -287,7 +287,7 @@ class SystemPrompt:
             if self.fvp:
                 raise ValueError(
                     (
-                        "Model input longer than maximum length!\n\t'->FVP does not support truncation."
+                        "Model input longer than maximum length!\n\t'->FnVbzPair does not support truncation."
                         "Please shorten the text beforehand or use `Txt` and `Key` classes instead."
                     )
                 )

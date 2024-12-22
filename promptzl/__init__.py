@@ -5,5 +5,5 @@ from .modules import (
     LLM4ClassificationBase,
     MaskedLM4Classification,
 )
-from .prompt import FVP, Img, Key, Prompt, Txt, Vbz
+from .prompt import FnVbzPair, Img, Key, Prompt, Txt, Vbz
 from .utils import calibrate

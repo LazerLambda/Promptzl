@@ -37,7 +37,7 @@ verbalizer (how the verbalizer works is described in :ref:`formal-definition`) t
 
     from promptzl import *
 
-    prompt = FVP(
+    prompt = FnVbzPair(
         lambda e: f"""
         Movie Review Classification into categories 'positive' or 'negative'.
 
@@ -143,11 +143,11 @@ we use quantization and an access token for the Hugging Face hub:
     model = CausalLM4Classification(
         "meta-llama/Meta-Llama-3.1-8B",
         prompt=prompt,
-        tok_args = {"token":"<YOUR TOKEN>"},
+        tokenizer_args = {"token":"<YOUR TOKEN>"},
         model_args = {"device_map":'auto', "quantization_config":bnb_config, "token":"<YOUR TOKEN>"})
 
 
-The arguments :code:`tok_args` and :code:`model_args` are used to pass additional arguments when calling the :code:`from_pretrained` method under the hood.
+The arguments :code:`tokenizer_args` and :code:`model_args` are used to pass additional arguments when calling the :code:`from_pretrained` method under the hood.
 
 .. _tutorial_causal_lms_fine_tuned:
 
@@ -174,7 +174,7 @@ Producing multiple outputs, we will see that the model is tuned to predict first
 
 .. code-block:: python
 
-    prompt = FVP(
+    prompt = FnVbzPair(
         lambda e: f"""
 
         Product Review Classification into categories 'positive' or 'negative'.

@@ -23,7 +23,7 @@ In the following, we will see an example of how a base model without fine-tuning
 
     dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
 
-    prompt = FVP(lambda e:\
+    prompt = FnVbzPair(lambda e:\
         f"""
         Product Review Classification into categories 'positive' or 'negative'.
 
