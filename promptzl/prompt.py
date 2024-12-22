@@ -29,8 +29,8 @@ class Prompt:
         Returns:
             Prompt: Combined prompt.
         """
-        if isinstance(other, FVP):
-            raise ValueError("FVP cannot be added to a prompt.")
+        if isinstance(other, FnVbzPair):
+            raise ValueError("FnVbzPair cannot be added to a prompt.")
         self.collector.append(other)
         return Prompt(self.collector)
 
@@ -91,7 +91,7 @@ class Txt(Prompt):
         """**Text Representation in Prompt**
 
         This class can be used to add additional text to the prompt:
-        I.e. :code:`Txt("Hello ") + Vbz([['World'], ['Mars]]) + Txt('!')` will prepend "Hello World!"
+        I.e. :code:`Txt("Hello ") + Vbz([['World'], ['Mars]]) + Txt('!')` will prepend "Hello "
         and append "!" to the prompt.
 
         Args:
@@ -217,11 +217,12 @@ class Vbz(Prompt):
         """**Verbalizer Representation in Prompt**
 
         A valid prompt must include one verbalizer. For causal models, the verbalizer **must** be at the end
-        of the prompt while the verbalizer can be at **any position** in the prompt when using masked models.
+        of the prompt while the verbalizer can be at **any position** in the prompt when using masked models **when using prompt-element-objects**.
 
         The corresponding (which can be more than one) words for each class must be provided in the form of a list of lists
         or a dictionary where the key is the class label (ideally referring to the representation in the dataset)
-        and the value is a list of words corresponding to the class semantics.
+        and the value is a list of words corresponding to the class semantics. The keys of the dictionary are also
+        used in the :code:`predictions` list in :class:`promptzl.utils.LLM4ClassificationOutput`.
 
         Valid verbalizers:
 
@@ -285,8 +286,8 @@ class Vbz(Prompt):
         return self.__str__()
 
 
-class FVP(Prompt):
-    """Function Verbalizer Pair (FVP) Class."""
+class FnVbzPair(Prompt):
+    """Function Verbalizer Pair (FnVbzPair) Class."""
 
     def __init__(
         self, prompt_function: Callable[[Dict[str, str]], str], verbalizer: Vbz
@@ -300,7 +301,7 @@ class FVP(Prompt):
 
         .. code:: python
 
-            FVP(
+            FnVbzPair(
                 lambda e: f"NLI-Task. Premise: '{e['premise']}' Hypothesis: '{e['hypothesis']}' Does the premise entail the hypothesis?",
                 Vbz({0: ['yes'], 1: ['no']})
             )
@@ -314,19 +315,19 @@ class FVP(Prompt):
         super().__init__([self, verbalizer])
 
     def __add__(self, *args: Any) -> Prompt:
-        """Add Prompt Parts (Not Supported for FVP).
+        """Add Prompt Parts (Not Supported for FnVbzPair).
 
         Args:
             *args: Arguments (not required).
 
         Raises:
-            ValueError: FVP cannot be added to a prompt.
+            ValueError: FnVbzPair cannot be added to a prompt.
         """
-        raise ValueError("FVP cannot be added to a prompt.")
+        raise ValueError("FnVbzPair cannot be added to a prompt.")
 
     def __str__(self) -> str:
         """Represent Object as String."""
-        return "<FVP>"
+        return "<FnVbzPair>"
 
     def __fn_str__(self, *args: Any) -> str:
         """Return String Representation for Prompt-Building-Function.
@@ -335,9 +336,9 @@ class FVP(Prompt):
             *args: Arguments (not required).
 
         Raises:
-            NotImplementedError: `__fn_str__` not implemented for FVP.
+            NotImplementedError: `__fn_str__` not implemented for FnVbzPair.
         """
-        raise NotImplementedError("`__fn_str__` not implemented for FVP.")
+        raise NotImplementedError("`__fn_str__` not implemented for FnVbzPair.")
 
     def __repr__(self) -> str:
         """Represent Object as String."""

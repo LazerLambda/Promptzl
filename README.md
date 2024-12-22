@@ -22,7 +22,7 @@ Promptzl offers:
    - 📦 Batch processing on your device for efficiency
    - 🚀 Speed-up over calling an online API
    - 🔎 Transparency and accessibility by using the model locally
-   - 📈 Distribution over the classes
+   - 📈 Distribution over labels
    - ✂️ No need to extract the predictions from the answer.
 
 For more information, check out the [**official documentation**.](https://promptzl.readthedocs.io/en/latest/)
@@ -54,8 +54,8 @@ dataset = Dataset.from_dict(
 
 Define a prompt for guiding the language model to the correct predictions:
 ```python
-from promptzl import FVP, Vbz
-prompt = FVP(
+from promptzl import FnVbzPair, Vbz
+prompt = FnVbzPair(
     lambda e: f"""Restaurant review classification into categories 'positive' or 'negative'.
 
     'Best pretzls in town!'='positive'

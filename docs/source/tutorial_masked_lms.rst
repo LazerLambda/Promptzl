@@ -1,7 +1,7 @@
 .. _tutorial_masked_lms:
 
-Tutorial: Masked-Language-Model-Based Classifiers
-=================================================
+Tutorial - Masked-Language-Model-Based Classifiers
+==================================================
 
 While causal language models predict the next token in an autoregressive manner from left to right, masked language
 models (MLMs) can predict a token based on the surrounding context. A word in the sequence is masked, and the model
@@ -26,10 +26,10 @@ Defining a Prompt and a Verbalizer
 ----------------------------------
 
 During pre-training, the model is only fed raw text, from which it is trained to predict the missing token. **No further fine-tuning is applied,
-so the model cannot be instructed, unlike fine-tuned CLMs like ChatGPT**. Thus, the task must be constructed so that just one word in the
+so the model cannot be instructed, in contrast to fine-tuned CLMs like ChatGPT**. Thus, the task must be constructed so that just one word in the
 sequence condenses the information about the classification task while maintaining its resemblance to the training data.
 
-In AG News, we have the categories 'World', 'Sports', 'Business', and 'Tech', so we can initialize the verbalizer:
+In `AG's News <http://groups.di.unipi.it/~gulli/AG_corpus_of_news_articles.html>`_, we have the categories 'World', 'Sports', 'Business', and 'Tech', so we can initialize the verbalizer:
 
 .. code:: python
 
@@ -43,7 +43,7 @@ For the prompt we can use the following pattern:
 
     prompt = Txt("[Category:") + verbalizer + Txt("] ") + Key()
 
-Here, we use the *prompt-element-objects* as MLM models usually have a significantly shorter context length, and we
+Here, we use the :ref:`prompt-element-objects` as MLMs usually have a significantly shorter context length, and we
 further need to add the respective mask token from the tokenizer where the *prompt-element-objects* automatically take care of.
 
 However, this is just one selected prompt; it is also possible to define further prompts:
@@ -59,9 +59,9 @@ All these prompts stem from `Schick and Schütze, 2020 <https://aclanthology.org
 that the :code:`prompt` works the best for this task, so we will further only use this prompt.
 
 .. note::
-    As just one mask token is to be predicted, it is crucial to define a verbalizer where the label words
+    As only one mask token is to be predicted, it is crucial to define a verbalizer where the label words
     translate to only single tokens, as it can sometimes happen that more complex words are tokenized into
-    different subtokens.
+    different subtokens. An example of this problem is outlined in :ref:`point_for_clms`.
 
 Loading the Model
 -----------------
@@ -114,9 +114,13 @@ this can lead to a stronger overall performance:
 
 .. code-block:: python
 
-    pred_cali = model.calibrate_output(output).predictions
-    sum([int(prd == lbl) for prd, lbl in zip(pred_cali, dataset['test']['label'])]) / len(pred_cali)
-    # 0.8315789473684211
+    from sklearn.metrics import accuracy_score
+
+    output = model.classify(dataset)
+    pred_cali = model.calibrate_output(output)
+
+    accuracy_score(dataset['label'], pred_cali.predictions)
+    0.8315789473684211
 
 Furthermore, it is also possible to use the :meth:`~promptzl.utils.calibrate` method that can be used with 
 a tensor of probabilities.

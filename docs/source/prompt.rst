@@ -6,7 +6,7 @@ Prompt Classes
 Defining a prompt is crucial for effectively guiding the model in predicting the desired output. Promptzl offers two
 approaches to defining dynamic prompts that serve as templates!
 
-Prompt-element-objects are a safer but also more difficult-to-write option, while a function-verbalizer-pair is more
+*Prompt-element-objects* are a safer but also more difficult-to-write option, while a *function-verbalizer-pair* is more
 straightforward but might lead to errors more easily.
 
 .. _prompt-element-objects:
@@ -25,24 +25,25 @@ straightforward but might lead to errors more easily.
 
       Using prompt-elements-objects **offers the upside of truncating the prompt if the context length is exceeded and automatically
       adding the MASK token when using MLMs**. When truncation is applied, the data filled into the Key-placeholders is truncated to
-      avoid cutting off crucial parts of the appended text. The context length is usually not a problem when dealing with modern LLMs;
-      hence, an FVP prompt can be used instead of prompt-element objects.
+      avoid cutting off crucial parts of the appended prompt. The context length is usually not a problem when dealing with modern LLMs;
+      hence, an FnVbzPair prompt can be used instead of prompt-element objects.
 
+.. _functoin_verbalizer_pair:
 
-*Function-Verbalizer-Pair Class* (FVP)
+*Function-Verbalizer-Pair Class* (FnVbzPair)
 --------------------------------------
 
-:class:`~promptzl.FVP` stands for the function-verbalizer-pair. In contrast to prompt-element-objects, a function is directly defined with a verbalizer.
-e.g., :code:`FVP(lambda x: f"{x['text']}\n", {0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})`.
+:class:`~promptzl.FnVbzPair` stands for the function-verbalizer-pair. In contrast to *prompt-element-objects*, a function constructing the prompt is directly defined with a verbalizer.
+e.g., :code:`FnVbzPair(lambda x: f"{x['text']}\n", {0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})`.
 The function receives a dictionary where the keys must refer to the columns in the dataset, and the values correspond to the respective observations.
-The FVP class inherits from the prompt class and can be used for initializing the classifier classes (see. :class:`promptzl.modules.MaskedLM4Classification`
+The FnVbzPair class inherits from the prompt class and can be used for initializing the classifier classes (see. :class:`promptzl.modules.MaskedLM4Classification`
 and :class:`promptzl.modules.CausalLM4Classification`)
 
 .. note::
 
-   Using the FVP object is easier to write but also requires more vigilance as the function must adhere to the requirements of the dataset. It is
-   also impossible to truncate the prompt on the fly, which can result in indexing errors. The masked token **must** be set manually in the function for
-   masked language models.
+   Using the FnVbzPair object is easier to write but also requires more vigilance as the function must adhere to the requirements of the dataset. It is
+   also impossible to truncate the prompt on the fly, which can result in indexing errors. The masked token **must** be set manually in the function when
+   using MLMs.
 
 
 Examples
@@ -90,7 +91,7 @@ Function-Verbalizer-Pair
    from promptzl import *
 
    verbalizer = Vbz({0: ["good"], 1: ["bad"]})
-   prompt = FVP(lambda x: f"{x['text']}\nIt was", verbalizer)
+   prompt = FnVbzPair(lambda x: f"{x['text']}\nIt was", verbalizer)
 
 When using masked-language-modeling, the masked token must be set manually in the function, which can be done as follows:
 
@@ -101,7 +102,7 @@ When using masked-language-modeling, the masked token must be set manually in th
 
    tok = AutoTokenizer.from_pretrained("<an available model>")
    verbalizer = Vbz({0: ["good"], 1: ["bad"]})
-   prompt = FVP(lambda x: f"{x['text']}\nIt was {tok.mask_token}", verbalizer)
+   prompt = FnVbzPair(lambda x: f"{x['text']}\nIt was {tok.mask_token}", verbalizer)
 
 Documentation
 -------------

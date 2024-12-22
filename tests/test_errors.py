@@ -82,18 +82,18 @@ def test_not_one_verbalizer_error():
         prompt._get_verbalizer()
 
 def test_fvp_error():
-    prompt = FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+    prompt = FnVbzPair(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
     with pytest.raises(NotImplementedError):
         prompt.__fn_str__(AutoTokenizer.from_pretrained(model_id_mlm, clean_up_tokenization_spaces=True))
     
     with pytest.raises(ValueError):
-        FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]])) + Txt("asdf")
+        FnVbzPair(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]])) + Txt("asdf")
 
     with pytest.raises(ValueError):
-        Txt("asdf") + FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+        Txt("asdf") + FnVbzPair(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
 
 def test_fvp_input_lenght_error():
-    prompt = FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
+    prompt = FnVbzPair(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))
     model = promptzl.CausalLM4Classification(
         model_id_gen,
         prompt=prompt
