@@ -335,7 +335,7 @@ class LLM4ClassificationOutput:
 def calibrate(probs: Tensor) -> Tensor:
     """**Calibrates Probabilities**
 
-    Adressing the calibration issue (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_,
+    Addressing the calibration issue (`Zhao et al., 2021 <https://arxiv.org/abs/2102.09690>`_,
     `Hu et al., 2022 <https://aclanthology.org/2022.acl-long.158>`_), where some tokens are
     more likely to be predicted than others, and the probabilities are calibrated accordingly.
 

@@ -6,7 +6,7 @@ Prompt Classes
 Defining a prompt is crucial for effectively guiding the model in predicting the desired output. Promptzl offers two
 approaches to defining dynamic prompts that serve as templates!
 
-Prompt-element-objects are a safer but also more difficult-to-write option, while a function-verbalizer-pair is more
+*Prompt-element-objects* are a safer but also more difficult-to-write option, while a *function-verbalizer-pair* is more
 straightforward but might lead to errors more easily.
 
 .. _prompt-element-objects:
@@ -25,14 +25,14 @@ straightforward but might lead to errors more easily.
 
       Using prompt-elements-objects **offers the upside of truncating the prompt if the context length is exceeded and automatically
       adding the MASK token when using MLMs**. When truncation is applied, the data filled into the Key-placeholders is truncated to
-      avoid cutting off crucial parts of the appended text. The context length is usually not a problem when dealing with modern LLMs;
+      avoid cutting off crucial parts of the appended prompt. The context length is usually not a problem when dealing with modern LLMs;
       hence, an FVP prompt can be used instead of prompt-element objects.
 
 
 *Function-Verbalizer-Pair Class* (FVP)
 --------------------------------------
 
-:class:`~promptzl.FVP` stands for the function-verbalizer-pair. In contrast to prompt-element-objects, a function is directly defined with a verbalizer.
+:class:`~promptzl.FVP` stands for the function-verbalizer-pair. In contrast to *prompt-element-objects*, a function constructing the prompt is directly defined with a verbalizer.
 e.g., :code:`FVP(lambda x: f"{x['text']}\n", {0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})`.
 The function receives a dictionary where the keys must refer to the columns in the dataset, and the values correspond to the respective observations.
 The FVP class inherits from the prompt class and can be used for initializing the classifier classes (see. :class:`promptzl.modules.MaskedLM4Classification`
@@ -41,8 +41,8 @@ and :class:`promptzl.modules.CausalLM4Classification`)
 .. note::
 
    Using the FVP object is easier to write but also requires more vigilance as the function must adhere to the requirements of the dataset. It is
-   also impossible to truncate the prompt on the fly, which can result in indexing errors. The masked token **must** be set manually in the function for
-   masked language models.
+   also impossible to truncate the prompt on the fly, which can result in indexing errors. The masked token **must** be set manually in the function when
+   using MLMs.
 
 
 Examples

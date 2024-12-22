@@ -91,7 +91,7 @@ class Txt(Prompt):
         """**Text Representation in Prompt**
 
         This class can be used to add additional text to the prompt:
-        I.e. :code:`Txt("Hello ") + Vbz([['World'], ['Mars]]) + Txt('!')` will prepend "Hello World!"
+        I.e. :code:`Txt("Hello ") + Vbz([['World'], ['Mars]]) + Txt('!')` will prepend "Hello "
         and append "!" to the prompt.
 
         Args:
@@ -217,11 +217,12 @@ class Vbz(Prompt):
         """**Verbalizer Representation in Prompt**
 
         A valid prompt must include one verbalizer. For causal models, the verbalizer **must** be at the end
-        of the prompt while the verbalizer can be at **any position** in the prompt when using masked models.
+        of the prompt while the verbalizer can be at **any position** in the prompt when using masked models **when using prompt-element-objects**.
 
         The corresponding (which can be more than one) words for each class must be provided in the form of a list of lists
         or a dictionary where the key is the class label (ideally referring to the representation in the dataset)
-        and the value is a list of words corresponding to the class semantics.
+        and the value is a list of words corresponding to the class semantics. The keys of the dictionary are also
+        used in the :code:`predictions` list in :class:`promptzl.utils.LLM4ClassificationOutput`.
 
         Valid verbalizers:
 

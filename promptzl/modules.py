@@ -41,9 +41,9 @@ class LLM4ClassificationBase(torch.nn.Module):
             model (PreTrainedModel): The model to be used.
             tokenizer (PreTrainedTokenizerBase): The tokenizer to be used.
             prompt (Prompt): The prompt to be used. Example usage:
-                ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
+                :code:`Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])`
                 or
-                ```FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))```
+                :code:`FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))`
                 More about the prompt object in :ref:`prompt-classes`.
             generate (bool): A flag to determine if the model should be able to generate.
             device (Optional[str], optional): The device to be used. Defaults to None.
@@ -296,7 +296,7 @@ class LLM4ClassificationBase(torch.nn.Module):
             NotImplementedError: If the forward function is not implemented.
 
         Returns:
-            Union[torch.Tensor, Tuple[torch.Tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
+            Union[torch.Tensor, Tuple[torch.Tensor, Any]]: Output logits and model output (if :code:`return_model_output` is set) from model.
         """
         raise NotImplementedError("Forward function must be implemented in subclass.")
 
@@ -482,7 +482,8 @@ class LLM4ClassificationBase(torch.nn.Module):
             kwargs: Additional arguments for the model's forward function.
 
         Returns:
-            Any: The output logits.
+            Union[LLM4ClassificationOutput, Dict[str, LLM4ClassificationOutput]]: The classified data (predictions, distribution and 
+            logits if :code:`return_logits` is set).
         """
         assert return_type in [
             "list",
@@ -572,9 +573,9 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         Args:
             model_id (str): Valid model identifier for the Hugging Face hub.
             prompt (Prompt): A prompt object. Example usage:
-                ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
+                :code:`Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])`
                 or
-                ```FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))```
+                :code:`FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))`
                 More about the prompt object in :ref:`prompt-classes`.
             device (Optional[str]): The device to be used. Defaults to None.
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
@@ -615,7 +616,7 @@ class MaskedLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             kwargs: Additional arguments for the model.
 
         Returns:
-            Union[torch.Tensor, Tuple[torch.Tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
+            Union[torch.Tensor, Tuple[torch.Tensor, Any]]: Output logits and model output (if :code:`return_model_output` is set) from model.
         """
         batch = {k: v.to(self.device) for k, v in batch.items()}
         logits: Optional[Tensor] = None
@@ -668,9 +669,9 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
         Args:
             model_id (str): Valid model identifier for the Hugging Face hub.
             prompt (Prompt): A prompt object. Example usage:
-                ```Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])```
+                :code:`Txt("This text ") + Key('text') + Txt(" is ") + Vbz([['good'], ['bad']])`
                 or
-                ```FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))```
+                :code:`FVP(lambda e: f"{e['text']} It was ", Vbz([["bad", "horrible"], ["good"]]))`
                 More about the prompt object in :ref:`prompt-classes`.
             device (Optional[str]): The device to be used. Defaults to None.
             lower_verbalizer (bool): A flag to determine if the verbalizer should be enhanced with lowercased words.
@@ -714,7 +715,7 @@ class CausalLM4Classification(LLM4ClassificationBase, torch.nn.Module):
             kwargs: Additional arguments for the model.
 
         Returns:
-            Union[torch.Tensor, Tuple[torch.Tensor, Any]]: Output logits or output logits and output from model (if `return_model_output` is set).
+            Union[torch.Tensor, Tuple[torch.Tensor, Any]]: Output logits and model output (if :code:`return_model_output` is set) from model.
         """
         batch = {k: v.to(self.device) for k, v in batch.items()}
         logits: Optional[Tensor] = None
