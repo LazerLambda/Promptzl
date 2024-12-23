@@ -35,7 +35,7 @@ verbalizer (how the verbalizer works is described in :ref:`formal-definition`) t
 
 .. code-block:: python
 
-    from promptzl import *
+    from promptzl import FnVbzPair, Vbz
 
     prompt = FnVbzPair(
         lambda e: f"""
@@ -82,7 +82,9 @@ small and can also fit on smaller GPUs. The model is loaded as follows:
 
 .. code-block:: python
 
-   model = CausalLM4Classification(
+    from promptzl import CausalLM4Classification
+
+    model = CausalLM4Classification(
         'HuggingFaceTB/SmolLM2-1.7B',
         prompt=prompt
     )

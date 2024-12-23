@@ -33,13 +33,15 @@ In `AG's News <http://groups.di.unipi.it/~gulli/AG_corpus_of_news_articles.html>
 
 .. code:: python
 
-    from promptzl import *
+    from promptzl import Vbz
 
     verbalizer = Vbz({0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})
 
 For the prompt we can use the following pattern:
 
 .. code:: python
+
+    from promptzl import Txt, Key
 
     prompt = Txt("[Category:") + verbalizer + Txt("] ") + Key()
 
@@ -70,7 +72,9 @@ After loading the dataset and defining the verbalizer and prompt, we can finally
 
 .. code:: python
 
-   model = MaskedLM4Classification(
+    from promptzl import MaskedLM4Classification
+
+    model = MaskedLM4Classification(
         'roberta-large',
         prompt=prompt
     )
@@ -98,6 +102,7 @@ After we have classified the dataset, we can evaluate the predictions. The predi
     from sklearn.metrics import accuracy_score
 
     accuracy_score(dataset['label'], output.predictions)
+    0.779
 
 .. note::
     When using List[List[str]] instead of Dict[str, List[str]] in the verbalizer, it might be necessary first to adjust the predictions to the values used in the dataset.
@@ -120,7 +125,7 @@ this can lead to a stronger overall performance:
     pred_cali = model.calibrate_output(output)
 
     accuracy_score(dataset['label'], pred_cali.predictions)
-    0.8315789473684211
+    0.818
 
 Furthermore, it is also possible to use the :meth:`~promptzl.utils.calibrate` method that can be used with 
 a tensor of probabilities.
