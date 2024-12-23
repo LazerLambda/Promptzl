@@ -11,7 +11,8 @@ In the current open-source causal LLM ecosystem, there are two groups of causal 
 the base models, the ones that were only trained on the next-token objective, and those that were further fine-tuned on instructions to act like
 assistants akin to ChatGPT. Both models can be used for classifications, but the characteristics of each must be kept in mind. Usually, the latter
 models have a name indicating the further tuning like '-instruct' (:code:`HuggingFaceTB/SmolLM2-1.7B` vs. :code:`HuggingFaceTB/SmolLM2-1.7B-Instruct`
-where the latter is fine-tuned).
+where the latter is fine-tuned). First,we will cover base models, as the prompt is easier to construct but requrie few labeled data (:ref:`tutorial_causal_lms_base`),
+afterwards, we will cover fine-tuned models that can be used without any labeled data (:ref:`tutorial_causal_lms_fine_tuned`).
 
 Example Dataset
 ---------------
@@ -22,32 +23,23 @@ We will use the IMDB dataset for this tutorial, which is a binary classification
 .. code-block:: python
 
     from datasets import load_dataset
+    import numpy as np
 
-    dataset = load_dataset("mteb/imdb")['test'].select(range(1000))
+    np.random.seed(42)
+
+    ds = load_dataset("mteb/imdb")['test']
+    ds = ds.select(np.random.permutation(len(ds))[0:1000])
 
 For brevity, we will only use the first 1000 examples of the dataset.
+
+
+.. _tutorial_causal_lms_base:
 
 Defining a Prompt and a Verbalizer
 ----------------------------------
 
 As we are interested in classifying only positive or negative samples, we need to define a prompt that guides the model to produce the desired output and
-verbalizer (how the verbalizer works is described in :ref:`formal-definition`) that extracts the logits of interest. The prompt is defined as follows:
-
-.. code-block:: python
-
-    from promptzl import FnVbzPair, Vbz
-
-    prompt = FnVbzPair(
-        lambda e: f"""
-        Movie Review Classification into categories 'positive' or 'negative'.
-
-        '{e['text']}'='""",
-        Vbz({0: ["negative"], 1: ["positive"]})
-    )
-
-.. note::
-    It is also possible to use *Prompt-Element-Objects* (see :ref:`intuition-and-definition`) or provide a list of label words to the :code:`Vbz` object.
-    However, using a dictionary allows us to return the dictionary keys to the predictions list.
+verbalizer (how the verbalizer works is described in :ref:`formal-definition`) that extracts the logits of interest.
 
 Finding a Good Prompt
 ^^^^^^^^^^^^^^^^^^^^^
@@ -72,6 +64,25 @@ This prompt works as follows: First, a natural language description of the task 
 Then, some examples (one for each class) are provided to show the model how to classify the data (if labeled data is available).
 Finally, the data is provided in the same form as the previous examples but is cut off at the point where the label for the sought observation
 is to be predicted. With the previous examples, the model is now more likely to predict a label of code:`entailment`, :code:`neutral` or :code:`contradiction`.
+
+
+The prompt for IMDB is defined as follows:
+
+.. code-block:: python
+
+    from promptzl import FnVbzPair, Vbz
+
+    prompt = FnVbzPair(
+        lambda e: f"""
+        Movie Review Classification into categories 'positive' or 'negative'.
+
+        '{e['text']}'='""",
+        Vbz({0: ["negative"], 1: ["positive"]})
+    )
+
+.. note::
+    It is also possible to use *Prompt-Element-Objects* (see :ref:`intuition-and-definition`) or provide a list of label words to the :code:`Vbz` object.
+    However, using a dictionary allows us to return the dictionary keys to the predictions list.
 
 
 Loading the Model
@@ -156,11 +167,81 @@ The arguments :code:`tokenizer_args` and :code:`model_args` are used to pass add
 Using a Fine-Tuned/Chatbot Model
 --------------------------------
 
+While the previous examples require few labeled instances to yield satisfying results, we can even leverage
+fine-tuned models to achieve better results **without any labeled data**.
+
 As mentioned previously, many fine-tuned models are also available that are tuned to act like assistants similar to ChatGPT. These models
-can also be used but require a different approach. Firstly, it is strongly recommended to explore the model's behavior given a prompt. In
+can also be used but require a different approach. Here, the model isusually a helpfull assistant 
+so we can use the prompt to instruct and explan the task to the model. Continueing with the IMDB sentiment classification task,
+we can define a prompt as follows:
+
+.. code-block:: python
+    
+    from promptzl import FnVbzPair, Vbz
+
+    prompt = FnVbzPair(
+        lambda e: f"""
+        Movie Review Classification into categories 'positive' or 'negative'.
+
+        If the review has clearly positive sentiment, answer with 'positive'. If the review has clearly negative sentiment, answer with 'negative'.
+        I give you a movie review and you tell me if it is positive or negative. Here is the review:
+        
+        '{e}'
+
+        Answer only with positive or negative in the form: 'Your answer:\n\npositive, because ...' or 'Your answer:\n\nnegative, because...'
+        Do not elaborate! Your answer:""",
+        Vbz({0: ["negative"], 1: ["positive"]})
+    )
+
+Here, the model is explicitly explained what to do and how to answer in the correct format.
+We can now initialize the model and classify the dataset as shown below.
+
+.. code-block:: python
+
+    from promptzl import CausalLM4Classification
+    import torch
+
+    from transformers import BitsAndBytesConfig
+
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_use_double_quant=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16)
+
+    model = CausalLM4Classification(
+        'HuggingFaceH4/zephyr-7b-beta',
+        prompt=prompt,
+        model_args = {"device_map":'auto', "quantization_config":bnb_config}
+    )
+
+    output = model.classify(dataset, batch_size=8, show_progress_bar=True)
+
+Evaluating the output yields:
+
+.. code-block:: python
+
+    from sklearn.metrics import accuracy_score
+
+    accuracy_score(dataset['label'], output.predictions)
+    0.983
+
+As the model is trained to produce a specific output, :ref:`calibration` might be useful here:
+
+.. code-block:: python
+
+    accuracy_score(dataset['label'], model.calibrate_output(output).predictions)
+    0.99
+
+**This result was achieved without any labeled data** but it must also be considered that this is only
+a binary classification task. Multiclass tasks might be more difficult to approach.
+
+
+
+Additionally, it is also recommended to explore the model's behavior given a prompt. In
 this example, we will use the :code:`HuggingFaceH4/zephyr-7b-beta` model.
 
-As the objective is not to predict the next token but to be a helpful assistant, we first need to examine the behavior when generating text.
+As the objective is not just to predict the next token but to be a helpful assistant, we first need to examine the behavior when generating text.
 We can do this quite easily by using the :code:`pipeline` method of the transformers library.
 
 .. code-block:: python
