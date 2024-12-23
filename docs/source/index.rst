@@ -65,3 +65,11 @@ Tutorials
    tutorial_init
    tutorial_causal_lms.rst
    tutorial_masked_lms.rst
+
+Benchmark
+---------
+
+.. toctree::
+   :maxdepth: 1
+
+   benchmark
