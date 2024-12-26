@@ -18,7 +18,7 @@ In the following, we will see an example of how a base model without fine-tuning
 .. code-block:: python
 
     from datasets import load_dataset
-    from promptzl import *
+    from promptzl import FnVbzPair, Vbz, CausalLM4Classification
     from sklearn.metrics import accuracy_score
 
     dataset = load_dataset("mteb/amazon_polarity")['test'].select(range(1000))
@@ -27,10 +27,15 @@ In the following, we will see an example of how a base model without fine-tuning
         f"""
         Product Review Classification into categories 'positive' or 'negative'.
 
-        'Good value! It is a great product'='positive'
-        'Book was boring. Didn't like it. Cannot recommend!'='negative'
+        'Good value
+        
+        I love Curve and this large bottle offers great value. Highly recommended.'='positive'
+        'Edge of Danger
+        
+        1 star - only because that's the minimum. This book shows that famous people can publish anything.'='negative'
 
-        '{e['text']}'=""", Vbz({0: ["negative"], 1: ["positive"]}))
+        '{e['text']}'=""",
+        Vbz({0: ["negative"], 1: ["positive"]}))
 
     model = CausalLM4Classification(
         'HuggingFaceTB/SmolLM2-1.7B',
@@ -55,7 +60,7 @@ model's context length.
 .. code-block:: python
 
     from datasets import load_dataset
-    from promptzl import *
+    from promptzl import Key, Txt, Vbz, MaskedLM4Classification
     from sklearn.metrics import accuracy_score
 
     dataset = load_dataset("SetFit/ag_news")['test']

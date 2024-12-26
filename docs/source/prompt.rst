@@ -31,7 +31,7 @@ straightforward but might lead to errors more easily.
 .. _functoin_verbalizer_pair:
 
 *Function-Verbalizer-Pair Class* (FnVbzPair)
---------------------------------------
+--------------------------------------------
 
 :class:`~promptzl.FnVbzPair` stands for the function-verbalizer-pair. In contrast to *prompt-element-objects*, a function constructing the prompt is directly defined with a verbalizer.
 e.g., :code:`FnVbzPair(lambda x: f"{x['text']}\n", {0: ["World"], 1: ["Sports"], 2: ["Business"], 3: ["Tech"]})`.
@@ -75,7 +75,7 @@ key objects are also represented as follows:
       Key() +
       Txt("\n\nIs this review negative or positive?") +
       Vbz([['Negative','negative'], ['Positive', 'positive']]))
-   prompt ==\
+   prompt
    """I give you a movie review. Classify the sentiment! Here is the review:
 
    <text>
