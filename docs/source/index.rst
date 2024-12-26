@@ -31,12 +31,12 @@ How does it Work?
 Language models predict a token given a specific context by calculating a distribution over the vocabulary.
 When classifying sentences, only a few tokens are relevant for the classification task. Extracting the tokens'
 logits and forming a distribution over them allows turning the LLM into a classifier. This is what Promptzl does.
-A simple example can be found in:ref:`tutorial_tldr`.
+A simple example can be found in :ref:`tutorial_tldr`.
 
 
-.. image:: _static/carbon_promptzl.png
-   :align: center
-   :scale: 50 %
+.. .. image:: _static/carbon_promptzl.png
+..    :align: center
+..    :scale: 50 %
 
 Background
 ----------
@@ -65,11 +65,3 @@ Tutorials
    tutorial_init
    tutorial_causal_lms.rst
    tutorial_masked_lms.rst
-
-Benchmark
----------
-
-.. toctree::
-   :maxdepth: 1
-
-   benchmark

@@ -167,13 +167,12 @@ The arguments :code:`tokenizer_args` and :code:`model_args` are used to pass add
 Using a Fine-Tuned/Chatbot Model
 --------------------------------
 
-While the previous examples require few labeled instances to yield satisfying results, we can even leverage
-fine-tuned models to achieve better results **without any labeled data**.
+While the previous examples require few labeled instances to yield satisfying results, we can even leverage fine-tuned models to achieve
+better results **without any labeled data**.
 
 As mentioned previously, many fine-tuned models are also available that are tuned to act like assistants similar to ChatGPT. These models
-can also be used but require a different approach. Here, the model isusually a helpfull assistant 
-so we can use the prompt to instruct and explan the task to the model. Continueing with the IMDB sentiment classification task,
-we can define a prompt as follows:
+can also be used but require a different approach. Here, the model is usually a helpful assistant, so we can use the prompt to instruct and
+explain the task to the model. Continuing with the IMDB sentiment classification task, we can define a prompt as follows:
 
 .. code-block:: python
     
@@ -193,8 +192,8 @@ we can define a prompt as follows:
         Vbz({0: ["negative"], 1: ["positive"]})
     )
 
-Here, the model is explicitly explained what to do and how to answer in the correct format.
-We can now initialize the model and classify the dataset as shown below.
+Here, we explicitly explain the model, what to do, and how to answer in the correct format. We can now initialize the
+model and classify the dataset as shown below.
 
 .. code-block:: python
 
@@ -226,63 +225,12 @@ Evaluating the output yields:
     accuracy_score(dataset['label'], output.predictions)
     0.983
 
-As the model is trained to produce a specific output, :ref:`calibration` might be useful here:
+As the model is trained to produce a specific output, :ref:`calibration` might be helpful here:
 
 .. code-block:: python
 
     accuracy_score(dataset['label'], model.calibrate_output(output).predictions)
     0.99
 
-**This result was achieved without any labeled data** but it must also be considered that this is only
-a binary classification task. Multiclass tasks might be more difficult to approach.
-
-
-
-Additionally, it is also recommended to explore the model's behavior given a prompt. In
-this example, we will use the :code:`HuggingFaceH4/zephyr-7b-beta` model.
-
-As the objective is not just to predict the next token but to be a helpful assistant, we first need to examine the behavior when generating text.
-We can do this quite easily by using the :code:`pipeline` method of the transformers library.
-
-.. code-block:: python
-
-    from transformers import pipeline
-
-    model = pipeline("text-generation", model="HuggingFaceH4/zephyr-7b-beta")
-
-    model(dataset[0]['text'] + "Is this a positive or negative review? Answer with 'positive' or 'negative'.")
-
-
-Producing multiple outputs, we will see that the model is tuned to predict first two newline characters, so we need to adapt our prompt accordingly:
-
-.. code-block:: python
-
-    prompt = FnVbzPair(
-        lambda e: f"""
-
-        Product Review Classification into categories 'positive' or 'negative'.
-
-        {e['text']}
-
-        Is this a positive or negative review? Answer with 'positive' or 'negative'.\n\n""",
-        Vbz({0: ["negative"], 1: ["positive"]})
-    )
-
-and initialize the model:
-
-.. code-block:: python
-
-    model = CausalLM4Classification(
-        'HuggingFaceH4/zephyr-7b-beta',
-        prompt=prompt
-    )
-
-Now, we can again classify the dataset and evaluate the predictions as shown above.
-
-.. code-block:: python
-
-    from sklearn.metrics import accuracy_score
-
-    output = model.classify(dataset)
-
-    accuracy_score(dataset['label'], output.predictions)
+**This result was achieved without any labeled data**, but it must also be considered that this is only a binary classification
+task. Multiclass tasks might be more challenging to approach.
