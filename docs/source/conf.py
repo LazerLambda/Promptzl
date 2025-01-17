@@ -25,6 +25,8 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.mathjax',
+    'sphinxcontrib.jquery',
+    'sphinx_datatables',
     ]
 
 templates_path = ['_templates']
@@ -48,3 +50,12 @@ autodoc_mock_imports = [
 ]
 
 html_title = "Pr🥨mptzl"
+
+# Data-Tables config
+datatables_version = "1.13.4"
+
+datatables_class = "sphinx-datatable"
+
+# any custom options to pass to the DataTables constructor. Note that any
+# options you set are used for all DataTables.
+datatables_options = {}
